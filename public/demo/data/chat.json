@@ -1,0 +1,124 @@
+{
+    "data": [
+        {
+            "id": 1,
+            "name": "Juan Pérez",
+            "image": "ionibowcher.png",
+            "status": "active",
+            "messages": [
+                {
+                    "text": "Hola, ¿cómo estás?",
+                    "ownerId": 1,
+                    "createdAt": 1652646338240
+                },
+                {
+                    "text": "Recuerda que tenemos la reunión a las 3 pm.",
+                    "ownerId": 1,
+                    "createdAt": 1652646368718
+                },
+                {
+                    "text": "Perfecto, ahí estaré.",
+                    "ownerId": 123,
+                    "createdAt": 1652646368718
+                }
+            ],
+            "lastSeen": "2d"
+        },
+        {
+            "id": 2,
+            "name": "Ramiro Gómez",
+            "image": "stephenshaw.png",
+            "status": "away",
+            "messages": [
+                {
+                    "text": "¿Ya revisaste los documentos?",
+                    "ownerId": 1,
+                    "createdAt": 1652646338240
+                },
+                {
+                    "text": "Sí, todo está en orden.",
+                    "ownerId": 123,
+                    "createdAt": 1652646368718
+                },
+                {
+                    "text": "Perfecto, gracias.",
+                    "ownerId": 1,
+                    "createdAt": 1652646368718
+                }
+            ],
+            "lastSeen": "2d"
+        },
+        {
+            "id": 3,
+            "name": "Sofía Rodríguez",
+            "image": "xuxuefeng.png",
+            "status": "busy",
+            "messages": [
+                {
+                    "text": "¿Puedes enviarme el informe?",
+                    "ownerId": 1,
+                    "createdAt": 1652646338240
+                },
+                {
+                    "text": "Claro, te lo envío en un momento.",
+                    "ownerId": 123,
+                    "createdAt": 1652646368718
+                },
+                {
+                    "text": "Gracias, Sofía.",
+                    "ownerId": 1,
+                    "createdAt": 1652646368718
+                }
+            ],
+            "lastSeen": "2d"
+        },
+        {
+            "id": 4,
+            "name": "Carlos Hernández",
+            "image": "ivanmagalhaes.png",
+            "status": "active",
+            "messages": [
+                {
+                    "text": "¿Vamos a almorzar juntos hoy?",
+                    "ownerId": 1,
+                    "createdAt": 1652646338240
+                },
+                {
+                    "text": "Sí, paso por tu oficina a las 12:30.",
+                    "ownerId": 123,
+                    "createdAt": 1652646368718
+                },
+                {
+                    "text": "Listo, ahí te espero.",
+                    "ownerId": 1,
+                    "createdAt": 1652646368718
+                }
+            ],
+            "lastSeen": "2d"
+        },
+        {
+            "id": 5,
+            "name": "Luisa Martínez",
+            "image": "onyamalimba.png",
+            "status": "busy",
+            "messages": [
+                {
+                    "text": "El cliente confirmó la reunión para mañana.",
+                    "ownerId": 1,
+                    "createdAt": 1652646338240
+                },
+                {
+                    "text": "Perfecto, prepararé los documentos necesarios.",
+                    "ownerId": 123,
+                    "createdAt": 1652646368718
+                },
+                {
+                    "text": "Gracias, Luisa.",
+                    "ownerId": 1,
+                    "createdAt": 1652646368718
+                }
+            ],
+            "lastSeen": "2d"
+        }
+    ]
+}

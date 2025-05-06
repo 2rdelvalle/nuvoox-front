@@ -40,6 +40,8 @@ const ChatSidebar = () => {
 
   // HOOKS
   const [typeMenu, setTypeMenu] = useState<string>("all")
+  const [userName, setUserName] = useState<string>("")
+  const [userAvatar, setUserAvatar] = useState<string>("")
 
   // trae los numeros de la empresa que maneja el ajente
   const { data: numbersOfMaintance } = useSWRFetch<NumbersOfMaintanceCaratule[]>(`/users/numbers/${userStore.userId}`)
@@ -94,6 +96,36 @@ const ChatSidebar = () => {
 
   useInitializeUserFromToken()
 
+  // Efecto para obtener el nombre de usuario del localStorage
+  useEffect(() => {
+    // Intentar obtener el nombre de usuario del localStorage
+    const getUserInfo = () => {
+      try {
+        // Priorizar el nombre del usuario desde el store (que viene del token JWT)
+        if (userStore && userStore.name) {
+          setUserName(userStore.name);
+          return;
+        }
+        
+        // Si no está en el store, intentar obtenerlo del localStorage
+        const userDataString = localStorage.getItem('userData');
+        if (userDataString) {
+          const userData = JSON.parse(userDataString);
+          setUserName(userData.name || 'Usuario');
+          setUserAvatar(userData.avatar || '');
+        } else {
+          // Fallback a un valor por defecto
+          setUserName('Usuario');
+        }
+      } catch (error) {
+        console.error('Error al obtener datos del usuario:', error);
+        setUserName('Usuario');
+      }
+    };
+
+    getUserInfo();
+  }, [userStore]);
+
   useEffect(() => {
     resetAll()
   }, [])
@@ -105,9 +137,45 @@ const ChatSidebar = () => {
           transform: scale(1.1);
           transition: transform 0.2s;
         }
+        .agent-profile {
+          padding: 12px 12px 8px 12px;
+          margin-bottom: 8px;
+          border-bottom: 1px solid var(--surface-border);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .agent-info {
+          display: flex;
+          flex-direction: column;
+        }
+        .agent-name {
+          font-weight: 600;
+          font-size: 1rem;
+        }
+        .agent-status {
+          font-size: 0.8rem;
+          color: var(--text-color-secondary);
+        }
       `}</style>
       <BlockUI blocked={loading} fullScreen={true} />
-      <div className="flex flex-column align-items-center border-bottom-1 surface-border p-6">
+      
+      {/* Fila del Agente con Avatar */}
+      <div className="agent-profile">
+        <Avatar 
+          image={userAvatar || undefined} 
+          icon={!userAvatar ? "pi pi-user" : undefined} 
+          size="large" 
+          shape="circle"
+          style={{ backgroundColor: !userAvatar ? 'var(--primary-color)' : undefined, color: !userAvatar ? '#ffffff' : undefined }}
+        />
+        <div className="agent-info">
+          <span className="agent-name">{userName}</span>
+          <span className="agent-status">En línea</span>
+        </div>
+      </div>
+      
+      <div className="flex flex-column align-items-center border-bottom-1 surface-border p-3 pt-2">
         <div className="flex gap-4 justify-content-center">
           {[
             { label: "Disponibles", icon: "pi pi-check", valueBadge: conversations.length },

@@ -19,6 +19,8 @@ import SidebarConversation from "./sidebarConversation/sidebar-conversation"
 import { useChatStore } from "./store/chat-store"
 import { useMessageStore } from "./store/message-store"
 import { ConfirmDialog } from "primereact/confirmdialog"
+import { axiosInstance } from "@/shared/instances/axios-instance"
+import { MessageModel } from "@/shared/models/conversation/messages.model"
 
 const NewNumber = dynamic(() => import("./modal/new-number"), { ssr: false })
 const DialogTransfer = dynamic(() => import("./dialogTransfer/dialog-transfer"), { ssr: false })
@@ -44,16 +46,26 @@ const ChatSidebar = () => {
   const [userAvatar, setUserAvatar] = useState<string>("")
 
   // trae los numeros de la empresa que maneja el ajente
-  const { data: numbersOfMaintance } = useSWRFetch<NumbersOfMaintanceCaratule[]>(`/users/numbers/${userStore.userId}`)
+  const { data: numbersOfMaintance } = useSWRFetch<NumbersOfMaintanceCaratule[]>(
+    userStore && userStore.userId ? `/users/numbers/${userStore.userId}` : ""
+  )
 
   const { fetchData, data: conversationsFetch, loading } = useSWRRequest<Conversation[]>()
   const { fetchData: fetchDataConversationsNotAssigned, data: conversationsNotAssignedFetch } =
     useSWRRequest<Conversation[]>()
 
   async function getDataConversation (numberToFind? : string) {
+    if (!userStore || !userStore.userId) {
+      console.warn('No se puede obtener datos de conversación: userId no disponible')
+      return
+    }
     fetchData(`/conversation/getConversationsCaratule/${userStore.userId}/${numberToFind}`)
   }
   async function getDataConversationNotAssigned (numberToFind? : string) {
+    if (!numberToFind) {
+      console.warn('No se puede obtener datos de conversación no asignada: número no disponible')
+      return
+    }
     fetchDataConversationsNotAssigned(`/conversation/getConversationsCaratuleNotAssigned/${numberToFind}`)
   }
 
@@ -66,14 +78,14 @@ const ChatSidebar = () => {
 
   // Efecto para disparar la consulta al cambiar el número seleccionado
   useEffect(() => {
-    if (selectedNumber?.number) {
+    if (selectedNumber?.number && userStore && userStore.userId) {
       // Limpia las conversaciones anteriores para evitar mezclar datos
       resetAll()
       resetAllMessages()
       setActualNumberOfMaintanceSelected(selectedNumber)
       fetchDataConversationAll(selectedNumber.number)
     }
-  }, [selectedNumber?.number])
+  }, [selectedNumber?.number, userStore?.userId])
 
   const fetchDataConversationAll = async (param : string) => {
     if (param) {
@@ -94,9 +106,18 @@ const ChatSidebar = () => {
   }, [conversationsFetch, conversationsNotAssignedFetch]
   )
 
+  // Inicializar usuario desde token (setea el userId en el store)
   useInitializeUserFromToken()
 
   // Efecto para obtener el nombre de usuario del localStorage
+  // Efecto para cargar datos iniciales cuando el userId está disponible
+  useEffect(() => {
+    if (userStore && userStore.userId) {
+      console.log('userId disponible, cargando datos iniciales:', userStore.userId)
+      // Aquí podríamos cargar datos iniciales si es necesario
+    }
+  }, [userStore?.userId])
+
   useEffect(() => {
     // Intentar obtener el nombre de usuario del localStorage
     const getUserInfo = () => {
@@ -614,6 +635,60 @@ const ChatSidebar = () => {
 }
 
 const Chat: Page = () => {
+  // Acceder al store para obtener las conversaciones y mensajes
+  const { conversations } = useChatStore();
+  const { setMessages } = useMessageStore();
+  
+  /**
+   * Función para cargar los mensajes de todas las conversaciones al inicio
+   * Esto permite mostrar correctamente la hora del último mensaje en todas las tarjetas
+   */
+  const precargarMensajes = async () => {
+    try {
+      if (!conversations || conversations.length === 0) return;
+      
+      // Para cada conversación, obtener sus mensajes
+      const allMessages: MessageModel[] = [];
+      
+      // Crear un array de promesas para cargar mensajes en paralelo
+      const promesas = conversations.map(async (conversacion) => {
+        if (!conversacion.conversationid) return;
+        
+        try {
+          const response = await axiosInstance.post("/message/getMessages", {
+            conversationId: conversacion.conversationid
+          });
+          
+          if (response.data && Array.isArray(response.data)) {
+            // Agregar los mensajes al array global
+            allMessages.push(...response.data);
+          }
+        } catch (error) {
+          console.error(`Error al cargar mensajes para conversación ${conversacion.conversationid}:`, error);
+        }
+      });
+      
+      // Esperar a que todas las promesas se resuelvan
+      await Promise.all(promesas);
+      
+      // Actualizar el store con todos los mensajes
+      if (allMessages.length > 0) {
+        console.log(`Cargados ${allMessages.length} mensajes para ${conversations.length} conversaciones`);
+        setMessages(allMessages);
+      }
+    } catch (error) {
+      console.error("Error al precargar mensajes:", error);
+    }
+  };
+  
+  // Efecto para cargar los mensajes cuando las conversaciones estén disponibles
+  React.useEffect(() => {
+    if (conversations && conversations.length > 0) {
+      console.log("Precargando mensajes para todas las conversaciones...");
+      precargarMensajes();
+    }
+  }, [conversations]);
+
   const { activeConversation } = useChatStore()
 
   // Efecto para aplicar estilos específicos para esta vista

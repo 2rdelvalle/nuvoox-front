@@ -4,25 +4,31 @@ import { usePostRequest } from "@/shared/customHooks/usePostRequestResult"
 import { useFetch } from "@/shared/hooks/useFetch"
 import { usePush } from "@/shared/hooks/usePush"
 import useRealtimeMessages from "@/shared/hooks/useRealtimeMessages"
+import { confirmDialog } from "primereact/confirmdialog"
 import { MESSAGE_OWNER, MESSAGE_TYPE, MessageModel } from "@/shared/models/conversation/messages.model"
 import {
   TemplateService as _template
-} from "@/shared/services"
+}
+from "@/shared/services"
 import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/sessionUtils"
 import { Button } from "primereact/button"
 import { Dropdown } from "primereact/dropdown"
 import { InputText } from "primereact/inputtext"
 import { Message } from "primereact/message"
 import { OverlayPanel } from "primereact/overlaypanel"
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState, useMemo } from "react"
 import { sendPlainMessage, sendTemplateMessage } from "../service/chatServices"
 import { useChatStore } from "../store/chat-store"
 import { useMessageStore } from "../store/message-store"
+
 export const ChatBox = (props: any) => {
   const { showError, showSuccess } = useToast()
   const [textContent, setTextContent] = useState("")
+  const [searchText, setSearchText] = useState("") // Estado para almacenar el texto de búsqueda
   const op = useRef<OverlayPanel>(null)
   const templateOp = useRef<OverlayPanel>(null) // NUEVO: ref para overlay de plantillas
+  const quickResponseOp = useRef<OverlayPanel>(null) // Ref para overlay de respuestas rápidas
+  const searchOp = useRef<OverlayPanel>(null) // Ref para overlay de búsqueda
   const chatWindow = useRef<HTMLDivElement>(null)
   const token = getCookieToken()
   const dataToken = token ? getDataFromToken(token) : null
@@ -154,10 +160,52 @@ export const ChatBox = (props: any) => {
     return `${hours}:${minutes.toString().padStart(2, "0")}`
   }
 
-  const { setDialogTransfer } = useChatStore()
+  const { setDialogTransfer, setActiveConversation, deleteConversation } = useChatStore()
   // Abre el diálogo para transferir el chat
-  function transferChat () {
+  const transferChat = () => {
     setDialogTransfer(true)
+  }
+
+  /**
+   * Finaliza la conversación actual
+   * @description Cierra la conversación activa y la elimina de la lista de conversaciones activas
+   */
+  const finishConversation = async () => {
+    try {
+      if (!activeConversation) {
+        showError("No hay una conversación activa para finalizar")
+        return
+      }
+      
+      // Mostrar diálogo de confirmación antes de finalizar
+      confirmDialog({
+        message: '¿Estás seguro de que deseas finalizar esta conversación?',
+        header: 'Confirmación',
+        icon: 'pi pi-exclamation-triangle',
+        acceptLabel: 'Sí, finalizar',
+        rejectLabel: 'No, cancelar',
+        accept: async () => {
+          try {
+            // Aquí implementar la llamada al endpoint para finalizar conversación
+            // Ejemplo: await postData('/conversation/finish', { conversationId: activeConversation.conversationid })
+            
+            // Por ahora, simulamos el proceso eliminando la conversación del store
+            deleteConversation(activeConversation as any)
+            
+            // Resetear la conversación activa
+            setActiveConversation(null as any)
+            
+            showSuccess("Conversación finalizada correctamente")
+          } catch (error) {
+            console.error('Error al finalizar la conversación:', error)
+            showError("Error al finalizar la conversación")
+          }
+        },
+      })
+    } catch (error) {
+      console.error('Error al intentar finalizar la conversación:', error)
+      showError("Ocurrió un error al intentar finalizar la conversación")
+    }
   }
 
   // Efecto para mantener el scroll en la parte inferior al insertar nuevos nodos
@@ -197,6 +245,21 @@ export const ChatBox = (props: any) => {
     }
   }, [messagesStorage])
 
+  // Lista de respuestas rápidas predefinidas
+  const quickResponses = [
+    "Hola, ¿en qué puedo ayudarte?",
+    "Gracias por contactarnos.",
+    "¿Podrías proporcionarnos más detalles?",
+    "Estaremos en contacto pronto.",
+    "Lamentamos los inconvenientes ocasionados."
+  ]
+
+  // Función para seleccionar una respuesta rápida
+  const onQuickResponseSelect = (response: string) => {
+    setTextContent(response)
+    quickResponseOp.current?.hide()
+  }
+
   return (
     <React.Fragment>
       <div className="flex flex-column h-full">
@@ -215,12 +278,25 @@ export const ChatBox = (props: any) => {
           </div>
           <div className="flex align-items-center ml-auto">
             <Button
+              onClick={(event) => searchOp.current?.toggle(event)}
+              type="button"
+              icon="pi pi-search"
+              rounded
+              outlined
+              severity="secondary"
+              className="mr-2"
+              tooltip="Buscar mensajes"
+              tooltipOptions={{ position: 'top' }}
+            ></Button>
+            <Button
               onClick={() => transferChat()}
               type="button"
               icon="pi pi-sign-out"
               rounded
               outlined
               severity="secondary"
+              tooltip="Transferir chat"
+              tooltipOptions={{ position: 'top' }}
             ></Button>
           </div>
           <div>
@@ -232,7 +308,10 @@ export const ChatBox = (props: any) => {
           className="p-3 md:px-4 lg:px-6 lg:py-4 mt-2 overflow-y-auto"
           style={{ maxHeight: "53vh" }}
         >
-          {messagesStorage && messagesStorage.map((message : MessageModel, i : number) => {
+          {/* Filtramos los mensajes si hay un término de búsqueda */}
+          {messagesStorage && messagesStorage
+            .filter(message => !searchText || message.content.toLowerCase().includes(searchText.toLowerCase()))
+            .map((message : MessageModel, i : number) => {
             return (
               <div key={i}>
                 {message.owner !== MESSAGE_OWNER.CLIENT
@@ -293,6 +372,21 @@ export const ChatBox = (props: any) => {
         </div>
         <div className="p-3 md:p-4 lg:p-6 flex flex-column sm:flex-row
         align-items-center mt-auto border-top-1 surface-border gap-3">
+          <Button
+            className="justify-content-center text-xl"
+            severity="secondary"
+            onClick={(event) => op.current?.toggle(event)}
+          >
+            😀
+          </Button>
+          <Button
+            className="justify-content-center"
+            severity="secondary"
+            icon="pi pi-bolt"
+            onClick={(event) => quickResponseOp.current?.toggle(event)}
+            tooltip="Respuestas rápidas"
+            tooltipOptions={{ position: 'top' }}
+          />
           <InputText
             id="message"
             type="text"
@@ -303,13 +397,6 @@ export const ChatBox = (props: any) => {
             onKeyDown={handleInputTextKeyDown}
           />
           <div className="flex w-full sm:w-auto gap-3">
-            <Button
-              className="w-full sm:w-auto justify-content-center text-xl"
-              severity="secondary"
-              onClick={(event) => op.current?.toggle(event)}
-            >
-              😀
-            </Button>
             <Button
               label="Enviar"
               icon="pi pi-send"
@@ -322,6 +409,17 @@ export const ChatBox = (props: any) => {
               type="button"
               className="w-full sm:w-auto"
               onClick={(event) => templateOp.current?.toggle(event)}></Button>
+            <Button
+              label="Finalizar"
+              icon="pi pi-phone-slash"
+              type="button"
+              severity="danger"
+              outlined
+              className="w-full sm:w-auto"
+              onClick={finishConversation}
+              tooltip="Finalizar conversación"
+              tooltipOptions={{ position: 'top' }}
+              disabled={!activeConversation}></Button>
           </div>
         </div>
       </div>
@@ -365,6 +463,52 @@ export const ChatBox = (props: any) => {
             className="p-button p-mt-2 ml-2"
             onClick={onSendTemplateMessage}
             ></Button>
+        </div>
+      </OverlayPanel>
+      <OverlayPanel ref={quickResponseOp} className="w-full sm:w-30rem">
+        <div className="p-3">
+          <h5 className="m-0 mb-3">Respuestas rápidas</h5>
+          <div className="flex flex-column gap-2">
+            {quickResponses.map((response, i) => (
+              <Button
+                key={i}
+                onClick={() => onQuickResponseSelect(response)}
+                label={response}
+                text
+                className="text-left p-2 hover:surface-200 border-round"
+              />
+            ))}
+          </div>
+        </div>
+      </OverlayPanel>
+      
+      {/* Panel de búsqueda */}
+      <OverlayPanel ref={searchOp} className="p-0 w-full sm:w-25rem">
+        <div className="p-3">
+          <h5 className="mt-0 mb-3">Buscar mensajes</h5>
+          <div className="p-inputgroup">
+            <InputText 
+              placeholder="Escribe para buscar..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="w-full"
+            />
+            <Button 
+              icon="pi pi-times" 
+              className="p-button-danger" 
+              onClick={() => setSearchText('')}
+              disabled={!searchText}
+              tooltip="Limpiar búsqueda"
+              tooltipOptions={{ position: 'top' }}
+            />
+          </div>
+          {searchText && (
+            <small className="block text-600 mt-2">
+              {messagesStorage.filter(msg => 
+                msg.content.toLowerCase().includes(searchText.toLowerCase())
+              ).length} resultado(s) encontrado(s)
+            </small>
+          )}
         </div>
       </OverlayPanel>
     </React.Fragment>

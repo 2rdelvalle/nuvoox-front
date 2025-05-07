@@ -104,6 +104,8 @@ const ChatSidebar = () => {
         // Priorizar el nombre del usuario desde el store (que viene del token JWT)
         if (userStore && userStore.name) {
           setUserName(userStore.name);
+          // No hay avatar en UserCaratule, usaremos el ícono genérico
+          setUserAvatar("");
           return;
         }
         
@@ -112,14 +114,17 @@ const ChatSidebar = () => {
         if (userDataString) {
           const userData = JSON.parse(userDataString);
           setUserName(userData.name || 'Usuario');
-          setUserAvatar(userData.avatar || '');
+          // Solo establecemos el avatar si está disponible
+          setUserAvatar(userData.avatar || "");
         } else {
           // Fallback a un valor por defecto
           setUserName('Usuario');
+          setUserAvatar("");
         }
       } catch (error) {
         console.error('Error al obtener datos del usuario:', error);
         setUserName('Usuario');
+        setUserAvatar("");
       }
     };
 
@@ -130,52 +135,342 @@ const ChatSidebar = () => {
     resetAll()
   }, [])
 
+  useEffect(() => {
+    // Seleccionamos los elementos del DOM que necesitamos modificar
+    const layout = document.querySelector('.layout') as HTMLElement;
+    const sidebar = document.querySelector('.sidebar') as HTMLElement;
+    const layoutContainer = document.querySelector('.layout-container') as HTMLElement;
+    const contentWrapper = document.querySelector('.layout-content-wrapper') as HTMLElement;
+    const layoutContent = document.querySelector('.layout-content') as HTMLElement;
+    
+    // Definimos el ancho del sidebar y el padding adicional
+    const sidebarWidth = 280; // en píxeles
+    const additionalPadding = 20; // padding adicional para separar más el contenido
+    const totalOffset = sidebarWidth + additionalPadding;
+    
+    if (layout && sidebar && layoutContainer && contentWrapper && layoutContent) {
+      // Configuramos el estilo del layout y sidebar
+      layout.style.paddingLeft = '0';
+      
+      // Configuramos el sidebar
+      sidebar.style.position = 'fixed';
+      sidebar.style.borderRight = 'none';
+      sidebar.style.boxShadow = 'none';
+      sidebar.style.width = `${sidebarWidth}px`;
+      sidebar.style.zIndex = '999';
+      
+      // Ajustamos el contenedor principal para que no sea cubierto por el sidebar
+      // Añadimos padding adicional para moverlo más a la derecha
+      contentWrapper.style.marginLeft = `${totalOffset}px`;
+      contentWrapper.style.width = `calc(100% - ${totalOffset}px)`;
+      contentWrapper.style.position = 'relative';
+      contentWrapper.style.zIndex = '1000';
+      
+      // Ajustamos el contenido principal
+      layoutContent.style.width = '100%';
+      layoutContent.style.marginLeft = '0';
+      
+      // Contraemos el sidebar por defecto (modo "reveal")
+      layoutContainer.classList.remove('layout-sidebar-anchored');
+      
+      // Forzamos el modo "static" para el sidebar en lugar de "reveal"
+      // Esto asegura que el sidebar esté siempre visible
+      if (!layoutContainer.classList.contains('layout-static')) {
+        layoutContainer.classList.remove('layout-reveal');
+        layoutContainer.classList.remove('layout-overlay');
+        layoutContainer.classList.remove('layout-slim');
+        layoutContainer.classList.remove('layout-slim-plus');
+        layoutContainer.classList.remove('layout-horizontal');
+        layoutContainer.classList.remove('layout-drawer');
+        layoutContainer.classList.add('layout-static');
+      }
+      
+      // Eliminamos el efecto hover del menú
+      const menuItems = document.querySelectorAll('.layout-menu-container .layout-menuitem-root-text, .layout-menu-container a');
+      menuItems.forEach((item: Element) => {
+        if (item instanceof HTMLElement) {
+          item.style.transition = 'none';
+          
+          // Eliminamos los eventos hover
+          item.onmouseenter = null;
+          item.onmouseleave = null;
+        }
+      });
+      
+      // Añadimos una clase específica para esta vista
+      document.body.classList.add('whatsapp-view');
+      
+      // Guardamos el estado original para restaurarlo después
+      const originalMode = layoutContainer.getAttribute('data-original-mode') || 'reveal';
+      if (!layoutContainer.getAttribute('data-original-mode')) {
+        layoutContainer.setAttribute('data-original-mode', originalMode);
+      }
+      
+      // Aplicamos estilos adicionales a elementos específicos que podrían estar siendo tapados
+      const agentInfoSection = document.querySelector('.agent-profile') as HTMLElement;
+      const filterButtons = document.querySelector('.filter-buttons') as HTMLElement;
+      
+      if (agentInfoSection) {
+        agentInfoSection.style.paddingLeft = '20px';
+        agentInfoSection.style.boxSizing = 'border-box';
+      }
+      
+      if (filterButtons) {
+        filterButtons.style.paddingLeft = '20px';
+        filterButtons.style.boxSizing = 'border-box';
+      }
+    }
+    
+    return () => {
+      if (layout && sidebar) {
+        const layoutContainer = document.querySelector('.layout-container') as HTMLElement;
+        const contentWrapper = document.querySelector('.layout-content-wrapper') as HTMLElement;
+        const layoutContent = document.querySelector('.layout-content') as HTMLElement;
+        
+        // Restauramos los estilos al desmontar el componente
+        layout.style.paddingLeft = '';
+        sidebar.style.position = '';
+        sidebar.style.borderRight = '';
+        sidebar.style.boxShadow = '';
+        sidebar.style.width = '';
+        sidebar.style.zIndex = '';
+        
+        if (contentWrapper) {
+          contentWrapper.style.marginLeft = '';
+          contentWrapper.style.width = '';
+          contentWrapper.style.position = '';
+          contentWrapper.style.zIndex = '';
+        }
+        
+        if (layoutContent) {
+          layoutContent.style.width = '';
+          layoutContent.style.marginLeft = '';
+        }
+        
+        // Restauramos los estilos de elementos específicos
+        const agentInfoSection = document.querySelector('.agent-profile') as HTMLElement;
+        const filterButtons = document.querySelector('.filter-buttons') as HTMLElement;
+        
+        if (agentInfoSection) {
+          agentInfoSection.style.paddingLeft = '';
+          agentInfoSection.style.boxSizing = '';
+        }
+        
+        if (filterButtons) {
+          filterButtons.style.paddingLeft = '';
+          filterButtons.style.boxSizing = '';
+        }
+        
+        // Restauramos los eventos hover del menú
+        const menuItems = document.querySelectorAll('.layout-menu-container .layout-menuitem-root-text, .layout-menu-container a');
+        menuItems.forEach((item: Element) => {
+          if (item instanceof HTMLElement) {
+            item.style.transition = '';
+          }
+        });
+        
+        // Eliminamos la clase específica
+        document.body.classList.remove('whatsapp-view');
+        
+        // Restauramos el modo original del sidebar si existe
+        if (layoutContainer) {
+          const originalMode = layoutContainer.getAttribute('data-original-mode');
+          if (originalMode) {
+            // Eliminamos todas las clases de modo
+            layoutContainer.classList.remove('layout-static');
+            layoutContainer.classList.remove('layout-reveal');
+            layoutContainer.classList.remove('layout-overlay');
+            layoutContainer.classList.remove('layout-slim');
+            layoutContainer.classList.remove('layout-slim-plus');
+            layoutContainer.classList.remove('layout-horizontal');
+            layoutContainer.classList.remove('layout-drawer');
+            
+            // Añadimos la clase original
+            layoutContainer.classList.add(`layout-${originalMode}`);
+            
+            // Limpiamos el atributo de datos
+            layoutContainer.removeAttribute('data-original-mode');
+          }
+        }
+      }
+    };
+  }, []);
+
   return (
     <React.Fragment>
       <style jsx global>{`
-        .hover-scale:hover {
-          transform: scale(1.1);
-          transition: transform 0.2s;
+        /* Estilos específicos para la vista de WhatsApp */
+        body.whatsapp-view .layout-container {
+          --sidebar-width: 280px;
+          --additional-padding: 20px;
+          --total-offset: calc(var(--sidebar-width) + var(--additional-padding));
         }
-        .agent-profile {
-          padding: 12px 12px 8px 12px;
-          margin-bottom: 8px;
-          border-bottom: 1px solid var(--surface-border);
-          display: flex;
-          align-items: center;
-          gap: 10px;
+        
+        /* Sidebar siempre visible y fijo a la izquierda */
+        body.whatsapp-view .layout-container .layout-sidebar {
+          position: fixed !important;
+          left: 0 !important;
+          top: 0 !important;
+          height: 100% !important;
+          width: var(--sidebar-width) !important;
+          z-index: 999 !important;
         }
-        .agent-info {
-          display: flex;
-          flex-direction: column;
+        
+        /* Contenido principal siempre a la derecha del sidebar con padding adicional */
+        body.whatsapp-view .layout-content-wrapper {
+          margin-left: var(--total-offset) !important;
+          width: calc(100% - var(--total-offset)) !important;
+          position: relative !important;
+          z-index: 1000 !important;
         }
-        .agent-name {
-          font-weight: 600;
-          font-size: 1rem;
+        
+        /* Aseguramos que los elementos del header y filtros estén correctamente posicionados */
+        body.whatsapp-view .agent-profile,
+        body.whatsapp-view .filter-buttons,
+        body.whatsapp-view .header-container,
+        body.whatsapp-view .filter-container,
+        body.whatsapp-view .agent-info-container,
+        body.whatsapp-view .conversation-container {
+          position: relative !important;
+          z-index: 1001 !important;
+          padding-left: 20px !important;
+          box-sizing: border-box !important;
         }
-        .agent-status {
-          font-size: 0.8rem;
-          color: var(--text-color-secondary);
+        
+        /* Mejoramos la sección del nombre del agente - en una sola fila */
+        body.whatsapp-view .agent-profile {
+          padding: 15px 20px !important;
+          margin-top: 15px !important;
+          margin-bottom: 35px !important;
+          margin-left: 25px !important;
+          margin-right: 25px !important;
+          background-color: var(--surface-card) !important;
+          border-radius: 8px !important;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+        }
+        
+        body.whatsapp-view .agent-profile .avatar {
+          margin-right: 15px !important;
+          border: 2px solid var(--primary-color) !important;
+          flex-shrink: 0 !important;
+          width: 3.5rem !important;
+          height: 3.5rem !important;
+        }
+        
+        body.whatsapp-view .agent-profile .avatar {
+          width: 3.8rem !important;
+          height: 3.8rem !important;
+          border: 2px solid var(--primary-color) !important;
+        }
+        
+        body.whatsapp-view .agent-status .status-indicator {
+          display: inline-block !important;
+          width: 8px !important;
+          height: 8px !important;
+          border-radius: 50% !important;
+          background-color: #4CAF50 !important;
+        }
+        
+        body.whatsapp-view .agent-name {
+          font-size: 0.9rem !important;
+          font-weight: 600 !important;
+          color: var(--text-color) !important;
+          margin-bottom: 0 !important;
+          white-space: nowrap !important;
+        }
+        
+        body.whatsapp-view .agent-status {
+          font-size: 0.8rem !important;
+          color: var(--text-color-secondary) !important;
+          display: flex !important;
+          align-items: center !important;
+          white-space: nowrap !important;
+        }
+        
+        body.whatsapp-view .agent-status .status-indicator {
+          width: 6px !important;
+          height: 6px !important;
+          border-radius: 50% !important;
+          background-color: #4CAF50 !important;
+          margin-right: 4px !important;
+          display: inline-block !important;
+        }
+        
+        /* Ajustamos el contenido principal */
+        body.whatsapp-view .layout-content {
+          width: 100% !important;
+          margin-left: 0 !important;
+          padding-left: 0 !important;
+        }
+        
+        /* Eliminamos las transiciones para evitar problemas de alineación */
+        body.whatsapp-view .layout-container .layout-sidebar,
+        body.whatsapp-view .layout-content-wrapper {
+          transition: none !important;
+        }
+        
+        /* Aseguramos que el sidebar no se oculte */
+        body.whatsapp-view .layout-container .layout-sidebar {
+          transform: none !important;
+          opacity: 1 !important;
+        }
+        
+        /* Ajustamos los márgenes de los elementos internos */
+        body.whatsapp-view .card {
+          margin-left: 0 !important;
+          width: 100% !important;
+        }
+        
+        /* Eliminamos el efecto hover del menú */
+        body.whatsapp-view .layout-menu-container .layout-menuitem-root-text:hover,
+        body.whatsapp-view .layout-menu-container a:hover,
+        body.whatsapp-view .layout-menu-container li:hover,
+        body.whatsapp-view .layout-menu-container .layout-menuitem-root-text:focus,
+        body.whatsapp-view .layout-menu-container a:focus {
+          background-color: transparent !important;
+          color: inherit !important;
+          transform: none !important;
+          transition: none !important;
+        }
+        
+        /* Eliminamos cualquier animación o transición en el menú */
+        body.whatsapp-view .layout-menu-container * {
+          transition: none !important;
+          animation: none !important;
         }
       `}</style>
+      
       <BlockUI blocked={loading} fullScreen={true} />
       
-      {/* Fila del Agente con Avatar */}
-      <div className="agent-profile">
-        <Avatar 
-          image={userAvatar || undefined} 
-          icon={!userAvatar ? "pi pi-user" : undefined} 
-          size="large" 
-          shape="circle"
-          style={{ backgroundColor: !userAvatar ? 'var(--primary-color)' : undefined, color: !userAvatar ? '#ffffff' : undefined }}
-        />
-        <div className="agent-info">
-          <span className="agent-name">{userName}</span>
-          <span className="agent-status">En línea</span>
+      {/* Fila del Agente con Avatar - En una sola fila */}
+      <div className="agent-profile flex align-items-center mt-3 mx-4">
+        <div className="mr-3">
+          {userAvatar ? (
+          <Avatar
+            image={userAvatar}
+            shape="circle"
+            className="avatar"
+            size="large"
+          />
+        ) : (
+          <Avatar
+            icon="pi pi-user"
+            shape="circle"
+            className="avatar"
+            size="large"
+          />
+        )}
+        </div>
+        <div className="flex flex-column">
+          <span className="agent-name font-bold text-base mb-1">{userName}</span>
+          <span className="agent-status flex align-items-center">
+            <span className="status-indicator mr-1"></span>
+            <span>En línea</span>
+          </span>
         </div>
       </div>
       
-      <div className="flex flex-column align-items-center border-bottom-1 surface-border p-3 pt-2">
+      <div className="flex flex-column align-items-center border-bottom-1 surface-border p-3 pt-2 mt-5 mb-3">
         <div className="flex gap-4 justify-content-center">
           {[
             { label: "Disponibles", icon: "pi pi-check", valueBadge: conversations.length },
@@ -220,7 +515,7 @@ const ChatSidebar = () => {
             {[
               { label: "Todos", icon: "pi pi-check", type: "all", badge: conversations.length + conversationsNotAssigned.length },
               { label: "No leidos", icon: "pi pi-comments", type: "unread", badge: 0 },
-              { label: "Mensajes Huerfanos", icon: "pi pi-comments", type: "orphan", badge: conversationsNotAssigned.length }
+              { label: "Mensajes Pendientes", icon: "pi pi-comments", type: "orphan", badge: conversationsNotAssigned.length }
             ].map(({ label, icon, type, badge }, i) => (
               <div
                 key={i}
@@ -321,10 +616,45 @@ const ChatSidebar = () => {
 const Chat: Page = () => {
   const { activeConversation } = useChatStore()
 
+  // Efecto para aplicar estilos específicos para esta vista
+  useEffect(() => {
+    // Función para ajustar los estilos del layout
+    const adjustLayout = () => {
+      // Obtener elementos del DOM
+      const layoutContent = document.querySelector('.layout-content') as HTMLElement | null;
+      const layoutContentWrapper = document.querySelector('.layout-content-wrapper') as HTMLElement | null;
+      const cardElements = document.querySelectorAll('.card') as NodeListOf<HTMLElement>;
+      
+      // Aplicar nuevos estilos
+      if (layoutContent) {
+        layoutContent.style.padding = '0';
+      }
+      
+      if (layoutContentWrapper) {
+        layoutContentWrapper.style.marginLeft = '0';
+      }
+      
+      // Ajustar estilos de las tarjetas
+      cardElements.forEach(card => {
+        card.style.borderRadius = '0';
+        card.style.boxShadow = 'none';
+        card.style.margin = '0';
+      });
+    };
+    
+    // Ejecutar ajuste después de que el DOM esté listo
+    const timeoutId = setTimeout(adjustLayout, 100);
+    
+    // Limpiar timeout si el componente se desmonta antes
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
   return (
     <>
       <div
-        className="flex flex-column md:flex-row gap-5"
+        className="flex flex-column md:flex-row gap-0"
         style={{ minHeight: "81vh" }}
       >
         <div className="md:w-25rem card p-0">

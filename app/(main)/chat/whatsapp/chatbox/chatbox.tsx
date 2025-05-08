@@ -91,10 +91,38 @@ export const ChatBox = (props: any) => {
       }
     } catch (error: any) {
       // Maneja el error en caso de token expirado u otros
-      if (error.code === 190) {
+      if ('code' in error && error.code === 190) {
         showError("Token de acceso expirado")
         onClickAction()
+        return
       }
+      
+      // Manejo general de errores
+      let errorMessage = "Error al enviar la plantilla";
+      
+      if (error && typeof error === 'object') {
+        if ('message' in error && error.message) {
+          errorMessage += ": " + error.message;
+        } else if ('error' in error && error.error && 'message' in error.error) {
+          errorMessage += ": " + error.error.message;
+        } else if ('statusText' in error && error.statusText) {
+          errorMessage += ": " + error.statusText;
+        } else {
+          // Si no hay un mensaje específico, mostrar el objeto como JSON
+          try {
+            errorMessage += ": " + JSON.stringify(error);
+          } catch (e) {
+            // Si no se puede convertir a JSON, mostrar el error original
+            console.error("Error completo:", error);
+          }
+        }
+      } else if (error) {
+        // Si el error es una cadena u otro tipo primitivo
+        errorMessage += ": " + error;
+      }
+      
+      showError(errorMessage);
+      console.error("Error detallado al enviar plantilla:", error);
     }
   }
 
@@ -123,20 +151,68 @@ export const ChatBox = (props: any) => {
         }
         if (!messageTemporal?.from) return null
 
+        // Validación de parámetros críticos antes de enviar
+        if (!actualNumberOfMaintanceSelected) {
+          showError("No hay un número de mantenimiento seleccionado. Por favor, seleccione un número.");
+          return;
+        }
+
+        if (!actualNumberOfMaintanceSelected.IdAccountWB) {
+          showError("El token de acceso para WhatsApp Business API no está configurado.");
+          console.error("IdAccountWB vacío o no definido", actualNumberOfMaintanceSelected);
+          return;
+        }
+
+        if (!actualNumberOfMaintanceSelected.idNumberPhone) {
+          showError("El ID del teléfono remitente no está configurado.");
+          console.error("idNumberPhone vacío o no definido", actualNumberOfMaintanceSelected);
+          return;
+        }
+
+        // Log para depuración
+        console.log("Datos del número de mantenimiento:", {
+          IdAccountWB: actualNumberOfMaintanceSelected.IdAccountWB,
+          idNumberPhone: actualNumberOfMaintanceSelected.idNumberPhone,
+          destinatario: messageTemporal.from
+        });
+
         try {
           const result = await sendPlainMessage(
             messageTemporal?.from ?? "",
             messageTemporal.content,
-              `${actualNumberOfMaintanceSelected?.IdAccountWB ?? ""}`,
-              `${actualNumberOfMaintanceSelected?.idNumberPhone ?? ""}`
+            actualNumberOfMaintanceSelected.IdAccountWB,
+            actualNumberOfMaintanceSelected.idNumberPhone
           )
-          if (result) {
-            messageTemporal.idWhatsapp = result.messages[0].id
-            pushMessage(messageTemporal)
-            postMessage("/message", messageTemporal)
+          messageTemporal.idWhatsapp = result.messages[0].id
+          pushMessage(messageTemporal)
+          postMessage("/message", messageTemporal)
+        } catch (error: any) {
+          let errorMessage = "Error al enviar el mensaje";
+        
+          if (error && typeof error === 'object') {
+            // Si el error tiene una propiedad message o error.error.message
+            if ('message' in error && error.message) {
+              errorMessage += ": " + error.message;
+            } else if ('error' in error && error.error && 'message' in error.error) {
+              errorMessage += ": " + error.error.message;
+            } else if ('statusText' in error && error.statusText) {
+              errorMessage += ": " + error.statusText;
+            } else {
+              // Si no hay un mensaje específico, mostrar el objeto como JSON
+              try {
+                errorMessage += ": " + JSON.stringify(error);
+              } catch (e) {
+                // Si no se puede convertir a JSON, mostrar el error original
+                console.error("Error completo:", error);
+              }
+            }
+          } else if (error) {
+            // Si el error es una cadena u otro tipo primitivo
+            errorMessage += ": " + error;
           }
-        } catch (error) {
-          showError("Error al enviar el mensaje : " + error)
+        
+          showError(errorMessage);
+          console.error("Error detallado al enviar mensaje:", error);
         }
       }
     }
@@ -318,20 +394,20 @@ export const ChatBox = (props: any) => {
                   ? (
                     <div className="grid grid-nogutter mb-4">
                       <div className="col mt-3 text-right">
-                        <div
+                        <span
                           className="inline-block text-right font-medium relative
-                          surface-border bg-primary-100 text-primary-900 p-3 pb-5 white-space-normal border-round"
+                          surface-border bg-primary-100 text-primary-900 p-3 pb-6 white-space-normal border-round"
                           style={{
                             wordBreak: "break-word",
                             maxWidth: "80%"
                           }}
                         >
-                          <div>{message.content}</div>
-                          <div className="text-xs text-600 absolute" style={{ bottom: "5px", right: "8px" }}>
+                          {message.content}
+                          <div className="absolute right-0 bottom-0 text-600 text-xs p-2 flex align-items-center">
                             {parseDate(message.sentAt)}{" "}
                             <i className="pi pi-check ml-1 text-green-400"></i>
                           </div>
-                        </div>
+                        </span>
                       </div>
                     </div>
                     )
@@ -348,22 +424,22 @@ export const ChatBox = (props: any) => {
                         <p className="text-900 font-semibold mb-3">
                           +{activeConversation?.indicative + " " + activeConversation?.destination_number}
                         </p>
-                        <div
+                        <span
                           className="text-700 inline-block font-medium relative
                           border-1 surface-border white-space-normal border-round"
                           style={{
                             wordBreak: "break-word",
                             maxWidth: "80%",
                             padding: "1rem",
-                            paddingBottom: "1.5rem"
+                            paddingBottom: "2rem"
                           }}
                         >
-                          <div>{message.content}</div>
-                          <div className="text-xs text-600 absolute" style={{ bottom: "5px", right: "8px" }}>
+                          {message.content}
+                          <div className="absolute right-0 bottom-0 text-600 text-xs p-2 flex align-items-center">
                             {parseDate(message.sentAt)}{" "}
                             <i className="pi pi-check ml-1 text-green-400"></i>
                           </div>
-                        </div>
+                        </span>
                       </div>
                     </div>
                     )}

@@ -13,7 +13,7 @@ import { Tooltip } from "primereact/tooltip"
 import { BlockUI } from "primereact/blockui"
 import { Dropdown } from "primereact/dropdown"
 import { InputText } from "primereact/inputtext"
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { ChatBox } from "./chatbox/chatbox"
 import SidebarConversation from "./sidebarConversation/sidebar-conversation"
@@ -77,6 +77,12 @@ const ChatSidebar = () => {
 
   const selectedNumber = watch("actualNOM")
 
+  // Verificar si el número seleccionado tiene configuradas las credenciales de WhatsApp Business
+  const isWhatsAppConfigured = useMemo(() => {
+    if (!selectedNumber) return false;
+    return !!selectedNumber.IdAccountWB && !!selectedNumber.idNumberPhone;
+  }, [selectedNumber])
+
   // Efecto para disparar la consulta al cambiar el número seleccionado
   useEffect(() => {
     if (selectedNumber?.number && userStore && userStore.userId) {
@@ -85,6 +91,15 @@ const ChatSidebar = () => {
       resetAllMessages()
       setActualNumberOfMaintanceSelected(selectedNumber)
       fetchDataConversationAll(selectedNumber.number)
+      
+      // Verificar si el número seleccionado tiene configuración de WhatsApp
+      if (!selectedNumber.IdAccountWB || !selectedNumber.idNumberPhone) {
+        console.warn('¡Configuración de WhatsApp incompleta!', {
+          número: selectedNumber.number,
+          IdAccountWB: selectedNumber.IdAccountWB,
+          idNumberPhone: selectedNumber.idNumberPhone
+        });
+      }
     }
   }, [selectedNumber?.number, userStore?.userId])
 
@@ -492,7 +507,7 @@ const ChatSidebar = () => {
           
           {/* Muestra todos los números asignados al agente */}
           {numbersOfMaintance && numbersOfMaintance.length > 0 && (
-            <div className="agent-numbers mt-1">
+            <div className="agent-numbers mt-2">
               <span className="text-xs text-500 block mb-1">Números asignados:</span>
               <ul className="p-0 m-0 list-none">
                 {numbersOfMaintance.map((num, index) => (
@@ -504,14 +519,19 @@ const ChatSidebar = () => {
               </ul>
             </div>
           )}
+
         </div>
       </div>
       
-      <div className="flex flex-column align-items-center border-bottom-1 surface-border p-3 pt-2 mt-5 mb-3">
+      {/* Línea divisoria que abarca todo el ancho del layout */}
+      <div className="border-top-1 surface-border my-3" style={{ width: "100vw", marginLeft: "-1rem", marginRight: "-1rem" }}></div>
+      
+      <div className="flex flex-column align-items-center border-bottom-1 surface-border p-3 pt-2 mt-2 mb-3">
         <div className="flex gap-4 justify-content-center">
           {[
             { label: "Disponibles", icon: "pi pi-check", valueBadge: conversations.length },
             { label: "En Conversacion", icon: "pi pi-comments", valueBadge: conversations.length },
+            { label: "Mensajes Pendientes", icon: "pi pi-clock", valueBadge: conversationsNotAssigned.length, tooltip: "Mensajes sin asignar" },
             { label: "Nuevo", icon: "pi pi-user-plus", isClickable: true, tooltip: "Iniciar conversación" }
           ].map(({ label, icon, isClickable, valueBadge, tooltip }, i) => (
             <div
@@ -552,14 +572,27 @@ const ChatSidebar = () => {
             )}
           />
         </div>
+        
+        {/* Barra de búsqueda reubicada */}
+        <div className="mt-4 w-full px-2">
+          <span className="p-input-icon-left w-full">
+            <i className="pi pi-search"></i>
+            <InputText
+              id="search"
+              type="text"
+              placeholder="Buscar"
+              className="w-full"
+            />
+          </span>
+        </div>
       </div>
+
       <div className="w-full flex row-gap-4 flex-column surface-border p-4">
         <div className="container-status-chats">
           <div className="flex gap-4 justify-content-center border-round shadow-1 p-2">
             {[
               { label: "Todos", icon: "pi pi-check", type: "all", badge: conversations.length + conversationsNotAssigned.length },
-              { label: "No leidos", icon: "pi pi-comments", type: "unread", badge: 0 },
-              { label: "Mensajes Pendientes", icon: "pi pi-comments", type: "orphan", badge: conversationsNotAssigned.length }
+              { label: "No leidos", icon: "pi pi-comments", type: "unread", badge: 0 }
             ].map(({ label, icon, type, badge }, i) => (
               <div
                 key={i}
@@ -575,15 +608,6 @@ const ChatSidebar = () => {
             ))}
           </div>
         </div>
-        <span className="p-input-icon-left w-full">
-          <i className="pi pi-search"></i>
-          <InputText
-            id="search"
-            type="text"
-            placeholder="Buscar"
-            className="w-full"
-          />
-        </span>
         {typeMenu === "all" && (conversations.length > 0 || conversationsNotAssigned.length > 0)
           ? (
             <div className="flex flex-row gap-4 md:flex-column overflow-auto">

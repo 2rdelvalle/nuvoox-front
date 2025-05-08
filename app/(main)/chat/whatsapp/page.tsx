@@ -9,6 +9,7 @@ import type { Page } from "@/types"
 import dynamic from "next/dynamic"
 import { Avatar } from "primereact/avatar"
 import { Badge } from "primereact/badge"
+import { Tooltip } from "primereact/tooltip"
 import { BlockUI } from "primereact/blockui"
 import { Dropdown } from "primereact/dropdown"
 import { InputText } from "primereact/inputtext"
@@ -496,20 +497,27 @@ const ChatSidebar = () => {
           {[
             { label: "Disponibles", icon: "pi pi-check", valueBadge: conversations.length },
             { label: "En Conversacion", icon: "pi pi-comments", valueBadge: conversations.length },
-            { label: "Nuevo", icon: "pi pi-plus", isClickable: true }
-          ].map(({ label, icon, isClickable, valueBadge }, i) => (
+            { label: "Nuevo", icon: "pi pi-user-plus", isClickable: true, tooltip: "Iniciar conversación" }
+          ].map(({ label, icon, isClickable, valueBadge, tooltip }, i) => (
             <div
               key={i}
               className={"flex flex-column align-items-center cursor-pointer hover-scale"}
               onClick={isClickable ? () => setDialogNewNumber() : undefined}
+              title={tooltip} // HTML tooltip básico
             >
-              <Avatar icon={icon} className="mb-1 p-overlay-badge">
-                {
-                    valueBadge !== undefined && (
-                        <Badge value={valueBadge} />
-                    )
-                }
-              </Avatar>
+              <div className="avatar-wrapper" data-pr-tooltip={tooltip} data-pr-position="top">
+                <Avatar 
+                  icon={icon} 
+                  className="mb-1 p-overlay-badge"
+                >
+                  {
+                      valueBadge !== undefined && (
+                          <Badge value={valueBadge} />
+                      )
+                  }
+                </Avatar>
+                <Tooltip target=".avatar-wrapper" />
+              </div>
               <label className="text-center text-sm">{label}</label>
             </div>
           ))}

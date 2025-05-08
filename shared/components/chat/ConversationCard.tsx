@@ -31,6 +31,7 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
   // Estado visible para la UI, pero que no cambia una vez establecido
   const [lastMessageTime, setLastMessageTime] = useState<string>("") 
   const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [lastMessageTimestamp, setLastMessageTimestamp] = useState<number | null>(null)
   
   // Clave única para localStorage basada en el ID de conversación
   const localStorageKey = `lastMsgTime_${conversation.conversationid}`
@@ -273,77 +274,31 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
     }
   }, [conversation?.conversationid]); // Solo ejecutar cuando cambia la conversación
   
-  // Efecto para actualizar desde mensajes nuevos solo si no hay valor en localStorage
-  useEffect(() => {
-    // Si ya tenemos hora en localStorage o en la referencia, no actualizamos
-    if (initialTimeRef.current || getTimeFromLocalStorage()) return;
-    
-    // Solo procesamos si hay mensajes para esta conversación y no tenemos hora guardada
-    if (messages?.length > 0 && conversation?.conversationid) {
-      try {
-        // Filtramos mensajes sólo de esta conversación
-        const conversationMessages = messages.filter(
-          (msg) => msg.conversationId === conversation.conversationid
-        );
-        
-        // Si encontramos mensajes, procesamos el más reciente
-        if (conversationMessages.length > 0) {
-          // Copiamos el array para evitar mutar el original
-          const messagesCopy = [...conversationMessages];
-          
-          // Ordenamos por tiempo
-          messagesCopy.sort((a, b) => {
-            const timeA = a.sentAt || 0;
-            const timeB = b.sentAt || 0;
-            return timeB - timeA;
-          });
-          
-          // Si tenemos un mensaje válido, actualizamos la hora
-          const latestMessage = messagesCopy[0];
-          if (latestMessage?.sentAt) {
-            const timeStr = parseDate(latestMessage.sentAt);
-            if (timeStr) {
-              // Guardar en localStorage para persistencia
-              saveTimeToLocalStorage(timeStr);
-              initialTimeRef.current = timeStr;
-              setLastMessageTime(timeStr);
-            }
-          }
-        }
-      } catch (error) {
-        // Capturamos cualquier error para evitar que la app falle
-        console.error("Error al procesar mensajes:", error);
-      }
-    }
-  }, [messages, conversation?.conversationid]);
-  
-  // Seguir monitoreando los mensajes del store para actualizaciones en tiempo real
+  // Efecto para actualizar la hora del último mensaje cuando cambian los mensajes
   useEffect(() => {
     // Función segura para obtener la hora del último mensaje en tiempo real
     const getLastMessageTime = () => {
-      // Verificar que tenemos mensajes
-      if (!messages || messages.length === 0) {
-        return "";
-      }
-
       try {
-        // Filtrar mensajes de esta conversación
+        // Filtrar mensajes por conversación actual
         const conversationMessages = messages.filter(
           (msg) => msg.conversationId === conversation.conversationid
         );
         
         if (conversationMessages.length > 0) {
-          // Ordenar por fecha (más reciente primero) y tomar el primero
+          // Ordenar mensajes por tiempo y obtener el más reciente
           const lastMessage = [...conversationMessages].sort((a, b) => {
-            // Asegurarnos de que sentAt existe y es un número válido
             const timeA = typeof a.sentAt === 'number' ? a.sentAt : 0;
             const timeB = typeof b.sentAt === 'number' ? b.sentAt : 0;
             return timeB - timeA;
           })[0];
           
-          // Si el mensaje tiene un timestamp válido, formatearlo
+          // Si el mensaje tiene un timestamp válido, actualizar estado
           if (lastMessage && lastMessage.sentAt) {
-            return parseDate(lastMessage.sentAt);
+            const timestamp = typeof lastMessage.sentAt === 'number' ? lastMessage.sentAt : Number(lastMessage.sentAt);
+            if (!isNaN(timestamp) && timestamp !== lastMessageTimestamp) {
+              setLastMessageTimestamp(timestamp);
+              return parseDate(timestamp);
+            }
           }
         }
       } catch (error) {
@@ -357,15 +312,11 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
     const newLastMessageTime = getLastMessageTime();
     if (newLastMessageTime) {
       setLastMessageTime(newLastMessageTime);
+      saveTimeToLocalStorage(newLastMessageTime);
     }
-  }, [messages, conversation.conversationid])
-
-  // Nuestro estado timestampLoaded ya está declarado al inicio del componente
+  }, [messages, conversation.conversationid, lastMessageTimestamp]);
   
   const changeView = () => {
-    // No necesitamos hacer nada especial con la hora, ya que ahora
-    // está persistida en localStorage y no cambiará
-    
     if (isNotAssigned) {
       confirmDialog({
         message: "¿Desea aceptar esta conversación?",
@@ -431,9 +382,9 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
             <span className="text-900 font-semibold block">
               +{conversation.indicative + " " + conversation.destination_number}
             </span>
-            {/* Mostrar la hora del último mensaje (persiste gracias a localStorage) */}
+            {/* Mostrar la hora del último mensaje (se actualiza automáticamente) */}
             <span className="text-500 text-sm ml-3" title="Hora del último mensaje">
-              {initialTimeRef.current || lastMessageTime || "--:--"}
+              {lastMessageTime || "--:--"}
             </span>
           </div>
         </div>
@@ -442,4 +393,4 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
   )
 }
 
-export default ConversationCard
+export default ConversationCard;

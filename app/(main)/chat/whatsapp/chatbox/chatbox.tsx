@@ -318,20 +318,20 @@ export const ChatBox = (props: any) => {
                   ? (
                     <div className="grid grid-nogutter mb-4">
                       <div className="col mt-3 text-right">
-                        <span
-                          className="inline-block text-right font-medium
-                          surface-border bg-primary-100 text-primary-900 p-3 white-space-normal border-round"
+                        <div
+                          className="inline-block text-right font-medium relative
+                          surface-border bg-primary-100 text-primary-900 p-3 pb-5 white-space-normal border-round"
                           style={{
                             wordBreak: "break-word",
                             maxWidth: "80%"
                           }}
                         >
-                          {message.content}
-                        </span>
-                        <p className="text-700 mt-3">
-                          {parseDate(message.sentAt)}{" "}
-                          <i className="pi pi-check ml-2 text-green-400"></i>
-                        </p>
+                          <div>{message.content}</div>
+                          <div className="text-xs text-600 absolute" style={{ bottom: "5px", right: "8px" }}>
+                            {parseDate(message.sentAt)}{" "}
+                            <i className="pi pi-check ml-1 text-green-400"></i>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     )
@@ -348,21 +348,22 @@ export const ChatBox = (props: any) => {
                         <p className="text-900 font-semibold mb-3">
                           +{activeConversation?.indicative + " " + activeConversation?.destination_number}
                         </p>
-                        <span
-                          className="text-700 inline-block font-medium
+                        <div
+                          className="text-700 inline-block font-medium relative
                           border-1 surface-border white-space-normal border-round"
                           style={{
                             wordBreak: "break-word",
                             maxWidth: "80%",
-                            padding: "1rem"
+                            padding: "1rem",
+                            paddingBottom: "1.5rem"
                           }}
                         >
-                          {message.content}
-                        </span>
-                        <p className="text-700 mt-3">
-                          {parseDate(message.sentAt)}{" "}
-                          <i className="pi pi-check ml-2 text-green-400"></i>
-                        </p>
+                          <div>{message.content}</div>
+                          <div className="text-xs text-600 absolute" style={{ bottom: "5px", right: "8px" }}>
+                            {parseDate(message.sentAt)}{" "}
+                            <i className="pi pi-check ml-1 text-green-400"></i>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     )}

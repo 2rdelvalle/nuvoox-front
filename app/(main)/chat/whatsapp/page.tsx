@@ -489,6 +489,21 @@ const ChatSidebar = () => {
             <span className="status-indicator mr-1"></span>
             <span>En línea</span>
           </span>
+          
+          {/* Muestra todos los números asignados al agente */}
+          {numbersOfMaintance && numbersOfMaintance.length > 0 && (
+            <div className="agent-numbers mt-1">
+              <span className="text-xs text-500 block mb-1">Números asignados:</span>
+              <ul className="p-0 m-0 list-none">
+                {numbersOfMaintance.map((num, index) => (
+                  <li key={index} className="text-xs flex align-items-center mb-1">
+                    <i className="pi pi-phone mr-1 text-xs" />
+                    <span>{num.number}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
       

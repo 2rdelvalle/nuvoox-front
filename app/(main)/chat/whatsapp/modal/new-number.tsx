@@ -26,7 +26,7 @@ type propsNewNumber = {
 }
 
 interface StepComponentProps {
-  onNext: () => void;
+  onNext: () => Promise<boolean> | void;
   onPrevious: () => void;
   updateData: (key: string, value: any) => void;
   wizardData: WizardData;

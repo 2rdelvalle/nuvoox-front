@@ -168,9 +168,29 @@ const ChatSidebar = () => {
     getUserInfo();
   }, [userStore]);
 
+  // Efecto para cargar automáticamente las tarjetas de contacto al iniciar la página
   useEffect(() => {
+    // Resetear primero el estado para evitar datos mezclados
     resetAll()
-  }, [])
+    
+    // Establecer modo "all" para mostrar todos los contactos
+    setTypeMenu("all")
+    
+    // Cargar automáticamente el primer número disponible y sus conversaciones
+    if (numbersOfMaintance && numbersOfMaintance.length > 0 && userStore?.userId) {
+      const firstNumber = numbersOfMaintance[0];
+      
+      // Establecer directamente el número seleccionado en el store
+      
+      // Establecer el número seleccionado y cargar sus conversaciones
+      setActualNumberOfMaintanceSelected(firstNumber);
+      
+      // Cargar todas las conversaciones de este número
+      if (firstNumber.number) {
+        fetchDataConversationAll(firstNumber.number);
+      }
+    }
+  }, [numbersOfMaintance, userStore?.userId])
 
   useEffect(() => {
     // Seleccionamos los elementos del DOM que necesitamos modificar
@@ -480,7 +500,7 @@ const ChatSidebar = () => {
       <BlockUI blocked={loading} fullScreen={true} />
       
       {/* Fila del Agente con Avatar - En una sola fila */}
-      <div className="agent-profile flex align-items-center mt-3 mx-4">
+      <div className="agent-profile flex align-items-center mt-3 mx-4 pl-5" style={{ marginLeft: "2.5rem" }}>
         <div className="mr-3">
           {userAvatar ? (
           <Avatar
@@ -526,7 +546,7 @@ const ChatSidebar = () => {
       {/* Línea divisoria que abarca todo el ancho del layout */}
       <div className="border-top-1 surface-border my-3" style={{ width: "100vw", marginLeft: "-1rem", marginRight: "-1rem" }}></div>
       
-      <div className="flex flex-column align-items-center border-bottom-1 surface-border p-3 pt-2 mt-2 mb-3">
+      <div className="flex flex-column align-items-center border-bottom-1 surface-border p-3 pt-2 mt-2 mb-3" style={{ paddingLeft: "2.5rem" }}>
         <div className="flex gap-4 justify-content-center">
           {[
             { label: "Disponibles", icon: "pi pi-check", valueBadge: conversations.length },
@@ -537,7 +557,12 @@ const ChatSidebar = () => {
             <div
               key={i}
               className={"flex flex-column align-items-center cursor-pointer hover-scale"}
-              onClick={isClickable ? () => setDialogNewNumber() : undefined}
+              onClick={isClickable ? () => {
+                // Mostrar las tarjetas de contacto inmediatamente sin necesidad de agregar un contacto
+                setTypeMenu("all"); // Asegurar que estamos en vista "Todos"
+                // También abrimos el diálogo por si necesitan agregar un nuevo contacto
+                setDialogNewNumber();
+              } : undefined}
               title={tooltip} // HTML tooltip básico
             >
               <div className="avatar-wrapper" data-pr-tooltip={tooltip} data-pr-position="top">
@@ -587,25 +612,36 @@ const ChatSidebar = () => {
         </div>
       </div>
 
-      <div className="w-full flex row-gap-4 flex-column surface-border p-4">
-        <div className="container-status-chats">
-          <div className="flex gap-4 justify-content-center border-round shadow-1 p-2">
+      <div className="w-full flex row-gap-4 flex-column surface-border p-4 pt-0 mt-1">
+        {/* Tabs estilo WhatsApp */}
+        <div className="container-status-chats mb-2 mt-0">
+          <div className="flex justify-content-center gap-3 py-2">
             {[
-              { label: "Todos", icon: "pi pi-check", type: "all", badge: conversations.length + conversationsNotAssigned.length },
-              { label: "No leidos", icon: "pi pi-comments", type: "unread", badge: 0 }
-            ].map(({ label, icon, type, badge }, i) => (
-              <div
-                key={i}
-                className="flex flex-column align-items-center cursor-pointer hover-scale"
-                onClick={() => setTypeMenu(type)}
-              >
-                <Avatar icon={icon} className="mb-1 p-overlay-badge">
-                  {/* Mostrar Badge en el botón */}
-                  <Badge value={badge}/>
-                </Avatar>
-                <label className="text-center text-sm">{label}</label>
-              </div>
-            ))}
+              { label: "TODOS", type: "all", badge: conversations.length + conversationsNotAssigned.length },
+              { label: "NO LEÍDOS", type: "unread", badge: 0 }
+            ].map(({ label, type, badge }, i) => {
+              const isActive = typeMenu === type;
+              return (
+                <div
+                  key={i}
+                  className={`px-4 py-2 cursor-pointer transition-colors transition-duration-300 flex align-items-center border-round ${isActive ? 'font-bold text-white bg-primary' : 'text-700 hover:text-900 hover:surface-200'}`}
+                  onClick={() => setTypeMenu(type)}
+                  style={{
+                    minWidth: '120px',
+                    boxShadow: isActive ? '0 2px 5px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  <div className="flex align-items-center justify-content-center gap-2 w-full">
+                    <span className="text-sm font-medium position-relative">
+                      {label}
+                      {badge > 0 && (
+                        <Badge value={badge} className="p-overlay-badge" severity={isActive ? "success" : "info"} />
+                      )}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
         {typeMenu === "all" && (conversations.length > 0 || conversationsNotAssigned.length > 0)

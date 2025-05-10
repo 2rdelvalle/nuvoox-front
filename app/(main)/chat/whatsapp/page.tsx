@@ -778,18 +778,71 @@ const Chat: Page = () => {
   useEffect(() => {
     // Función para ajustar los estilos del layout
     const adjustLayout = () => {
+      // Asegurar que el sidebar del chat tenga suficiente margen para no ser tapado por el menú lateral
+      const chatSidebar = document.querySelector('.md\\:w-25rem.card') as HTMLElement | null;
+      if (chatSidebar) {
+        // Asignar un ID único para mayor especificidad CSS
+        chatSidebar.id = 'whatsapp-chat-sidebar';
+        
+        // Usar setProperty para establecer !important
+        chatSidebar.style.setProperty('margin-left', '10px', 'important');
+        
+        // Inyectar regla CSS con máxima prioridad
+        const sidebarStyleElement = document.createElement('style');
+        sidebarStyleElement.innerHTML = `
+          #whatsapp-chat-sidebar {
+            margin-left: 10px !important;
+          }
+        `;
+        document.head.appendChild(sidebarStyleElement);
+      }
+
       // Obtener elementos del DOM
       const layoutContent = document.querySelector('.layout-content') as HTMLElement | null;
       const layoutContentWrapper = document.querySelector('.layout-content-wrapper') as HTMLElement | null;
       const cardElements = document.querySelectorAll('.card') as NodeListOf<HTMLElement>;
+      const layoutContainer = document.querySelector('.layout-container') as HTMLElement | null;
       
       // Aplicar nuevos estilos
       if (layoutContent) {
         layoutContent.style.padding = '0';
+        layoutContent.style.width = '100%';
+        layoutContent.style.maxWidth = '100%';
       }
       
       if (layoutContentWrapper) {
         layoutContentWrapper.style.marginLeft = '0';
+        layoutContentWrapper.style.width = '100%';
+        layoutContentWrapper.style.maxWidth = '100%';
+      }
+      
+      // Anular el estilo de layout-reveal para este componente
+      if (layoutContainer && layoutContainer.classList.contains('layout-reveal')) {
+        // Anular el espacio reservado para el sidebar en modo 'reveal'
+        const sidebarWidth = document.querySelector('.layout-sidebar')?.clientWidth || 0;
+        
+        // Asegurarnos de que layoutContentWrapper no es nulo antes de modificarlo
+        if (layoutContentWrapper) {
+          layoutContentWrapper.style.marginRight = '0';
+        }
+        
+        // Aplicar CSS para forzar el ancho completo y asegurar el margen del sidebar
+        const styleElement = document.createElement('style');
+        styleElement.innerHTML = `
+          .layout-content-wrapper {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin-right: 0 !important;
+          }
+          .layout-content {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          #whatsapp-chat-sidebar, .md\\:w-25rem.card {
+            margin-left: 10px !important;
+          }
+        `;
+        document.head.appendChild(styleElement);
       }
       
       // Ajustar estilos de las tarjetas
@@ -803,9 +856,13 @@ const Chat: Page = () => {
     // Ejecutar ajuste después de que el DOM esté listo
     const timeoutId = setTimeout(adjustLayout, 100);
     
+    // También aplicar después de un tiempo más largo para asegurar que todos los estilos se hayan cargado
+    const secondTimeoutId = setTimeout(adjustLayout, 500);
+    
     // Limpiar timeout si el componente se desmonta antes
     return () => {
       clearTimeout(timeoutId);
+      clearTimeout(secondTimeoutId);
     };
   }, []);
 
@@ -815,10 +872,10 @@ const Chat: Page = () => {
         className="flex flex-column md:flex-row gap-0"
         style={{ minHeight: "81vh" }}
       >
-        <div className="md:w-25rem card p-0">
+        <div id="whatsapp-chat-sidebar" className="md:w-25rem card p-0" style={{ marginLeft: '10px !important' }}>
           <ChatSidebar/>
         </div>
-        <div className="flex-1 card p-0">
+        <div className="flex-1 card p-0" style={{ width: '100%', maxWidth: '100%', marginRight: '0' }}>
            {
             activeConversation
               ? (

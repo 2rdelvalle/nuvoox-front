@@ -23,6 +23,8 @@ export interface MessageModel {
   sentAt: number;
   type: MESSAGE_TYPE;
   owner: MESSAGE_OWNER;
+  createdAt?: string;
+  userId?: string;
 }
 
 interface MessageWhatsapp {

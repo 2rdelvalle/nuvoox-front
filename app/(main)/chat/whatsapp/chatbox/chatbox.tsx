@@ -16,10 +16,22 @@ import { Dropdown } from "primereact/dropdown"
 import { InputText } from "primereact/inputtext"
 import { Message } from "primereact/message"
 import { OverlayPanel } from "primereact/overlaypanel"
-import React, { useEffect, useRef, useState, useMemo } from "react"
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { sendPlainMessage, sendTemplateMessage } from "../service/chatServices"
 import { useChatStore } from "../store/chat-store"
 import { useMessageStore } from "../store/message-store"
+import { Dialog } from 'primereact/dialog';
+
+interface Agent {
+  id: string;
+  name: string;
+  status: string;
+}
+
+interface Group {
+  id: string;
+  name: string;
+}
 
 export const ChatBox = (props: any) => {
   const { showError, showSuccess } = useToast()
@@ -33,42 +45,308 @@ export const ChatBox = (props: any) => {
   const token = getCookieToken()
   const dataToken = token ? getDataFromToken(token) : null
   // const defaultUserId = dataToken?.user.userId
-  const { messages: messagesSocket, clearMessages } = useRealtimeMessages(`${process.env.NEXT_PUBLIC_SOCKET_URL}`)
+  const { messages: messagesSocket } = useRealtimeMessages(`${process.env.NEXT_PUBLIC_SOCKET_URL}`);
+  const { messages: storedMessages, setMessages } = useMessageStore();
   const { onClickAction } = usePush("/auth/login")
 
   // ESTADOS ---
   //
   const { actualNumberOfMaintanceSelected, activeConversation } = useChatStore()
-  const { messages: messagesStorage, pushMessage, setMessages } = useMessageStore()
 
-  const { responseData: dataTemplates } = useFetch(_template.getAll)
+  // Obtener las plantillas filtradas por compañía
+  const companyId = dataToken?.user.company.companyId
+  
+  // Usamos useMemo para que la función de fetch sea estable entre renders
+  const fetchTemplates = useMemo(() => {
+    // Aseguramos que siempre devuelva una función válida para evitar errores de tipo
+    return () => _template.getAllByCompany(companyId || 0);
+  }, [companyId]);
+  
+  const { responseData: dataTemplates } = useFetch(fetchTemplates)
 
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null)
 
-  // Verifica si el token está presente
-  if (!dataToken) {
-    showError("Token No Encontrado")
-    onClickAction()
+  // Verificación de token - control más seguro para prevenir bucles
+  const [shouldRedirect, setShouldRedirect] = useState(false)
+
+  useEffect(() => {
+    // Solo verificamos cuando el componente se monta
+    if (!dataToken && !shouldRedirect) {
+      showError("Token No Encontrado")
+      setShouldRedirect(true)
+    }
+  }, [dataToken, shouldRedirect, showError])
+  
+  // Efecto separado para manejar la redirección
+  useEffect(() => {
+    if (shouldRedirect) {
+      // Usar setTimeout para evitar redirecciones durante el renderizado
+      const redirectTimer = setTimeout(() => {
+        onClickAction()
+      }, 100)
+      return () => clearTimeout(redirectTimer)
+    }
+  }, [shouldRedirect, onClickAction])
+
+  // Transformación de mensajes
+  const transformMessage = (msg: any): MessageModel => {
+    console.log('Transformando mensaje:', msg); // Debug para ver la estructura exacta
+    
+    // Intentar obtener un conversationId válido
+    // 1. Si hay una conversación activa, usar ese conversationId
+    // 2. Si hay una coincidencia de número de teléfono, usar ese conversationId
+    // 3. Como último recurso, intentar crear un ID a partir del número de teléfono
+    let messageConversationId = null;
+    
+    if (activeConversation?.conversationid) {
+      // Si hay una conversación activa, verificamos si el número coincide
+      const phoneWithoutPlus = activeConversation.phone?.replace(/\+/g, '');
+      const msgFromWithoutPlus = msg.from?.replace(/\+/g, '');
+      
+      console.log('Verificando coincidencia de número:', {
+        activePhone: phoneWithoutPlus,
+        msgFrom: msgFromWithoutPlus
+      });
+      
+      // Si el número del mensaje coincide con el de la conversación activa
+      if (phoneWithoutPlus && msgFromWithoutPlus && phoneWithoutPlus.includes(msgFromWithoutPlus) || 
+          msgFromWithoutPlus && phoneWithoutPlus && msgFromWithoutPlus.includes(phoneWithoutPlus)) {
+        messageConversationId = activeConversation.conversationid;
+        console.log('Asignado conversationId de conversación activa:', messageConversationId);
+      }
+    }
+    
+    // Si no se ha asignado un ID, usar el ID basado en número de teléfono
+    if (!messageConversationId && msg.from) {
+      try {
+        // Intenta extraer un ID numérico del número de teléfono
+        const numericId = parseInt(msg.from.replace(/[^0-9]/g, ''));
+        if (!isNaN(numericId)) {
+          messageConversationId = numericId;
+          console.log('Asignado conversationId basado en número de teléfono:', messageConversationId);
+        }
+      } catch (error) {
+        console.error('Error al convertir from a conversationId:', error);
+      }
+    }
+    
+    // Como último recurso, usar un timestamp
+    if (!messageConversationId) {
+      messageConversationId = activeConversation?.conversationid || Date.now();
+      console.log('Asignado conversationId por defecto:', messageConversationId);
+    }
+    
+    return {
+      content: msg.content || msg.text || '', // Primero content, después text como fallback
+      owner: msg.owner === 'CUSTOMER' ? MESSAGE_OWNER.CLIENT : MESSAGE_OWNER.AGENT,
+      sentAt: msg.sentAt || (msg.timestamp ? parseInt(msg.timestamp) * 1000 : Date.now()),
+      type: MESSAGE_TYPE.TEXT,
+      conversationId: messageConversationId,
+      from: msg.from,
+      id: msg.idWhatsapp || Date.now(), // Usar idWhatsapp como id principal
+      idWhatsapp: msg.idWhatsapp
+    };
+  };
+
+  // Manejo de mensajes entrantes - versión directa con máxima compatibilidad
+  useEffect(() => {
+    console.log('Efecto de procesamiento de mensajes ejecutado');
+    console.log('Total mensajes en el socket:', messagesSocket.length);
+    
+    if (messagesSocket.length > 0) {
+      // Enfoque directo: procesar mensajes uno por uno
+      messagesSocket.forEach(msg => {
+        console.log('Procesando mensaje de socket:', msg);
+        
+        // 1. Transformar mensaje a formato MessageModel
+        const transformedMsg: MessageModel = {
+          content: msg.content || '',
+          owner: msg.owner === 'CUSTOMER' ? MESSAGE_OWNER.CLIENT : MESSAGE_OWNER.AGENT,
+          sentAt: msg.sentAt || Date.now(),
+          type: MESSAGE_TYPE.TEXT,
+          // Asegurarse que tenga el conversationId correcto
+          conversationId: activeConversation?.conversationid || 0,
+          from: msg.from || '',
+          id: Date.now(), // ID temporal 
+          idWhatsapp: msg.idWhatsapp || ''
+        };
+        
+        // 2. Verificar si el mensaje ya existe para evitar duplicados
+        const isDuplicate = storedMessages.some(existingMsg => 
+          existingMsg.idWhatsapp === msg.idWhatsapp ||
+          (existingMsg.content === msg.content && 
+           existingMsg.from === msg.from && 
+           Math.abs(existingMsg.sentAt - msg.sentAt) < 10000) // 10 segundos de tolerancia
+        );
+        
+        if (!isDuplicate) {
+          console.log('Añadiendo mensaje NO duplicado al store:', transformedMsg);
+          // 3. Añadir el mensaje al store utilizando el array actual
+          // y creando un nuevo array que incluya el mensaje transformado
+          setMessages([...storedMessages, transformedMsg]);
+        }
+      });
+    }
+  }, [messagesSocket]); // Dependencies include messagesSocket to detect any changes
+
+  useEffect(() => {
+    if (chatWindow.current) {
+      chatWindow.current.addEventListener("DOMNodeInserted", (event) => {
+        const target = event.currentTarget as HTMLDivElement | null
+        if (target) {
+          target.scroll({ top: target.scrollHeight })
+        }
+      })
+    }
+  }, [activeConversation])
+
+  useEffect(() => {
+    console.log('Messages being rendered:', storedMessages); // Debug 5
+    if (chatWindow.current) {
+      chatWindow.current.scrollTo({ top: chatWindow.current.scrollHeight, behavior: "smooth" })
+    }
+  }, [storedMessages]);
+
+  const { data: dataMessage, postData } = usePostRequest<{ conversationId : number }, MessageModel[] >()
+  function fetchMesagesData (conversationId : number) {
+    postData("/message/getMessages", {
+      conversationId
+    })
   }
 
   useEffect(() => {
-    if (messagesSocket.length > 0) {
-      messagesSocket.forEach(msg => {
-        const messageClient: MessageModel = {
-          content: msg.text,
-          owner: MESSAGE_OWNER.CLIENT,
-          sentAt: new Date(+msg.timestamp * 1000).getTime(),
-          type: MESSAGE_TYPE.TEXT,
-          conversationId: activeConversation?.conversationid
-        }
-        // Evitar duplicados en messagesStorage
-        if (!messagesStorage.some(m => m.sentAt === messageClient.sentAt && m.content === messageClient.content)) {
-          pushMessage(messageClient)
-        }
-      })
-      clearMessages()
+    if (activeConversation?.destination_number) {
+      fetchMesagesData(activeConversation?.conversationid)
     }
-  }, [messagesSocket])
+  }, [activeConversation?.destination_number])
+
+  useEffect(() => {
+    if (dataMessage) {
+      setMessages(dataMessage)
+    }
+  }, [dataMessage])
+
+  // Lista de respuestas rápidas predefinidas
+  const quickResponses = [
+    "Hola, ¿en qué puedo ayudarte?",
+    "Gracias por contactarnos.",
+    "¿Podrías proporcionarnos más detalles?",
+    "Estaremos en contacto pronto.",
+    "Lamentamos los inconvenientes ocasionados."
+  ]
+
+  // Función para seleccionar una respuesta rápida
+  const onQuickResponseSelect = (response: string) => {
+    setTextContent(response)
+    quickResponseOp.current?.hide()
+  }
+
+  const [transferModalVisible, setTransferModalVisible] = useState(false);
+
+  const handleTransfer = (type: 'agent' | 'group' | 'bot', id?: string) => {
+    console.log('Transferencia de chat a:', type, id);
+    setTransferModalVisible(false);
+  };
+
+  const TransferModal = ({ visible, onHide, onTransfer }: { 
+    visible: boolean; 
+    onHide: () => void; 
+    onTransfer: (type: 'agent' | 'group' | 'bot', id?: string) => void;
+  }) => {
+    const [selectedOption, setSelectedOption] = useState<'agent' | 'group' | 'bot' | null>(null);
+    
+    // Datos de ejemplo - reemplazar con llamadas reales a la API
+    const agents: Agent[] = [
+      { id: '1', name: 'Agente 1', status: 'Disponible' },
+      { id: '2', name: 'Agente 2', status: 'Ocupado' }
+    ];
+    
+    const groups: Group[] = [
+      { id: 'g1', name: 'Grupo Ventas' },
+      { id: 'g2', name: 'Grupo Soporte' }
+    ];
+
+    return (
+      <Dialog 
+        header="Transferencia de chat" 
+        visible={visible} 
+        onHide={onHide}
+        style={{ width: '50vw', maxWidth: '800px' }}
+        breakpoints={{ '960px': '90vw', '641px': '95vw' }}
+      >
+        {!selectedOption ? (
+          <div className="flex flex-column gap-2" style={{ padding: '0 1.5rem' }}>
+            <Button 
+              label="A un agente" 
+              icon="pi pi-user" 
+              className="p-button-outlined"
+              style={{ 
+                padding: '0 1rem',
+                width: '80%',
+                margin: '0 auto'
+              }}
+              onClick={() => setSelectedOption('agent')}
+            />
+            <Button 
+              label="A un grupo de agentes" 
+              icon="pi pi-users" 
+              className="p-button-outlined"
+              style={{ 
+                padding: '0 1rem',
+                width: '80%',
+                margin: '0 auto'
+              }}
+              onClick={() => setSelectedOption('group')}
+            />
+            <Button 
+              label="A un bot" 
+              icon="pi pi-robot" 
+              className="p-button-outlined"
+              style={{ 
+                padding: '0 1rem',
+                width: '80%',
+                margin: '0 auto',
+                opacity: 0.6
+              }}
+              disabled
+            />
+          </div>
+        ) : (
+          <div className="flex flex-column gap-3">
+            <div className="flex align-items-center gap-2">
+              <Button 
+                icon="pi pi-arrow-left" 
+                className="p-button-text"
+                onClick={() => setSelectedOption(null)}
+              />
+              <h3>{selectedOption === 'agent' ? 'Seleccione un agente' : 'Seleccione un grupo'}</h3>
+            </div>
+            
+            {(selectedOption === 'agent' ? agents : groups).map(item => (
+              <div 
+                key={item.id} 
+                className="p-3 border-round border-1 surface-border cursor-pointer hover:surface-hover"
+                onClick={() => {
+                  onTransfer(selectedOption, item.id);
+                  onHide();
+                }}
+              >
+                <div className="flex align-items-center gap-3">
+                  <i className={selectedOption === 'agent' ? 'pi pi-user' : 'pi pi-users'}></i>
+                  <div>
+                    <div className="font-medium">{item.name}</div>
+                    {selectedOption === 'agent' && 'status' in item && (
+                      <div className="text-sm">Estado: {(item as Agent).status}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Dialog>
+    );
+  };
 
   // Envía un mensaje de plantilla usando la función del servicio
   const onSendTemplateMessage = async () => {
@@ -184,7 +462,7 @@ export const ChatBox = (props: any) => {
             actualNumberOfMaintanceSelected.idNumberPhone
           )
           messageTemporal.idWhatsapp = result.messages[0].id
-          pushMessage(messageTemporal)
+          setMessages([...storedMessages, messageTemporal])
           postMessage("/message", messageTemporal)
         } catch (error: any) {
           let errorMessage = "Error al enviar el mensaje";
@@ -236,7 +514,7 @@ export const ChatBox = (props: any) => {
     return `${hours}:${minutes.toString().padStart(2, "0")}`
   }
 
-  const { setDialogTransfer, setActiveConversation, deleteConversation } = useChatStore()
+  const { setDialogTransfer, setActiveConversation, deleteConversation, incrementUnreadCount } = useChatStore()
   // Abre el diálogo para transferir el chat
   const transferChat = () => {
     setDialogTransfer(true)
@@ -284,57 +562,40 @@ export const ChatBox = (props: any) => {
     }
   }
 
-  // Efecto para mantener el scroll en la parte inferior al insertar nuevos nodos
-  useEffect(() => {
-    if (chatWindow.current) {
-      chatWindow.current.addEventListener("DOMNodeInserted", (event) => {
-        const target = event.currentTarget as HTMLDivElement | null
-        if (target) {
-          target.scroll({ top: target.scrollHeight })
-        }
-      })
+  // Mensajes a mostrar - versión RADICAL para debug - MOSTRAR TODO
+  const displayedMessages = useMemo(() => {
+    console.log('Recalculando displayedMessages');
+    console.log('Mensajes totales disponibles:', storedMessages.length);
+    
+    // FORZAR MOSTRAR TODOS LOS MENSAJES
+    // Esto es para debug - muestra absolutamente todos los mensajes sin filtrar
+    console.log('FORZANDO MOSTRAR TODOS LOS MENSAJES PARA DEBUG');
+    if (storedMessages.length > 0) {
+      return storedMessages;
     }
-  }, [activeConversation])
-
-  const { data: dataMessage, postData } = usePostRequest<{ conversationId : number }, MessageModel[] >()
-  function fetchMesagesData (conversationId : number) {
-    postData("/message/getMessages", {
-      conversationId
-    })
-  }
-
+    
+    return [];
+  }, [storedMessages]);
+  
+  // Agrega este efecto para imprimir todos los mensajes
   useEffect(() => {
-    if (activeConversation?.destination_number) {
-      fetchMesagesData(activeConversation?.conversationid)
-    }
-  }, [activeConversation?.destination_number])
+    console.log('TODOS LOS MENSAJES EN EL STORE:');
+    storedMessages.forEach((msg, index) => {
+      console.log(`Mensaje #${index + 1}:`, {
+        content: msg.content,
+        owner: msg.owner,
+        from: msg.from,
+        conversationId: msg.conversationId,
+        sentAt: new Date(msg.sentAt).toLocaleString()
+      });
+    });
+  }, [storedMessages]);
 
+  // Debug
   useEffect(() => {
-    if (dataMessage) {
-      setMessages(dataMessage)
-    }
-  }, [dataMessage])
-
-  useEffect(() => {
-    if (chatWindow.current) {
-      chatWindow.current.scrollTo({ top: chatWindow.current.scrollHeight, behavior: "smooth" })
-    }
-  }, [messagesStorage])
-
-  // Lista de respuestas rápidas predefinidas
-  const quickResponses = [
-    "Hola, ¿en qué puedo ayudarte?",
-    "Gracias por contactarnos.",
-    "¿Podrías proporcionarnos más detalles?",
-    "Estaremos en contacto pronto.",
-    "Lamentamos los inconvenientes ocasionados."
-  ]
-
-  // Función para seleccionar una respuesta rápida
-  const onQuickResponseSelect = (response: string) => {
-    setTextContent(response)
-    quickResponseOp.current?.hide()
-  }
+    console.log('[DEBUG] Current messages:', storedMessages);
+    console.log('[DEBUG] Displayed messages:', displayedMessages);
+  }, [storedMessages, displayedMessages]);
 
   return (
     <React.Fragment>
@@ -365,7 +626,7 @@ export const ChatBox = (props: any) => {
               tooltipOptions={{ position: 'top' }}
             ></Button>
             <Button
-              onClick={() => transferChat()}
+              onClick={() => setTransferModalVisible(true)}
               type="button"
               icon="pi pi-sign-out"
               rounded
@@ -385,8 +646,7 @@ export const ChatBox = (props: any) => {
           style={{ maxHeight: "53vh" }}
         >
           {/* Filtramos los mensajes si hay un término de búsqueda */}
-          {messagesStorage && messagesStorage
-            .filter(message => !searchText || message.content.toLowerCase().includes(searchText.toLowerCase()))
+          {displayedMessages
             .map((message : MessageModel, i : number) => {
             return (
               <div key={i}>
@@ -581,13 +841,19 @@ export const ChatBox = (props: any) => {
           </div>
           {searchText && (
             <small className="block text-600 mt-2">
-              {messagesStorage.filter(msg => 
+              {storedMessages.filter(msg => 
                 msg.content.toLowerCase().includes(searchText.toLowerCase())
               ).length} resultado(s) encontrado(s)
             </small>
           )}
         </div>
       </OverlayPanel>
+
+      <TransferModal 
+        visible={transferModalVisible} 
+        onHide={() => setTransferModalVisible(false)} 
+        onTransfer={handleTransfer} 
+      />
     </React.Fragment>
   )
 }

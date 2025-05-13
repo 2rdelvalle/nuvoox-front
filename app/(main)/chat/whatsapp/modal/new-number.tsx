@@ -15,12 +15,13 @@ import { Message } from "primereact/message"
 import { Card } from "primereact/card"
 import { Chip } from "primereact/chip"
 import { Steps } from "primereact/steps"
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from 'react';
 import { useChatStore } from "../store/chat-store"
 import { sendTemplateMessage } from "../service/chatServices"
 import { TemplateModel } from "@/shared/models/template/template.model"
-import { NumbersOfMaintanceCaratule } from "@/shared/models"
+import { NumbersOfMaintanceCaratule, STATUS_ENTITY } from "@/shared/models"
 import { Controller, useForm } from "react-hook-form"
+import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/sessionUtils";
 type propsNewNumber = {
     updateData : (param? : string) => void
 }
@@ -47,7 +48,6 @@ const NewNumber = ({ updateData } : propsNewNumber) => {
     dialogNewNumber,
     setDialogNewNumber,
     user,
-    setActualNumberOfMaintanceSelected,
     actualNumberOfMaintanceSelected,
     conversations: listConversations
   } = useChatStore()
@@ -81,9 +81,9 @@ const NewNumber = ({ updateData } : propsNewNumber) => {
       }))
       
       // También actualizamos el store para mantener consistencia
-      setActualNumberOfMaintanceSelected(selectedNumber)
+      useChatStore.setState({ actualNumberOfMaintanceSelected: selectedNumber })
     }
-  }, [selectedNumber, setActualNumberOfMaintanceSelected])
+  }, [selectedNumber])
 
   /**
    * Registra la conversación y envía la plantilla seleccionada
@@ -91,9 +91,24 @@ const NewNumber = ({ updateData } : propsNewNumber) => {
   async function registerConversationAndSendTemplate() {
     const { originNumber, selectedCodeCountrie, numberPhone, selectedTemplate } = wizardData;
     
+    // Depuración detallada del originNumber antes de validar
+    console.log('DATOS DEL NÚMERO DE ORIGEN ANTES DE ENVIAR:', {
+      originNumber,
+      idNumberPhone: originNumber?.idNumberPhone,
+      IdAccountWB: originNumber?.IdAccountWB,
+      todasLasPropiedades: Object.keys(originNumber || {}),
+      objetoCompleto: originNumber,
+    });
+    
     // Validar campos obligatorios
     if (!originNumber || !selectedCodeCountrie || !numberPhone || !selectedTemplate) {
       showError("Todos los campos son obligatorios")
+      return false;
+    }
+    
+    // Validar que el número de origen tenga la configuración completa de WhatsApp
+    if (!originNumber.idNumberPhone || !originNumber.IdAccountWB) {
+      showError("El número de origen no tiene configuración completa de WhatsApp Business. Verifica que tenga ID y token de acceso.")
       return false;
     }
     
@@ -302,42 +317,101 @@ const NewNumber = ({ updateData } : propsNewNumber) => {
 /**
  * Paso 1: Selección de datos de contacto
  */
-const ContactInfoStep: React.FC<StepComponentProps> = ({ onNext, updateData, wizardData }) => {
-  // Obtenemos los datos necesarios del store
+const ContactInfoStep: React.FC<StepComponentProps> = ({ onNext, onPrevious, updateData, wizardData }) => {
   const { user } = useChatStore();
-  
-  // Obtener códigos de países
-  const { responseData: codeCountries } = useFetch(_conversation.getCodeCountries)
-  
-  // Obtener números de origen disponibles para el usuario
-  const { data: numbersOfMaintance } = useSWRFetch<NumbersOfMaintanceCaratule[]>(
-    user && user.userId ? `/users/numbers/${user.userId}` : ""
-  )
-  
-  // Setup para el form controller del dropdown
-  const { control, watch } = useForm<{ actualNOM: NumbersOfMaintanceCaratule | null }>({
-    defaultValues: { actualNOM: wizardData.originNumber }
-  })
-  
-  // Observar cambios en la selección
-  const selectedOriginNumber = watch("actualNOM")
-  
-  // Actualizar el wizardData cuando cambie la selección
-  useEffect(() => {
-    if (selectedOriginNumber) {
-      updateData("originNumber", selectedOriginNumber)
+  const conversationEndpoint = '/nuvoox/api/conversation';
+
+  // Obtener datos de países desde el endpoint correcto
+  const { data: codeCountries = [], error: countriesError } = useSWRFetch<CodeCountries[]>("conversation/codeCountries", { 
+    refreshInterval: 0,
+    onError: (err) => {
+      console.error('Failed to load country codes:', err);
     }
-  }, [selectedOriginNumber, updateData])
+  });
+  // Obtener los números del agente usando el mismo endpoint que en page.tsx
+  // para garantizar consistencia en toda la aplicación
+  const { data: agentNumbers = [] } = useSWRFetch<NumbersOfMaintanceCaratule[]>(
+    user?.userId ? `/users/numbers/${user?.userId}` : ""
+  );
+
+  // Depuración detallada para verificar los números obtenidos
+  useEffect(() => {
+    if (agentNumbers?.length > 0) {
+      console.log('Números disponibles del agente:', agentNumbers);
+      // Depurar cada número para verificar sus propiedades
+      agentNumbers.forEach((num, index) => {
+        console.log(`Número ${index + 1}:`, {
+          number: num.number,
+          idNumberPhone: num.idNumberPhone, // Verificar si existe y tiene valor
+          IdAccountWB: num.IdAccountWB,    // Verificar si existe y tiene valor
+          rawObject: num                   // Objeto completo para ver todas las propiedades
+        });
+      });
+    } else {
+      console.log('No se encontraron números para el agente');
+    }
+  }, [agentNumbers]);
+
+  const countries = codeCountries;
+  // Filtrar solo números que tengan configuración completa de WhatsApp
+  const validNumbers = agentNumbers.filter(num => 
+    num && num.idNumberPhone && num.IdAccountWB
+  );
+  
+  // Mostrar advertencia si no hay números con configuración completa
+  useEffect(() => {
+    if (agentNumbers.length > 0 && validNumbers.length === 0) {
+      console.warn('No hay números con configuración completa de WhatsApp Business');
+      // Puedes mostrar un mensaje al usuario si lo deseas
+      // showError("No hay números con configuración completa de WhatsApp Business");
+    }
+  }, [agentNumbers, validNumbers]);
+
+  // Inicializar React Hook Form para el dropdown
+  const { control } = useForm({
+    defaultValues: {
+      originNumber: wizardData.originNumber
+    }
+  });
   
   // Estado local para validación
-  const [isFormValid, setIsFormValid] = useState(false)
+  const [formValid, setFormValid] = useState(false);
   
-  // Validar formulario al cambiar los datos
+  // Actualizar la validación del formulario cuando cambien los datos
   useEffect(() => {
     const { originNumber, selectedCodeCountrie, numberPhone } = wizardData;
-    setIsFormValid(!!originNumber && !!selectedCodeCountrie && numberPhone.length > 8);
+    setFormValid(!!originNumber && !!selectedCodeCountrie && numberPhone.length > 8);
   }, [wizardData.originNumber, wizardData.selectedCodeCountrie, wizardData.numberPhone]);
   
+  // Actualizar datos con control de cambios reales
+  const handleNumberChange = (value: NumbersOfMaintanceCaratule | null) => {
+    if (value !== wizardData.originNumber) {
+      // Depurar el número seleccionado
+      console.log('NÚMERO SELECCIONADO (handleNumberChange):', {
+        number: value?.number,
+        idNumberPhone: value?.idNumberPhone,
+        IdAccountWB: value?.IdAccountWB,
+        completeObject: value // Ver objeto completo para identificar posibles nombres alternativos
+      });
+      
+      updateData('originNumber', value);
+      // Actualizar también el store para mantener consistencia
+      useChatStore.setState({ actualNumberOfMaintanceSelected: value });
+    }
+  };
+  
+  const handleCountryChange = (value: CodeCountries | null) => {
+    if (value !== wizardData.selectedCodeCountrie) {
+      updateData('selectedCodeCountrie', value);
+    }
+  };
+  
+  const handlePhoneChange = (value: string) => {
+    if (value !== wizardData.numberPhone) {
+      updateData('numberPhone', value);
+    }
+  };
+
   // Templates para el dropdown
   const selectedCountryTemplate = (option: any, props: any) => {
     if (option) {
@@ -362,6 +436,12 @@ const ContactInfoStep: React.FC<StepComponentProps> = ({ onNext, updateData, wiz
     )
   }
   
+  // Validar formulario al cambiar los datos
+  useEffect(() => {
+    const { originNumber, selectedCodeCountrie, numberPhone } = wizardData;
+    setFormValid(!!originNumber && !!selectedCodeCountrie && numberPhone.length > 8);
+  }, [wizardData.originNumber, wizardData.selectedCodeCountrie, wizardData.numberPhone, setFormValid]);
+  
   return (
     <div className="p-fluid">
       <Message severity="info" text="Ingrese los datos del contacto para iniciar una conversación" />
@@ -369,16 +449,54 @@ const ContactInfoStep: React.FC<StepComponentProps> = ({ onNext, updateData, wiz
       <div className="mb-4 mt-4">
         <label className="font-bold block mb-2">Número de origen</label>
         <Controller
+          name="originNumber"
           control={control}
-          name="actualNOM"
+          defaultValue={wizardData.originNumber}
           render={({ field }) => (
             <Dropdown
-              {...field}
-              options={numbersOfMaintance}
+              value={field.value || wizardData.originNumber}
+              onChange={(e) => {
+                field.onChange(e.value);
+                handleNumberChange(e.value);
+              }}
+              options={validNumbers}
               optionLabel="number"
+              filter
+              showClear
+              filterBy="number"
+              emptyFilterMessage="No se encontraron números"
+              emptyMessage="No hay números disponibles"
+              itemTemplate={(option) => (
+                <div className="flex align-items-center p-2">
+                  <i className="pi pi-phone mr-2" style={{ color: '#0D89EC' }}></i>
+                  <div>
+                    <span className="font-bold block">{option.number || 'Sin número'}</span>
+                    <small className="text-500 block">
+                      {option.indicative ? `(+${option.indicative})` : ''}
+                      {option.IdAccountWB ? ' · ID: ' + option.IdAccountWB.substring(0, 8) + '...' : ''}
+                    </small>
+                  </div>
+                </div>
+              )}
+              valueTemplate={(option, props) => {
+                if (option) {
+                  return (
+                    <div className="flex align-items-center">
+                      <i className="pi pi-phone mr-2" style={{ color: '#0D89EC' }}></i>
+                      <div>
+                        <span>{option.number}</span>
+                        <small className="text-500 ml-2">
+                          {option.indicative ? `(+${option.indicative})` : ''}
+                        </small>
+                      </div>
+                    </div>
+                  );
+                }
+                return <span>{props.placeholder}</span>;
+              }}
               placeholder="Seleccione el número a trabajar"
               className="w-full"
-              disabled={!numbersOfMaintance || numbersOfMaintance.length === 0}
+              disabled={!validNumbers || validNumbers.length === 0}
             />
           )}
         />
@@ -390,8 +508,8 @@ const ContactInfoStep: React.FC<StepComponentProps> = ({ onNext, updateData, wiz
         <Dropdown
           showClear
           value={wizardData.selectedCodeCountrie}
-          onChange={(e) => updateData('selectedCodeCountrie', e.value)}
-          options={codeCountries}
+          onChange={(e) => handleCountryChange(e.value)}
+          options={countries}
           optionLabel="country_name"
           placeholder="Seleccione un código de país"
           filter
@@ -415,7 +533,7 @@ const ContactInfoStep: React.FC<StepComponentProps> = ({ onNext, updateData, wiz
             className="w-full"
             required
             value={wizardData.numberPhone}
-            onChange={(e) => updateData('numberPhone', e.target.value)}
+            onChange={(e) => handlePhoneChange(e.target.value)}
           />
         </div>
         <small className="text-500">Número sin el código de país (ejemplo: 3001234567)</small>
@@ -426,7 +544,7 @@ const ContactInfoStep: React.FC<StepComponentProps> = ({ onNext, updateData, wiz
           label="Siguiente" 
           icon="pi pi-arrow-right" 
           onClick={onNext} 
-          disabled={!isFormValid}
+          disabled={!formValid}
           className="p-button-primary" 
         />
       </div>
@@ -439,8 +557,15 @@ const ContactInfoStep: React.FC<StepComponentProps> = ({ onNext, updateData, wiz
  * Utiliza el mismo componente que el botón "Plantilla" del chatbox
  */
 const TemplateSelectionStep: React.FC<StepComponentProps> = ({ onNext, onPrevious, updateData, wizardData }) => {
-  // Obtener plantillas disponibles (igual que en chatbox)
-  const { responseData: dataTemplates, isLoading } = useFetch(_template.getAll)
+  // Obtener token y datos de usuario para filtrar plantillas por empresa
+  const token = getCookieToken()
+  const dataToken = token ? getDataFromToken(token) : null
+  const companyId = dataToken?.user.company.companyId
+  
+  // Obtener templates directamente usando useSWRFetch para una conexión directa con el backend
+  const { data: templates = [], isLoading } = useSWRFetch<TemplateModel[]>(
+    `/templates/company/${companyId || 0}`
+  );
   
   // Estado temporal para el template seleccionado en el dropdown
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateModel | null>(wizardData.selectedTemplate)
@@ -473,7 +598,7 @@ const TemplateSelectionStep: React.FC<StepComponentProps> = ({ onNext, onPreviou
               optionLabel="name"
               filter
               filterBy="name"
-              options={dataTemplates}
+              options={templates}
               placeholder={"Seleccione su Plantilla"}
               onChange={(e) => {
                 setSelectedTemplate(e.value)
@@ -582,7 +707,7 @@ const ConfirmationStep: React.FC<StepComponentProps & { onSuccess?: () => void, 
               </span>
             </div>
             
-            <div className="flex align-items-center mb-2">
+            <div className="flex align-items-center">
               <i className="pi pi-check-circle mr-2"></i>
               <span className="font-bold">Estado:</span>
               <span className="ml-2">

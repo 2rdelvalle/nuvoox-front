@@ -16,6 +16,8 @@ type useChatStoreForm = {
     pushConversations: (cnv : Conversation[]) => void
     deleteConversation: (cnv : Conversation) => void
     updateConversation: (cnv : Conversation) => void
+    incrementUnreadCount: (conversationId: number) => void
+    resetUnreadCount: (conversationId: number) => void
     actualNumberOfMaintanceSelected: NumbersOfMaintanceCaratule | null
     setActualNumberOfMaintanceSelected: (number : NumbersOfMaintanceCaratule) => void
     dialogTransfer : boolean,
@@ -42,6 +44,20 @@ export const useChatStore = create<useChatStoreForm>((set) => ({
   pushConversations: (cnv : Conversation[]) => set((state) => ({ conversations: [...state.conversations, ...cnv] })),
   updateConversation: (cnv) => set((state) => ({
     conversations: state.conversations.map((c) => (c.id === cnv.id ? { ...c, ...cnv } : c))
+  })),
+  incrementUnreadCount: (conversationId: number) => set((state) => ({
+    conversations: state.conversations.map((c) => (
+      c.conversationid === conversationId 
+        ? { ...c, unreadCount: (c.unreadCount || 0) + 1 } 
+        : c
+    ))
+  })),
+  resetUnreadCount: (conversationId: number) => set((state) => ({
+    conversations: state.conversations.map((c) => (
+      c.conversationid === conversationId 
+        ? { ...c, unreadCount: 0 } 
+        : c
+    ))
   })),
   deleteConversation: (cnv) => set((state) => ({ conversations: state.conversations.filter((c) => c.id !== cnv.id) })),
   actualNumberOfMaintanceSelected: null,

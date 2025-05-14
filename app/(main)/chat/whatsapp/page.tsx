@@ -4,7 +4,7 @@ import { useInitializeUserFromToken } from "@/shared/customHooks/useInitializeUs
 import { useSWRFetch } from "@/shared/customHooks/useSWRFetch"
 import { useSWRRequest } from "@/shared/customHooks/useSWRRequest"
 import { NumbersOfMaintanceCaratule } from "@/shared/models"
-import { Conversation } from "@/shared/models/conversation/conversation.model"
+import { Conversation, ConversationCaratule } from "@/shared/models/conversation/conversation.model"
 import type { Page } from "@/types"
 import dynamic from "next/dynamic"
 import { Avatar } from "primereact/avatar"
@@ -26,7 +26,13 @@ import { MessageModel } from "@/shared/models/conversation/messages.model"
 const NewNumber = dynamic(() => import("./modal/new-number"), { ssr: false })
 const DialogTransfer = dynamic(() => import("./dialogTransfer/dialog-transfer"), { ssr: false })
 
-const ChatSidebar = () => {
+// Interfaz para las props del componente ChatSidebar
+interface ChatSidebarProps {
+  typeMenu: string;
+  setTypeMenu: (type: string) => void;
+}
+
+const ChatSidebar: React.FC<ChatSidebarProps> = ({ typeMenu, setTypeMenu }) => {
   const {
     user: userStore,
     setDialogNewNumber,
@@ -42,8 +48,15 @@ const ChatSidebar = () => {
   const { resetAll: resetAllMessages } = useMessageStore()
 
   // HOOKS
-  const [typeMenu, setTypeMenu] = useState<string>("all")
-  const [userName, setUserName] = useState<string>("")
+  const [userName, setUserName] = useState<string>("") 
+  
+  // Cálculo de mensajes no leídos para la insignia
+  const unreadMessagesCount = useMemo(() => {
+    // Sumar todos los mensajes no leídos de todas las conversaciones
+    return conversations.reduce((total, conversation) => {
+      return total + (conversation.unreadCount || 0);
+    }, 0);
+  }, [conversations])
   const [userAvatar, setUserAvatar] = useState<string>("")
 
   // trae los numeros de la empresa que maneja el ajente
@@ -617,8 +630,8 @@ const ChatSidebar = () => {
         <div className="container-status-chats mb-2 mt-0">
           <div className="flex justify-content-center gap-3 py-2">
             {[
-              { label: "TODOS", type: "all", badge: conversations.length + conversationsNotAssigned.length },
-              { label: "NO LEÍDOS", type: "unread", badge: 0 }
+              { label: "TODOS", type: "all" },
+              { label: "NO LEÍDOS", type: "unread", badge: conversations.reduce((count, conv) => count + (conv.unreadCount || 0), 0) }
             ].map(({ label, type, badge }, i) => {
               const isActive = typeMenu === type;
               return (
@@ -634,8 +647,12 @@ const ChatSidebar = () => {
                   <div className="flex align-items-center justify-content-center gap-2 w-full">
                     <span className="text-sm font-medium position-relative">
                       {label}
-                      {badge > 0 && (
-                        <Badge value={badge} className="p-overlay-badge" severity={isActive ? "success" : "info"} />
+                      {type === "unread" && (
+                        <Badge 
+                          value={badge || 0} 
+                          className="p-overlay-badge ml-2" 
+                          severity={isActive ? "success" : "info"} 
+                        />
                       )}
                     </span>
                   </div>
@@ -719,8 +736,18 @@ const ChatSidebar = () => {
 
 const Chat: Page = () => {
   // Acceder al store para obtener las conversaciones y mensajes
-  const { conversations } = useChatStore();
+  const { conversations, activeConversation: currentConversation } = useChatStore();
   const { setMessages } = useMessageStore();
+  
+  // Estado para el tipo de menú (all, unread)
+  const [typeMenu, setTypeMenu] = useState<string>("all");
+  
+  // Cálculo de mensajes no leídos
+  const unreadMessagesCount = useMemo(() => {
+    return conversations.reduce((total, conversation) => {
+      return total + (conversation.unreadCount || 0);
+    }, 0);
+  }, [conversations]);
   
   /**
    * Función para cargar los mensajes de todas las conversaciones al inicio
@@ -873,20 +900,31 @@ const Chat: Page = () => {
         style={{ minHeight: "81vh" }}
       >
         <div id="whatsapp-chat-sidebar" className="md:w-25rem card p-0" style={{ marginLeft: '10px !important' }}>
-          <ChatSidebar/>
+          <ChatSidebar typeMenu={typeMenu} setTypeMenu={setTypeMenu} />
         </div>
         <div className="flex-1 card p-0" style={{ width: '100%', maxWidth: '100%', marginRight: '0' }}>
-           {
-            activeConversation
-              ? (
-                <ChatBox/>
-                )
-              : (
-              <div className="flex justify-content-center align-items-center h-full">
-                <span>No hay un Usuario Seleccionado</span>
+           {currentConversation ? (
+              <ChatBox/>
+           ) : typeMenu === "unread" && conversations.filter(conv => (conv.unreadCount || 0) > 0).length > 0 ? (
+              <div className="flex flex-row gap-4 md:flex-column overflow-auto">
+                {conversations
+                  .filter(conversation => (conversation.unreadCount || 0) > 0)
+                  .filter(conversation => conversation.conversationid !== undefined)
+                  .map((conversation: Conversation) => (
+                    <ConversationCard 
+                      key={conversation.conversationid}
+                      conversation={conversation as unknown as ConversationCaratule}
+                      isNotAssigned={false}
+                    />
+                  ))}
               </div>
-                )
-           }
+           ) : (
+              <div className="flex-1 flex justify-content-center align-items-center p-5">
+                <span className="text-color-secondary fs-6">
+                  {typeMenu === "unread" ? "No hay mensajes sin leer" : "No hay conversaciones disponibles"}
+                </span> 
+              </div>
+           )}
         </div>
         <SidebarConversation/>
         <DialogTransfer/>

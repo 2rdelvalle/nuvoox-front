@@ -16,6 +16,7 @@ import AppProfileSidebar from "./AppProfileSidebar"
 import AppSidebar from "./AppSidebar"
 import AppTopbar from "./AppTopbar"
 import { LayoutContext } from "./context/layoutcontext"
+import { NotificationListener } from "@/app/(main)/chat/whatsapp/components/NotificationListener"
 
 const Layout = (props: ChildContainerProps) => {
   const {
@@ -213,6 +214,7 @@ const Layout = (props: ChildContainerProps) => {
                 <AppProfileSidebar />
                 <AppConfig />
                 <div className="layout-mask"></div>
+                <NotificationListener />
             </div>
         </React.Fragment>
   )

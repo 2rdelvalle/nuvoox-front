@@ -562,20 +562,26 @@ export const ChatBox = (props: any) => {
     }
   }
 
-  // Mensajes a mostrar - versión RADICAL para debug - MOSTRAR TODO
+  // Mensajes a mostrar con filtro de búsqueda si es necesario
   const displayedMessages = useMemo(() => {
     console.log('Recalculando displayedMessages');
     console.log('Mensajes totales disponibles:', storedMessages.length);
     
-    // FORZAR MOSTRAR TODOS LOS MENSAJES
-    // Esto es para debug - muestra absolutamente todos los mensajes sin filtrar
-    console.log('FORZANDO MOSTRAR TODOS LOS MENSAJES PARA DEBUG');
-    if (storedMessages.length > 0) {
-      return storedMessages;
+    if (storedMessages.length === 0) {
+      return [];
     }
     
-    return [];
-  }, [storedMessages]);
+    // Si hay texto de búsqueda, filtrar los mensajes
+    if (searchText.trim()) {
+      const searchLower = searchText.toLowerCase();
+      return storedMessages.filter(msg => 
+        msg.content?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Si no hay búsqueda, mostrar todos los mensajes
+    return storedMessages;
+  }, [storedMessages, searchText]);
   
   // Agrega este efecto para imprimir todos los mensajes
   useEffect(() => {

@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 
@@ -11,72 +13,157 @@ interface Message {
   numberDestination: string; // Número de destino (puede estar vacío)
 }
 
-// Estilos para el componente de notificación de mensajes
-const notificationStyle = {
+// Estilos para la mini ventana de chat
+const chatWindowStyle = {
   position: 'fixed' as const,
   bottom: '20px',
   right: '20px',
-  maxWidth: '300px',
+  width: '320px',
   backgroundColor: '#fff',
   border: '1px solid #d4d4d4',
-  borderLeft: '4px solid #0f8bfd',
-  borderRadius: '4px',
-  boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-  padding: '12px 16px',
+  borderRadius: '8px',
+  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
   zIndex: 9999,
+  overflow: 'hidden',
   animation: 'slideIn 0.3s ease-out forwards',
 };
 
-const headerStyle = {
+const chatHeaderStyle = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
+  padding: '12px 16px',
+  backgroundColor: '#0f8bfd',
+  color: 'white',
+};
+
+const chatBodyStyle = {
+  padding: '12px',
+  maxHeight: '250px',
+  overflowY: 'auto' as const,
+};
+
+const messageStyle = {
+  padding: '8px 12px',
+  borderRadius: '14px',
   marginBottom: '8px',
+  maxWidth: '80%',
+  position: 'relative' as const,
+  minWidth: '80px', // Garantiza un ancho mínimo para contenido muy corto
+  paddingBottom: '22px', // Espacio para la información de tiempo
+};
+
+const messageContentStyle = {
+  wordWrap: 'break-word' as const,
+  width: '100%',
+};
+
+// Estilos separados para el contenedor y los elementos individuales
+const messageMetaContainerStyle = {
+  position: 'absolute' as const,
+  bottom: '4px',
+  right: '8px',
+  display: 'block', // Usamos block como base
+  textAlign: 'right' as const,
+  width: '100%', // Ancho completo para alineación
+  height: '16px', // Altura fija
+  lineHeight: '16px', // Asegurar altura de línea 
+  fontSize: '11px',
+  color: 'rgba(0, 0, 0, 0.45)',
+};
+
+const timeStyle = {
+  display: 'inline', // Forzar inline para mostrar elementos uno al lado del otro
+  marginRight: '4px',
+  whiteSpace: 'nowrap' as const,
+};
+
+const checkStyle = {
+  display: 'inline',
+  color: '#55AA55',
+  whiteSpace: 'nowrap' as const,
+};
+
+const clientMessageStyle = {
+  ...messageStyle,
+  backgroundColor: '#e5f5ff',
+  marginLeft: 'auto',
 };
 
 const phoneStyle = {
   fontWeight: 'bold' as const,
   fontSize: '14px',
-  color: '#333',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
 };
 
-const timeStyle = {
-  fontSize: '12px',
-  color: '#777',
-};
-
-const contentStyle = {
-  fontSize: '14px',
-  color: '#333',
-  wordBreak: 'break-word' as const,
+const closeButtonStyle = {
+  background: 'none',
+  border: 'none',
+  color: 'white',
+  fontSize: '16px',
+  cursor: 'pointer',
 };
 
 // Componente principal
-export default function WhatsappMessageNotification() {
+export function WhatsappMessageNotification() {
   const [notification, setNotification] = useState<Message | null>(null);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Conectar al mismo socket que usa el hook useRealtimeMessages
-    const socket = io(`${process.env.NEXT_PUBLIC_SOCKET_URL}/local`);
+    // Intentar conectarse a diferentes sockets para mayor robustez
+    const socketUrls = [
+      `${process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4001'}/local`,
+      `${process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4001'}`,
+      'http://localhost:4001/local',
+      'http://localhost:4001'
+    ];
     
-    // Manejar mensajes entrantes
-    socket.on('message', (message: Message) => {
-      console.log('Notificación: Nuevo mensaje recibido', message);
+    const sockets = socketUrls.map(url => {
+      try {
+        console.log(`Intentando conectar a socket: ${url}`);
+        return io(url, { 
+          reconnectionAttempts: 3,
+          timeout: 5000
+        });
+      } catch (error) {
+        console.error(`Error al conectar a ${url}:`, error);
+        return null;
+      }
+    }).filter(Boolean); // Eliminar conexiones fallidas
+    
+    // Manejar mensajes entrantes en todos los sockets
+    sockets.forEach((socket, index) => {
+      if (!socket) return;
       
-      // Mostrar notificación
-      setNotification(message);
-      setVisible(true);
+      // Almacenar las URLs que intentamos para referencia
+      const socketUrl = socketUrls[index] || 'desconocido';
       
-      // Ocultar después de 5 segundos
-      setTimeout(() => {
-        setVisible(false);
-      }, 5000);
+      socket.on('connect', () => {
+        console.log(`Conectado a socket de notificación: ${socketUrl} (ID: ${socket.id})`);
+      });
+      
+      socket.on('message', (message: Message) => {
+        // Solo mostrar mensajes de clientes
+        if (message.owner === 'CLIENT' || message.owner === 'CUSTOMER') {
+          console.log('Notificación: Nuevo mensaje recibido', message);
+          
+          // Mostrar notificación
+          setNotification(message);
+          setVisible(true);
+          
+          // Ocultar la notificación después de 8 segundos
+          setTimeout(() => {
+            setVisible(false);
+          }, 8000); // 8 segundos
+        }
+      });
     });
     
     // Limpiar al desmontar
     return () => {
-      socket.disconnect();
+      sockets.forEach(socket => socket && socket.disconnect());
     };
   }, []);
   
@@ -86,32 +173,45 @@ export default function WhatsappMessageNotification() {
     return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
   
+  // Cerrar la notificación
+  const handleClose = () => {
+    setVisible(false);
+  };
+  
   // No mostrar si no hay notificación o no es visible
   if (!notification || !visible) {
     return null;
   }
   
   return (
-    <div style={notificationStyle}>
-      <div style={headerStyle}>
-        <span style={phoneStyle}>
-          {notification.from}
-        </span>
-        <span style={timeStyle}>
-          {formatTime(notification.sentAt)}
-        </span>
+    <div style={chatWindowStyle}>
+      <div style={chatHeaderStyle}>
+        <div style={phoneStyle}>
+          <span>Mensaje de {notification.from}</span>
+        </div>
+        <button style={closeButtonStyle} onClick={handleClose}>✕</button>
       </div>
-      <div style={contentStyle}>
-        {notification.content}
+      <div style={chatBodyStyle}>
+        <div style={clientMessageStyle}>
+          <div style={{ position: 'relative', width: '100%' }}>
+            <div style={messageContentStyle}>
+              {notification.content}
+            </div>
+            <div style={messageMetaContainerStyle}>
+              <span style={timeStyle}>{formatTime(notification.sentAt)}</span>
+              <span style={checkStyle}>✔✔</span>
+            </div>
+          </div>
+        </div>
       </div>
       <style jsx global>{`
         @keyframes slideIn {
           0% {
-            transform: translateX(100%);
+            transform: translateY(20px);
             opacity: 0;
           }
           100% {
-            transform: translateX(0);
+            transform: translateY(0);
             opacity: 1;
           }
         }
@@ -119,3 +219,5 @@ export default function WhatsappMessageNotification() {
     </div>
   );
 }
+
+export default WhatsappMessageNotification;

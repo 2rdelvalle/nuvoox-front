@@ -8,6 +8,7 @@ import { MessageModel } from "@/shared/models/conversation/messages.model"
 import { confirmDialog } from "primereact/confirmdialog"
 import { classNames } from "primereact/utils"
 import React, { useEffect, useState, useRef } from "react"
+import { MESSAGE_OWNER } from "@/shared/models/conversation/messages.model"
 
 interface props {
   conversation: ConversationCaratule
@@ -20,23 +21,59 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
     setActiveConversation,
     setSidebarConversationVisible,
     setselectedSidebarConversationInfo,
-    user
+    activeConversation,
+    user,
+    resetUnreadCount
   } = useChatStore()
 
   const { messages } = useMessageStore()
   
-  // Referencia al valor verdadero de la hora que no debe cambiar
-  const initialTimeRef = useRef<string>("");
-  
-  // Estado visible para la UI, pero que no cambia una vez establecido
+  // Estados simples sin referencias ni claves de localStorage
   const [lastMessageTime, setLastMessageTime] = useState<string>("") 
-  const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [lastMessageTimestamp, setLastMessageTimestamp] = useState<number | null>(null)
+  const [unreadCount, setUnreadCount] = useState<number>(0)
   
-  // Clave única para localStorage basada en el ID de conversación
-  const localStorageKey = `lastMsgTime_${conversation.conversationid}`
-
+  // Ya no mantenemos referencias a localStorage para evitar persistencia no deseada
+  // Solo para los mensajes no leídos mantenemos la clave
+  const unreadMessagesKey = `unread_${conversation.conversationid}`
+  
   const { showError, showSuccess } = useToast()
+  
+  // Referencia simple para mantener el ID de conversación
+  const conversationRef = useRef<number>(conversation.conversationid);
+  
+  // Efecto para actualizar el contador de mensajes no leídos directamente desde el store global
+  useEffect(() => {
+    // Función para obtener y actualizar el contador
+    const updateUnreadCount = () => {
+      try {
+        // Si es la conversación activa, resetear contador
+        if (activeConversation?.conversationid === conversation.conversationid) {
+          resetUnreadCount(conversation.conversationid);
+          setUnreadCount(0);
+          return;
+        }
+
+        // Si no es la conversación activa, obtener contador del estado global
+        const conversationData = useChatStore.getState().conversations.find(
+          c => c.conversationid === conversation.conversationid
+        );
+        
+        if (conversationData && typeof conversationData.unreadCount === 'number') {
+          // Actualizar el contador local para mostrar el badge
+          setUnreadCount(conversationData.unreadCount);
+        }
+      } catch (error) {
+        console.error('Error al actualizar contador de mensajes no leídos:', error);
+      }
+    };
+    
+    // Verificar inmediatamente y luego cada 500ms
+    updateUnreadCount();
+    const intervalId = setInterval(updateUnreadCount, 500);
+    
+    // Limpiar intervalo al desmontar
+    return () => clearInterval(intervalId);
+  }, [conversation.conversationid, activeConversation, resetUnreadCount]);
 
   /**
    * Obtener y formatear la hora del último mensaje
@@ -91,230 +128,102 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
   }
   
   /**
-   * Guardar la hora del último mensaje en localStorage
-   * @param time - Hora formateada a guardar
+   * Formatea una marca de tiempo en formato HH:MM
+   * Función simplificada sin persistencia
+   * @param timestamp - Timestamp a formatear (puede ser number o string)
+   * @returns Hora formateada (HH:MM)
    */
-  const saveTimeToLocalStorage = (time: string) => {
-    try {
-      if (typeof window !== 'undefined' && time) {
-        localStorage.setItem(localStorageKey, time);
-      }
-    } catch (error) {
-      console.error("Error al guardar en localStorage:", error);
-    }
-  }
-  
-  /**
-   * Recuperar la hora del último mensaje desde localStorage
-   * @returns Hora guardada o cadena vacía si no existe
-   */
-  const getTimeFromLocalStorage = (): string => {
-    try {
-      if (typeof window !== 'undefined') {
-        const savedTime = localStorage.getItem(localStorageKey);
-        return savedTime || "";
-      }
-    } catch (error) {
-      console.error("Error al leer de localStorage:", error);
-    }
-    return "";
-  }
-
-  /**
-   * Carga el último mensaje directamente desde el backend
-   * Versión que usa localStorage para persistencia entre renders
-   */
-  const fetchLastMessageForConversation = async () => {
-    // Verificar si ya tenemos la hora en localStorage
-    const savedTime = getTimeFromLocalStorage();
-    if (savedTime) {
-      // Si ya tenemos la hora guardada, no necesitamos hacer nada más
-      initialTimeRef.current = savedTime;
-      setLastMessageTime(savedTime);
-      return;
-    }
+  const formatTime = (timestamp: number | string | undefined): string => {
+    if (!timestamp) return "--:--";
     
-    // Validar que tenemos un ID de conversación
-    if (!conversation?.conversationid) return;
-    
-    // Evitar múltiples llamadas simultáneas
-    if (isLoading) return;
-    
-    setIsLoading(true);
     try {
-      // Solicitar los mensajes usando el endpoint existente
-      const response = await axiosInstance.post("/message/getMessages", {
-        conversationId: conversation.conversationid
-      });
+      // Normalizar a milisegundos
+      let timeMs: number;
       
-      // Análisis detallado de la estructura para encontrar el timestamp correcto
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        // Inspeccionar los mensajes para determinar qué campos tienen la información temporal
-        const firstMessage = response.data[0];
-        console.log("Ejemplo de mensaje:", firstMessage);
-        
-        // Recopilamos todos los campos que podrían contener la fecha/hora
-        const possibleDateFields = ['sentAt', 'created_at', 'createdAt', 'date', 'timestamp', 'sent_at', 'time'];
-        
-        // Obtenemos todos los mensajes válidos (que tengan algún campo de fecha/hora)
-        const validMessages = [];
-        
-        for (const msg of response.data) {
-          // Revisar todos los campos posibles de fecha
-          for (const field of possibleDateFields) {
-            if (msg[field]) {
-              // Este mensaje tiene un campo de fecha, lo consideramos válido
-              validMessages.push(msg);
-              break;
-            }
-          }
+      if (typeof timestamp === 'string') {
+        const parsed = parseInt(timestamp, 10);
+        if (isNaN(parsed)) {
+          // Intentar como fecha ISO
+          timeMs = new Date(timestamp).getTime();
+        } else {
+          // Es un número en string
+          timeMs = parsed < 10000000000 ? parsed * 1000 : parsed;
         }
-        
-        if (validMessages.length > 0) {
-          // Procesamos todos los mensajes para normalizar sus timestamps
-          const messagesWithTime = validMessages.map(msg => {
-            // Revisar cada campo posible de fecha y usar el primero que encontremos
-            let timestamp = null;
-            
-            for (const field of possibleDateFields) {
-              if (msg[field]) {
-                const dateValue = msg[field];
-                
-                // Procesar diferentes formatos de timestamp
-                if (typeof dateValue === 'number') {
-                  // Si es un valor numérico muy pequeño, está en segundos
-                  timestamp = dateValue < 10000000000 ? dateValue * 1000 : dateValue;
-                  break;
-                } else if (typeof dateValue === 'string') {
-                  if (!isNaN(Number(dateValue))) {
-                    // String que representa un número
-                    const numericTime = Number(dateValue);
-                    timestamp = numericTime < 10000000000 ? numericTime * 1000 : numericTime;
-                  } else {
-                    // Intentar como fecha ISO
-                    try {
-                      timestamp = new Date(dateValue).getTime();
-                    } catch (e) {
-                      // Si falla, continuamos con el siguiente campo
-                      continue;
-                    }
-                  }
-                  break;
-                }
-              }
-            }
-            
-            return {
-              ...msg,
-              normalizedTimestamp: timestamp || 0
-            };
-          });
-          
-          // Ordenar por tiempo normalizado (más reciente primero)
-          const sortedMessages = messagesWithTime
-            .filter(msg => msg.normalizedTimestamp > 0) // Solo mensajes con timestamp válido
-            .sort((a, b) => b.normalizedTimestamp - a.normalizedTimestamp);
-          
-          if (sortedMessages.length > 0) {
-            const latestMessage = sortedMessages[0];
-            console.log("Mensaje más reciente encontrado:", latestMessage);
-            
-            // Obtener el primer campo de fecha válido
-            let dateFieldUsed = null;
-            for (const field of possibleDateFields) {
-              if (latestMessage[field]) {
-                dateFieldUsed = field;
-                break;
-              }
-            }
-            
-            if (dateFieldUsed) {
-              const dateValue = latestMessage[dateFieldUsed];
-              console.log(`Usando campo ${dateFieldUsed} con valor ${dateValue}`);
-              
-              const timeString = parseDate(dateValue);
-              
-              if (timeString) {
-                console.log(`Hora formateada final: ${timeString}`);
-                
-                // Guardar en localStorage para evitar cambios futuros
-                saveTimeToLocalStorage(timeString);
-                
-                // Guardar en la referencia y en el estado
-                initialTimeRef.current = timeString;
-                setLastMessageTime(timeString);
-              }
-            }
-          }
-        }
+      } else if (typeof timestamp === 'number') {
+        // Es directamente un número
+        timeMs = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
+      } else {
+        return "--:--";
       }
+      
+      // Verificar que sea válido
+      if (isNaN(timeMs)) return "--:--";
+      
+      // Crear objeto Date y formatear
+      const date = new Date(timeMs);
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${hours}:${minutes}`;
     } catch (error) {
-      console.error('Error al obtener el último mensaje:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Error al formatear hora:', error);
+      return "--:--";
     }
   };
-
-  // Efecto principal que se ejecuta una sola vez al montar el componente
-  useEffect(() => {
-    // Intentar cargar desde localStorage primero
-    const savedTime = getTimeFromLocalStorage();
-    
-    if (savedTime) {
-      // Si existe un tiempo guardado, usarlo directamente
-      initialTimeRef.current = savedTime;
-      setLastMessageTime(savedTime);
-    } else if (conversation?.conversationid) {
-      // Si no hay tiempo guardado, cargarlo del backend
-      const timerId = setTimeout(() => {
-        fetchLastMessageForConversation();
-      }, 200);
-      
-      return () => clearTimeout(timerId);
-    }
-  }, [conversation?.conversationid]); // Solo ejecutar cuando cambia la conversación
   
-  // Efecto para actualizar la hora del último mensaje cuando cambian los mensajes
+  // Efecto simplificado para mantener actualizado el tiempo del último mensaje
   useEffect(() => {
-    // Función segura para obtener la hora del último mensaje en tiempo real
-    const getLastMessageTime = () => {
-      try {
-        // Filtrar mensajes por conversación actual
-        const conversationMessages = messages.filter(
-          (msg) => msg.conversationId === conversation.conversationid
-        );
-        
-        if (conversationMessages.length > 0) {
-          // Ordenar mensajes por tiempo y obtener el más reciente
-          const lastMessage = [...conversationMessages].sort((a, b) => {
-            const timeA = typeof a.sentAt === 'number' ? a.sentAt : 0;
-            const timeB = typeof b.sentAt === 'number' ? b.sentAt : 0;
-            return timeB - timeA;
-          })[0];
-          
-          // Si el mensaje tiene un timestamp válido, actualizar estado
-          if (lastMessage && lastMessage.sentAt) {
-            const timestamp = typeof lastMessage.sentAt === 'number' ? lastMessage.sentAt : Number(lastMessage.sentAt);
-            if (!isNaN(timestamp) && timestamp !== lastMessageTimestamp) {
-              setLastMessageTimestamp(timestamp);
-              return parseDate(timestamp);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error al obtener último mensaje:", error);
-      }
+    // Función que actualiza la hora usando los mensajes del store global
+    const updateLastMessageTime = () => {
+      // Obtener todos los mensajes de la tienda global
+      const msgs = useMessageStore.getState().messages;
       
-      return "";
+      // Filtrar solo los mensajes de esta conversación
+      const conversationMsgs = msgs.filter(m => 
+        m.conversationId === conversation.conversationid
+      );
+      
+      // Si no hay mensajes, salir
+      if (conversationMsgs.length === 0) return;
+      
+      // Ordenar por timestamp de más reciente a más antiguo
+      const sortedMsgs = [...conversationMsgs].sort((a, b) => {
+        // Normalizar timestamps a números
+        const timeA = typeof a.sentAt === 'number' ? a.sentAt : parseInt(String(a.sentAt), 10) || 0;
+        const timeB = typeof b.sentAt === 'number' ? b.sentAt : parseInt(String(b.sentAt), 10) || 0;
+        return timeB - timeA; // Orden descendente (más reciente primero)
+      });
+      
+      // Tomar el primer mensaje (el más reciente)
+      const mostRecentMsg = sortedMsgs[0];
+      
+      // Formatear la hora y actualizar el estado
+      if (mostRecentMsg?.sentAt) {
+        const formattedTime = formatTime(mostRecentMsg.sentAt);
+        // Actualizar el estado directamente sin persistencia
+        setLastMessageTime(formattedTime);
+      }
     };
     
-    // Solo actualizar si hay mensajes nuevos y se obtiene una hora válida
-    const newLastMessageTime = getLastMessageTime();
-    if (newLastMessageTime) {
-      setLastMessageTime(newLastMessageTime);
-      saveTimeToLocalStorage(newLastMessageTime);
-    }
-  }, [messages, conversation.conversationid, lastMessageTimestamp]);
+    // Ejecutar inmediatamente al montar/cambiar la conversación
+    updateLastMessageTime();
+    
+    // Crear un intervalo para verificar cambios constantemente
+    const checkInterval = setInterval(updateLastMessageTime, 1000);
+    
+    // Crear una suscripción al store de mensajes para actualizar cuando cambie
+    const unsubscribe = useMessageStore.subscribe(state => {
+      // Solo actualizar, ya que en la función de actualización
+      // obtenemos los mensajes más recientes del store
+      updateLastMessageTime();
+    });
+    
+    // Limpiar recursos al desmontar
+    return () => {
+      clearInterval(checkInterval);
+      unsubscribe();
+    };
+  }, [conversation.conversationid]); // Solo dependemos del ID de conversación
   
   const changeView = () => {
     if (isNotAssigned) {
@@ -361,21 +270,41 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
     >
       <div className="flex align-items-center">
         <div className="relative md:mr-3">
-          <img
-            src="/demo/images/avatar/circle/avatar_blank.webp"
-            alt="avatar"
-            className="w-3rem h-3rem border-circle shadow-4 cursor-pointer"
-            onClick={openSidebar}
-          />
-          <span
-            className={classNames(
-              "w-1rem h-1rem border-circle border-2 surface-border absolute",
-              {
-                "bg-green-400": "active"
-              }
-            )}
-            style={{ bottom: "2px", right: "2px" }}
-          ></span>
+          <div className="relative">
+            <img
+              src="/demo/images/avatar/circle/avatar_blank.webp"
+              alt="avatar"
+              className="w-3rem h-3rem border-circle shadow-4 cursor-pointer"
+              onClick={openSidebar}
+            />
+            <span
+              className={classNames(
+                "w-1rem h-1rem border-circle border-2 surface-border absolute",
+                {
+                  "bg-green-400": "active"
+                }
+              )}
+              style={{ bottom: "2px", right: "2px" }}
+            ></span>
+            
+            {/* Badge de notificación para mensajes no leídos */}
+            {unreadCount > 0 && (
+              <span 
+                className="absolute flex align-items-center justify-content-center border-circle bg-purple-600 text-white font-bold"
+                style={{
+                  top: '-5px',
+                  right: '-5px',
+                  width: unreadCount > 99 ? '22px' : unreadCount > 9 ? '20px' : '18px',
+                  height: unreadCount > 99 ? '22px' : unreadCount > 9 ? '20px' : '18px',
+                  fontSize: unreadCount > 99 ? '10px' : '11px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  zIndex: 2
+                }}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}  
+          </div>
         </div>
         <div className="flex-column hidden md:flex">
           <div className="flex justify-content-between align-items-center w-full">

@@ -172,22 +172,64 @@ export const ChatBox = (props: any) => {
         };
         
         // 2. Verificar si el mensaje ya existe para evitar duplicados
-        const isDuplicate = storedMessages.some(existingMsg => 
-          existingMsg.idWhatsapp === msg.idWhatsapp ||
-          (existingMsg.content === msg.content && 
-           existingMsg.from === msg.from && 
-           Math.abs(existingMsg.sentAt - msg.sentAt) < 10000) // 10 segundos de tolerancia
-        );
+        const isDuplicate = storedMessages.some(existingMsg => {
+          // Verificación principal por idWhatsapp si está disponible
+          if (existingMsg.idWhatsapp && msg.idWhatsapp) {
+            return existingMsg.idWhatsapp === msg.idWhatsapp;
+          }
+          
+          // Verificación por contenido y remitente
+          const contentAndFromMatch = existingMsg.content === msg.content && existingMsg.from === msg.from;
+          
+          // Verificación de tiempo si ambos tienen sentAt
+          if (contentAndFromMatch && existingMsg.sentAt && msg.sentAt) {
+            return Math.abs(existingMsg.sentAt - msg.sentAt) < 10000; // 10 segundos de tolerancia
+          }
+          
+          // Si solo coincide el contenido y remitente pero no podemos verificar el tiempo
+          return contentAndFromMatch;
+        });
         
         if (!isDuplicate) {
           console.log('Añadiendo mensaje NO duplicado al store:', transformedMsg);
+          
           // 3. Añadir el mensaje al store utilizando el array actual
           // y creando un nuevo array que incluya el mensaje transformado
           setMessages([...storedMessages, transformedMsg]);
+          
+          // 4. Si es un mensaje del cliente, incrementar el contador de mensajes no leídos
+          // cuando no es la conversación actualmente seleccionada
+          if (transformedMsg.owner === MESSAGE_OWNER.CLIENT && 
+              transformedMsg.conversationId) {
+            if (!activeConversation || transformedMsg.conversationId !== activeConversation.conversationid) {
+              console.log(`Incrementando contador de mensajes no leídos para la conversación ${transformedMsg.conversationId}`);
+              
+              // Actualizar directamente en el store global (sin usar localStorage)
+              // Este enfoque es más directo y evita problemas de sincronización
+              if (typeof transformedMsg.conversationId === 'number') {
+                incrementUnreadCount(transformedMsg.conversationId);
+                
+                // Actualizar contador en localStorage también para persistencia
+                try {
+                  // Incrementar el contador global en Zustand store
+                  const conversation = useChatStore.getState().conversations.find(
+                    c => c.conversationid === transformedMsg.conversationId
+                  );
+                  
+                  if (conversation) {
+                    const currentCount = conversation.unreadCount || 0;
+                    localStorage.setItem(`unread_${transformedMsg.conversationId}`, String(currentCount + 1));
+                  }
+                } catch (e) {
+                  console.error('Error al actualizar contador:', e);
+                }
+              }
+            }
+          }
         }
       });
     }
-  }, [messagesSocket]); // Dependencies include messagesSocket to detect any changes
+  }, [messagesSocket, activeConversation]); // Dependencies include messagesSocket to detect any changes
 
   useEffect(() => {
     if (chatWindow.current) {
@@ -660,16 +702,36 @@ export const ChatBox = (props: any) => {
                   ? (
                     <div className="grid grid-nogutter mb-4">
                       <div className="col mt-3 text-right">
-                        <span
-                          className="inline-block text-right font-medium relative
-                          surface-border bg-primary-100 text-primary-900 p-3 pb-6 white-space-normal border-round"
+                         <span
+                          className="inline-block font-medium relative
+                          white-space-normal border-round"
                           style={{
                             wordBreak: "break-word",
-                            maxWidth: "80%"
+                            maxWidth: "80%",
+                            minWidth: "120px",
+                            padding: "12px",
+                            paddingRight: "85px", // Aumentado a 85px para dar más espacio a la hora/check
+                            boxSizing: "border-box",
+                            textAlign: "left", // Alinear el texto a la izquierda dentro de la burbuja
+                            backgroundColor: "#673AB7", // Morado oscuro para mensajes del agente
+                            color: "#ffffff", // Texto blanco para mejor contraste
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                            position: "relative",  // Asegurar que la posición es relativa para el posicionamiento interno
+                            overflow: "visible"     // Permitir que los elementos hijos queden visibles fuera del contenedor
                           }}
                         >
                           {message.content}
-                          <div className="absolute right-0 bottom-0 text-600 text-xs p-2 flex align-items-center">
+                          <div className="absolute right-0 top-50 text-white text-xs px-2 flex align-items-center"
+                               style={{
+                                 transform: "translateY(-50%)", 
+                                 height: "20px", 
+                                 whiteSpace: "nowrap",
+                                 zIndex: 2,
+                                 right: "8px",          // Posicionamiento más preciso
+                                 backgroundColor: "rgba(103, 58, 183, 0.8)", // Fondo ligeramente transparente que coincide con el mensaje
+                                 borderRadius: "10px",  // Borde redondeado para separación visual
+                                 padding: "2px 6px"     // Espacio interno para mejorar legibilidad
+                               }}>
                             {parseDate(message.sentAt)}{" "}
                             <i className="pi pi-check ml-1 text-green-400"></i>
                           </div>
@@ -691,17 +753,34 @@ export const ChatBox = (props: any) => {
                           +{activeConversation?.indicative + " " + activeConversation?.destination_number}
                         </p>
                         <span
-                          className="text-700 inline-block font-medium relative
-                          border-1 surface-border white-space-normal border-round"
+                          className="inline-block font-medium relative
+                          white-space-normal border-round"
                           style={{
                             wordBreak: "break-word",
                             maxWidth: "80%",
-                            padding: "1rem",
-                            paddingBottom: "2rem"
+                            minWidth: "120px",
+                            padding: "12px",
+                            paddingRight: "85px", // Aumentado a 85px para dar más espacio a la hora/check
+                            boxSizing: "border-box",
+                            backgroundColor: "#EDE7F6", // Morado claro para mensajes del cliente
+                            color: "#5E35B1", // Texto morado oscuro para contraste
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                            position: "relative",  // Asegurar que la posición es relativa para el posicionamiento interno
+                            overflow: "visible"     // Permitir que los elementos hijos queden visibles fuera del contenedor
                           }}
                         >
                           {message.content}
-                          <div className="absolute right-0 bottom-0 text-600 text-xs p-2 flex align-items-center">
+                          <div className="absolute right-0 top-50 text-600 text-xs px-2 flex align-items-center"
+                               style={{
+                                 transform: "translateY(-50%)", 
+                                 height: "20px", 
+                                 whiteSpace: "nowrap",
+                                 zIndex: 2,
+                                 right: "8px",          // Posicionamiento más preciso
+                                 backgroundColor: "rgba(237, 231, 246, 0.9)", // Fondo ligeramente transparente que coincide con el mensaje
+                                 borderRadius: "10px",  // Borde redondeado para separación visual
+                                 padding: "2px 6px"     // Espacio interno para mejorar legibilidad
+                               }}>
                             {parseDate(message.sentAt)}{" "}
                             <i className="pi pi-check ml-1 text-green-400"></i>
                           </div>
@@ -746,12 +825,12 @@ export const ChatBox = (props: any) => {
               className="w-full sm:w-auto"
               type="button"
               onClick={() => handleSendMessage()}></Button>
-            <Button
+            {/* <Button
               label="Plantilla"
               icon="pi pi-send"
               type="button"
               className="w-full sm:w-auto"
-              onClick={(event) => templateOp.current?.toggle(event)}></Button>
+              onClick={(event) => templateOp.current?.toggle(event)}></Button> */}
             <Button
               label="Finalizar"
               icon="pi pi-phone-slash"

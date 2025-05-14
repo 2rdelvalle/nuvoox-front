@@ -595,7 +595,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ typeMenu, setTypeMenu }) => {
             </div>
           ))}
         </div>
-        <div className="flex gap-2 mt-4">
+        {/*<div className="flex gap-2 mt-4">
           <Controller
             control={control}
             name="actualNOM"

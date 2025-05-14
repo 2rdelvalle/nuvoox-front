@@ -1,11 +1,19 @@
 import { useEffect, useState } from "react"
 import { io } from "socket.io-client"
 
-// Define el tipo de mensaje
+// Define el tipo de mensaje con todas las propiedades necesarias
 interface Message {
     from: string;
     text: string;
     timestamp: string;
+    // Propiedades adicionales que se usan en la aplicación
+    idWhatsapp?: string;
+    content?: string; 
+    sentAt?: number;
+    owner?: string;
+    type?: string;
+    numberDestination?: string;
+    received?: boolean;
 }
 
 const useRealtimeMessages = (socketUrl: string) => {

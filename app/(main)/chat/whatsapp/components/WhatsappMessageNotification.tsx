@@ -49,8 +49,10 @@ const messageStyle = {
   marginBottom: '8px',
   maxWidth: '80%',
   position: 'relative' as const,
-  minWidth: '80px', // Garantiza un ancho mínimo para contenido muy corto
-  paddingBottom: '22px', // Espacio para la información de tiempo
+  minWidth: '140px', // Ancho mínimo aumentado para garantizar espacio para el texto y la hora
+  paddingRight: '75px', // Espacio a la derecha para la hora y los checks
+  boxSizing: 'border-box' as const,
+  whiteSpace: 'normal' as const, // Permitir saltos de línea normales en el texto
 };
 
 const messageContentStyle = {
@@ -61,15 +63,17 @@ const messageContentStyle = {
 // Estilos separados para el contenedor y los elementos individuales
 const messageMetaContainerStyle = {
   position: 'absolute' as const,
-  bottom: '4px',
-  right: '8px',
-  display: 'block', // Usamos block como base
-  textAlign: 'right' as const,
-  width: '100%', // Ancho completo para alineación
+  bottom: '50%', // Centrado verticalmente
+  right: '10px', // Posicionado a la derecha del contenido
+  transform: 'translateY(50%)', // Ajuste para centrado perfecto
+  display: 'flex', // Flexbox para alineación horizontal
+  alignItems: 'center', // Centrado vertical de elementos
+  justifyContent: 'flex-end', // Alineación a la derecha
   height: '16px', // Altura fija
-  lineHeight: '16px', // Asegurar altura de línea 
   fontSize: '11px',
   color: 'rgba(0, 0, 0, 0.45)',
+  whiteSpace: 'nowrap' as const, // Forzar que no haya saltos de línea
+  zIndex: 2, // Asegurar que esté por encima del contenido
 };
 
 const timeStyle = {

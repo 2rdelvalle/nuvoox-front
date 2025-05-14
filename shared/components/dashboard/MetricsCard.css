@@ -1,0 +1,52 @@
+.metrics-card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+.metrics-card:hover {
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.metrics-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.metrics-card[data-type="sent"]::before {
+  background: #6366F1;
+}
+
+.metrics-card[data-type="received"]::before {
+  background: #10B981;
+}
+
+.metrics-card[data-type="conversations"]::before {
+  background: #F59E0B;
+}
+
+.chart-container {
+  position: relative;
+  height: 120px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .metrics-card {
+    padding: 1rem;
+  }
+  
+  .chart-container {
+    height: 100px;
+  }
+}

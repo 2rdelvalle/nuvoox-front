@@ -5,7 +5,8 @@ import { useChatStore } from "./chat/whatsapp/store/chat-store"
 import { useInitializeUserFromToken } from "@/shared/customHooks/useInitializeUserFromToken"
 import { useSWRRequest } from "@/shared/customHooks/useSWRRequest"
 import { BlockUI } from "primereact/blockui"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
+import { TemplateStats, AgentTemplateStats } from "@/shared/components/template"
 
 interface Dashboard {
   messagesSent: number;
@@ -27,6 +28,7 @@ export default function Home () {
   useInitializeUserFromToken()
 
   const { user } = useChatStore()
+  const [isCompanyRole, setIsCompanyRole] = useState(false)
 
   const { fetchData, data: dashboard, loading } = useSWRRequest<DashBoardResponse>()
 
@@ -37,6 +39,13 @@ export default function Home () {
   useEffect(() => {
     getDashBoard()
   }, [user?.company?.companyId])
+  
+  // Verificar si el usuario tiene rol de empresa
+  useEffect(() => {
+    if (user?.role?.name) {
+      setIsCompanyRole(user.role.name.toLowerCase().includes('empresa'))
+    }
+  }, [user])
 
   return (
     <BlockUI fullScreen={true} blocked={loading}>
@@ -53,7 +62,7 @@ export default function Home () {
             <div className="col-12 md:col-12 xl:col-12">
                 <MetricsCard
                   title="Proporción de Mensajes"
-                  value={0}
+                  value={dashboard?.dashboard ? dashboard.dashboard.messagesSent + dashboard.dashboard.messagesReceived : 0}
                   data={[
                     dashboard?.dashboard.messagesSent || 0,
                     dashboard?.dashboard.messagesReceived || 0,
@@ -63,6 +72,19 @@ export default function Home () {
                   metricType="pie"
                 />
             </div>
+            
+            {/* Gráficas de plantillas - solo para rol empresa */}
+            {isCompanyRole && user?.company?.companyId && (
+              <>
+                {/* Gráfica de plantillas por agente - Mismo ancho que Proporción de Mensajes */}
+                <div className="col-12 md:col-12 xl:col-12 mt-3">
+                  <div className="h-full">
+                    <AgentTemplateStats companyId={user.company.companyId} />
+                  </div>
+                </div>
+              </>
+            )}
+            
             {/* Gráficas solo para superadmin */}
             {user?.role?.name === 'SUPERADMIN' && (
               <>

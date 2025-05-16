@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Card } from 'primereact/card';
 import { Chart } from 'chart.js/auto';
 
-type MetricType = 'sent' | 'received' | 'conversations' | 'companies' | 'pie';
+type MetricType = 'sent' | 'received' | 'conversations' | 'companies' | 'pie' | 'templateCategory';
 
 type MetricsCardProps = {
   title: string;
@@ -33,6 +33,10 @@ export default function MetricsCard({ title, value, data, labels, metricType }: 
       companies: {
         base: '#8B5CF6',
         light: '#A78BFA'
+      },
+      templateCategory: {
+        base: '#EC4899',
+        light: '#F472B6'
       }
     };
 
@@ -84,6 +88,54 @@ export default function MetricsCard({ title, value, data, labels, metricType }: 
     };
 
     const configs = {
+    templateCategory: {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: [
+            '#EC4899', // Marketing
+            '#10B981', // Utilidad
+            '#6366F1'  // Autenticación
+          ],
+          borderColor: 'white',
+          borderWidth: 1,
+          borderRadius: 8,
+          borderSkipped: false,
+          hoverBackgroundColor: [
+            '#F472B6', // Marketing
+            '#34D399', // Utilidad
+            '#818CF8'  // Autenticación
+          ]
+        }]
+      },
+      options: {
+        ...commonConfig,
+        plugins: {
+          ...commonConfig.plugins,
+          tooltip: {
+            ...commonConfig.plugins.tooltip,
+            callbacks: {
+              label: (context: any) => `${context.parsed.y} plantillas de ${context.label.toLowerCase()}`
+            }
+          },
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: {
+              color: 'var(--text-color-secondary)',
+              font: { size: 12, family: 'inherit' }
+            }
+          }
+        },
+        animation: {
+          ...commonConfig.animation,
+          delay: (ctx: any) => ctx.dataIndex * 150,
+          easing: 'easeOutBounce'
+        }
+      }
+    },
     pie: {
       type: 'pie',
       data: {
@@ -308,12 +360,13 @@ export default function MetricsCard({ title, value, data, labels, metricType }: 
         <span 
           className="text-xl font-bold" 
           style={{
-            color: metricType !== 'pie'
+            color: metricType !== 'pie' && metricType !== 'templateCategory'
               ? {
                   sent: '#6366F1',
                   received: '#10B981',
                   conversations: '#F59E0B',
-                  companies: '#8B5CF6'
+                  companies: '#8B5CF6',
+                  templateCategory: '#EC4899'
                 }[metricType]
               : undefined
           }}

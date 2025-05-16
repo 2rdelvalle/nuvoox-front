@@ -8,6 +8,7 @@ type useChatStoreForm = {
     dialogNewNumber: boolean
     setDialogNewNumber: () => void
     activeConversation: ConversationCaratule | null
+    // Enhanced to prevent duplicate API calls
     setActiveConversation: (cnv : ConversationCaratule) => void
     conversations: Conversation[]
     setConversations: (cnv : Conversation[]) => void
@@ -28,9 +29,17 @@ type useChatStoreForm = {
     selectedSidebarConversationInfo: ConversationCaratule | null
     setSidebarConversationVisible: (visible: boolean) => void
     setselectedSidebarConversationInfo: (conversation: ConversationCaratule) => void
+    // New property to track which conversation IDs have already had their messages fetched
+    fetchedConversationIds: Set<number>
+    // Method to mark a conversation as having its messages fetched
+    markConversationFetched: (conversationId: number) => void
+    // Method to check if a conversation's messages have been fetched
+    hasConversationBeenFetched: (conversationId: number) => boolean
+    // Method to reset the fetch status for a specific conversation
+    resetConversationFetchStatus: (conversationId: number) => void
 }
 
-export const useChatStore = create<useChatStoreForm>((set) => ({
+export const useChatStore = create<useChatStoreForm>((set, get) => ({
   user: {} as UserCaratule,
   setUser: (user) => set({ user }),
   dialogNewNumber: false,
@@ -38,7 +47,20 @@ export const useChatStore = create<useChatStoreForm>((set) => ({
   conversations: [],
   conversationsNotAssigned: [],
   activeConversation: null,
-  setActiveConversation: (cnv) => set({ activeConversation: cnv }),
+  setActiveConversation: (cnv) => {
+    const state = get();
+    
+    // Only update if it's a different conversation
+    if (state.activeConversation?.conversationid !== cnv.conversationid) {
+      // Reset unread count when selecting a conversation
+      if (cnv.conversationid) {
+        state.resetUnreadCount(cnv.conversationid);
+      }
+      
+      // Set the active conversation
+      set({ activeConversation: cnv });
+    }
+  },
   setConversations: (cnv : Conversation[]) => set((state) => ({ conversations: cnv })),
   setConversationsNotAssigned: (cnv : Conversation[]) => set((state) => ({ conversationsNotAssigned: cnv })),
   pushConversations: (cnv : Conversation[]) => set((state) => ({ conversations: [...state.conversations, ...cnv] })),
@@ -69,5 +91,27 @@ export const useChatStore = create<useChatStoreForm>((set) => ({
   sidebarConversationVisible: false,
   selectedSidebarConversationInfo: null,
   setSidebarConversationVisible: (visible) => set({ sidebarConversationVisible: visible }),
-  setselectedSidebarConversationInfo: (conversation) => set({ selectedSidebarConversationInfo: conversation })
+  setselectedSidebarConversationInfo: (conversation) => set({ selectedSidebarConversationInfo: conversation }),
+  
+  // New property to track which conversation IDs have already had their messages fetched
+  fetchedConversationIds: new Set<number>(),
+  
+  // Mark a conversation as having its messages fetched
+  markConversationFetched: (conversationId: number) => set((state) => {
+    const updatedSet = new Set(state.fetchedConversationIds);
+    updatedSet.add(conversationId);
+    return { fetchedConversationIds: updatedSet };
+  }),
+  
+  // Check if a conversation's messages have been fetched
+  hasConversationBeenFetched: (conversationId: number) => {
+    return get().fetchedConversationIds.has(conversationId);
+  },
+  
+  // Reset the fetch status for a specific conversation
+  resetConversationFetchStatus: (conversationId: number) => set((state) => {
+    const updatedSet = new Set(state.fetchedConversationIds);
+    updatedSet.delete(conversationId);
+    return { fetchedConversationIds: updatedSet };
+  })
 }))

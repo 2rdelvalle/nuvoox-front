@@ -99,7 +99,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ typeMenu, setTypeMenu }) => {
   // Efecto para disparar la consulta al cambiar el número seleccionado
   useEffect(() => {
     if (selectedNumber?.number && userStore && userStore.userId) {
-      // Limpia las conversaciones anteriores para evitar mezclar datos
+      // Limpia las conversaciones anteriores para evitar datos mezclados
       resetAll()
       resetAllMessages()
       setActualNumberOfMaintanceSelected(selectedNumber)
@@ -204,167 +204,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({ typeMenu, setTypeMenu }) => {
       }
     }
   }, [numbersOfMaintance, userStore?.userId])
-
-  useEffect(() => {
-    // Seleccionamos los elementos del DOM que necesitamos modificar
-    const layout = document.querySelector('.layout') as HTMLElement;
-    const sidebar = document.querySelector('.sidebar') as HTMLElement;
-    const layoutContainer = document.querySelector('.layout-container') as HTMLElement;
-    const contentWrapper = document.querySelector('.layout-content-wrapper') as HTMLElement;
-    const layoutContent = document.querySelector('.layout-content') as HTMLElement;
-    
-    // Definimos el ancho del sidebar y el padding adicional
-    const sidebarWidth = 280; // en píxeles
-    const additionalPadding = 20; // padding adicional para separar más el contenido
-    const totalOffset = sidebarWidth + additionalPadding;
-    
-    if (layout && sidebar && layoutContainer && contentWrapper && layoutContent) {
-      // Configuramos el estilo del layout y sidebar
-      layout.style.paddingLeft = '0';
-      
-      // Configuramos el sidebar
-      sidebar.style.position = 'fixed';
-      sidebar.style.borderRight = 'none';
-      sidebar.style.boxShadow = 'none';
-      sidebar.style.width = `${sidebarWidth}px`;
-      sidebar.style.zIndex = '999';
-      
-      // Ajustamos el contenedor principal para que no sea cubierto por el sidebar
-      // Añadimos padding adicional para moverlo más a la derecha
-      contentWrapper.style.marginLeft = `${totalOffset}px`;
-      contentWrapper.style.width = `calc(100% - ${totalOffset}px)`;
-      contentWrapper.style.position = 'relative';
-      contentWrapper.style.zIndex = '1000';
-      
-      // Ajustamos el contenido principal
-      layoutContent.style.width = '100%';
-      layoutContent.style.marginLeft = '0';
-      
-      // Contraemos el sidebar por defecto (modo "reveal")
-      layoutContainer.classList.remove('layout-sidebar-anchored');
-      
-      // Forzamos el modo "static" para el sidebar en lugar de "reveal"
-      // Esto asegura que el sidebar esté siempre visible
-      if (!layoutContainer.classList.contains('layout-static')) {
-        layoutContainer.classList.remove('layout-reveal');
-        layoutContainer.classList.remove('layout-overlay');
-        layoutContainer.classList.remove('layout-slim');
-        layoutContainer.classList.remove('layout-slim-plus');
-        layoutContainer.classList.remove('layout-horizontal');
-        layoutContainer.classList.remove('layout-drawer');
-        layoutContainer.classList.add('layout-static');
-      }
-      
-      // Eliminamos el efecto hover del menú
-      const menuItems = document.querySelectorAll('.layout-menu-container .layout-menuitem-root-text, .layout-menu-container a');
-      menuItems.forEach((item: Element) => {
-        if (item instanceof HTMLElement) {
-          item.style.transition = 'none';
-          
-          // Eliminamos los eventos hover
-          item.onmouseenter = null;
-          item.onmouseleave = null;
-        }
-      });
-      
-      // Añadimos una clase específica para esta vista
-      document.body.classList.add('whatsapp-view');
-      
-      // Guardamos el estado original para restaurarlo después
-      const originalMode = layoutContainer.getAttribute('data-original-mode') || 'reveal';
-      if (!layoutContainer.getAttribute('data-original-mode')) {
-        layoutContainer.setAttribute('data-original-mode', originalMode);
-      }
-      
-      // Aplicamos estilos adicionales a elementos específicos que podrían estar siendo tapados
-      const agentInfoSection = document.querySelector('.agent-profile') as HTMLElement;
-      const filterButtons = document.querySelector('.filter-buttons') as HTMLElement;
-      
-      if (agentInfoSection) {
-        agentInfoSection.style.paddingLeft = '20px';
-        agentInfoSection.style.boxSizing = 'border-box';
-      }
-      
-      if (filterButtons) {
-        filterButtons.style.paddingLeft = '20px';
-        filterButtons.style.boxSizing = 'border-box';
-      }
-    }
-    
-    return () => {
-      if (layout && sidebar) {
-        const layoutContainer = document.querySelector('.layout-container') as HTMLElement;
-        const contentWrapper = document.querySelector('.layout-content-wrapper') as HTMLElement;
-        const layoutContent = document.querySelector('.layout-content') as HTMLElement;
-        
-        // Restauramos los estilos al desmontar el componente
-        layout.style.paddingLeft = '';
-        sidebar.style.position = '';
-        sidebar.style.borderRight = '';
-        sidebar.style.boxShadow = '';
-        sidebar.style.width = '';
-        sidebar.style.zIndex = '';
-        
-        if (contentWrapper) {
-          contentWrapper.style.marginLeft = '';
-          contentWrapper.style.width = '';
-          contentWrapper.style.position = '';
-          contentWrapper.style.zIndex = '';
-        }
-        
-        if (layoutContent) {
-          layoutContent.style.width = '';
-          layoutContent.style.marginLeft = '';
-        }
-        
-        // Restauramos los estilos de elementos específicos
-        const agentInfoSection = document.querySelector('.agent-profile') as HTMLElement;
-        const filterButtons = document.querySelector('.filter-buttons') as HTMLElement;
-        
-        if (agentInfoSection) {
-          agentInfoSection.style.paddingLeft = '';
-          agentInfoSection.style.boxSizing = '';
-        }
-        
-        if (filterButtons) {
-          filterButtons.style.paddingLeft = '';
-          filterButtons.style.boxSizing = '';
-        }
-        
-        // Restauramos los eventos hover del menú
-        const menuItems = document.querySelectorAll('.layout-menu-container .layout-menuitem-root-text, .layout-menu-container a');
-        menuItems.forEach((item: Element) => {
-          if (item instanceof HTMLElement) {
-            item.style.transition = '';
-          }
-        });
-        
-        // Eliminamos la clase específica
-        document.body.classList.remove('whatsapp-view');
-        
-        // Restauramos el modo original del sidebar si existe
-        if (layoutContainer) {
-          const originalMode = layoutContainer.getAttribute('data-original-mode');
-          if (originalMode) {
-            // Eliminamos todas las clases de modo
-            layoutContainer.classList.remove('layout-static');
-            layoutContainer.classList.remove('layout-reveal');
-            layoutContainer.classList.remove('layout-overlay');
-            layoutContainer.classList.remove('layout-slim');
-            layoutContainer.classList.remove('layout-slim-plus');
-            layoutContainer.classList.remove('layout-horizontal');
-            layoutContainer.classList.remove('layout-drawer');
-            
-            // Añadimos la clase original
-            layoutContainer.classList.add(`layout-${originalMode}`);
-            
-            // Limpiamos el atributo de datos
-            layoutContainer.removeAttribute('data-original-mode');
-          }
-        }
-      }
-    };
-  }, []);
 
   return (
     <React.Fragment>
@@ -752,10 +591,14 @@ const Chat: Page = () => {
   /**
    * Función para cargar los mensajes de todas las conversaciones al inicio
    * Esto permite mostrar correctamente la hora del último mensaje en todas las tarjetas
+   * Versión optimizada que maneja cancelaciones silenciosamente
    */
   const precargarMensajes = async () => {
     try {
       if (!conversations || conversations.length === 0) return;
+      
+      // Map to track which conversations we've already tried to fetch messages for
+      const fetchedConversations = new Set<number>();
       
       // Para cada conversación, obtener sus mensajes
       const allMessages: MessageModel[] = [];
@@ -763,6 +606,12 @@ const Chat: Page = () => {
       // Crear un array de promesas para cargar mensajes en paralelo
       const promesas = conversations.map(async (conversacion) => {
         if (!conversacion.conversationid) return;
+        
+        // Skip if we've already attempted to fetch this conversation's messages
+        if (fetchedConversations.has(conversacion.conversationid)) return;
+        
+        // Mark this conversation as fetched to avoid duplicates
+        fetchedConversations.add(conversacion.conversationid);
         
         try {
           const response = await axiosInstance.post("/message/getMessages", {
@@ -773,8 +622,15 @@ const Chat: Page = () => {
             // Agregar los mensajes al array global
             allMessages.push(...response.data);
           }
-        } catch (error) {
-          console.error(`Error al cargar mensajes para conversación ${conversacion.conversationid}:`, error);
+        } catch (error: any) {
+          // Check if this is a canceled request (from our circuit breaker)
+          if (error.name === 'CanceledError' && error.message === 'Blocked duplicate message fetch request') {
+            // This is expected behavior - silently ignore
+          } else {
+            // This is an unexpected error - log it but don't flood the console
+            console.warn(`Error al cargar mensajes para conversación ${conversacion.conversationid}:`, 
+              error.name || 'Error desconocido');
+          }
         }
       });
       
@@ -783,115 +639,29 @@ const Chat: Page = () => {
       
       // Actualizar el store con todos los mensajes
       if (allMessages.length > 0) {
-        console.log(`Cargados ${allMessages.length} mensajes para ${conversations.length} conversaciones`);
+        // Actualizar silenciosamente
         setMessages(allMessages);
       }
     } catch (error) {
-      console.error("Error al precargar mensajes:", error);
+      // Downgrade from error to warn to reduce console noise
+      console.warn("Error al precargar mensajes (no afecta funcionalidad principal)");
     }
   };
   
-  // Efecto para cargar los mensajes cuando las conversaciones estén disponibles
+  // Ref to track if we've already preloaded messages to avoid duplicate calls
+  const hasPreloadedRef = React.useRef(false);
+  
+  // Efecto para cargar los mensajes solo una vez cuando las conversaciones estén disponibles
   React.useEffect(() => {
-    if (conversations && conversations.length > 0) {
-      console.log("Precargando mensajes para todas las conversaciones...");
+    // Only run once when conversations become available
+    if (conversations && conversations.length > 0 && !hasPreloadedRef.current) {
+      console.log("Preloading messages for all conversations (one-time operation)");
+      hasPreloadedRef.current = true; // Mark as run
       precargarMensajes();
     }
   }, [conversations]);
 
   const { activeConversation } = useChatStore()
-
-  // Efecto para aplicar estilos específicos para esta vista
-  useEffect(() => {
-    // Función para ajustar los estilos del layout
-    const adjustLayout = () => {
-      // Asegurar que el sidebar del chat tenga suficiente margen para no ser tapado por el menú lateral
-      const chatSidebar = document.querySelector('.md\\:w-25rem.card') as HTMLElement | null;
-      if (chatSidebar) {
-        // Asignar un ID único para mayor especificidad CSS
-        chatSidebar.id = 'whatsapp-chat-sidebar';
-        
-        // Usar setProperty para establecer !important
-        chatSidebar.style.setProperty('margin-left', '10px', 'important');
-        
-        // Inyectar regla CSS con máxima prioridad
-        const sidebarStyleElement = document.createElement('style');
-        sidebarStyleElement.innerHTML = `
-          #whatsapp-chat-sidebar {
-            margin-left: 10px !important;
-          }
-        `;
-        document.head.appendChild(sidebarStyleElement);
-      }
-
-      // Obtener elementos del DOM
-      const layoutContent = document.querySelector('.layout-content') as HTMLElement | null;
-      const layoutContentWrapper = document.querySelector('.layout-content-wrapper') as HTMLElement | null;
-      const cardElements = document.querySelectorAll('.card') as NodeListOf<HTMLElement>;
-      const layoutContainer = document.querySelector('.layout-container') as HTMLElement | null;
-      
-      // Aplicar nuevos estilos
-      if (layoutContent) {
-        layoutContent.style.padding = '0';
-        layoutContent.style.width = '100%';
-        layoutContent.style.maxWidth = '100%';
-      }
-      
-      if (layoutContentWrapper) {
-        layoutContentWrapper.style.marginLeft = '0';
-        layoutContentWrapper.style.width = '100%';
-        layoutContentWrapper.style.maxWidth = '100%';
-      }
-      
-      // Anular el estilo de layout-reveal para este componente
-      if (layoutContainer && layoutContainer.classList.contains('layout-reveal')) {
-        // Anular el espacio reservado para el sidebar en modo 'reveal'
-        const sidebarWidth = document.querySelector('.layout-sidebar')?.clientWidth || 0;
-        
-        // Asegurarnos de que layoutContentWrapper no es nulo antes de modificarlo
-        if (layoutContentWrapper) {
-          layoutContentWrapper.style.marginRight = '0';
-        }
-        
-        // Aplicar CSS para forzar el ancho completo y asegurar el margen del sidebar
-        const styleElement = document.createElement('style');
-        styleElement.innerHTML = `
-          .layout-content-wrapper {
-            width: 100% !important;
-            max-width: 100% !important;
-            margin-right: 0 !important;
-          }
-          .layout-content {
-            width: 100% !important;
-            max-width: 100% !important;
-          }
-          #whatsapp-chat-sidebar, .md\\:w-25rem.card {
-            margin-left: 10px !important;
-          }
-        `;
-        document.head.appendChild(styleElement);
-      }
-      
-      // Ajustar estilos de las tarjetas
-      cardElements.forEach(card => {
-        card.style.borderRadius = '0';
-        card.style.boxShadow = 'none';
-        card.style.margin = '0';
-      });
-    };
-    
-    // Ejecutar ajuste después de que el DOM esté listo
-    const timeoutId = setTimeout(adjustLayout, 100);
-    
-    // También aplicar después de un tiempo más largo para asegurar que todos los estilos se hayan cargado
-    const secondTimeoutId = setTimeout(adjustLayout, 500);
-    
-    // Limpiar timeout si el componente se desmonta antes
-    return () => {
-      clearTimeout(timeoutId);
-      clearTimeout(secondTimeoutId);
-    };
-  }, []);
 
   return (
     <>

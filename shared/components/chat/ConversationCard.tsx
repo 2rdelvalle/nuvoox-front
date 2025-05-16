@@ -226,32 +226,52 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
   }, [conversation.conversationid]); // Solo dependemos del ID de conversación
   
   const changeView = () => {
+    // Track the click to help debug any infinite loop issues
+    console.log(`ConversationCard clicked for conversation ${conversation.conversationid}`);
+    
     if (isNotAssigned) {
       confirmDialog({
         message: "¿Desea aceptar esta conversación?",
         header: "Confirmación",
         icon: "pi pi-exclamation-triangle",
         accept: async () => {
-          await axiosInstance.get(`conversation/acceptConversation/${conversation.conversationid}/${user.userId}`)
-            .then(() => {
-              showSuccess("Conversación aceptada")
-              // Preservamos la hora del último mensaje al establecer la conversación activa
-              setActiveConversation({
-                ...conversation,
-                // Podríamos agregar aquí cualquier metadata adicional si fuera necesario
-              })
-              refetchConversations && refetchConversations()
-            })
-            .catch((error) => {
-              showError("Error al aceptar la conversación")
-              console.error("Error al aceptar la conversación:", error)
-            })
+          try {
+            // Accept the conversation through the API
+            await axiosInstance.get(`conversation/acceptConversation/${conversation.conversationid}/${user.userId}`);
+            
+            showSuccess("Conversación aceptada");
+            
+            // Set as active conversation, store will handle preventing duplicate sets
+            setActiveConversation({
+              ...conversation,
+              // We could add additional metadata here if needed
+            });
+            
+            // Refresh the conversations list if needed
+            if (refetchConversations) {
+              await refetchConversations();
+            }
+          } catch (error) {
+            showError("Error al aceptar la conversación");
+            console.error("Error al aceptar la conversación:", error);
+          }
         },
-        reject: () => {}
-      })
+        reject: () => {
+          // No action needed on rejection
+        }
+      });
     } else {
-      // Preservamos la hora del último mensaje al establecer la conversación activa
-      setActiveConversation(conversation)
+      // Check if already active to prevent unnecessary state updates
+      const activeId = useChatStore.getState().activeConversation?.conversationid;
+      if (activeId === conversation.conversationid) {
+        // This conversation is already active, no need to update
+        console.log(`Conversation ${conversation.conversationid} is already active, skipping selection`);
+        return;
+      }
+      
+      // Set as active conversation through the store
+      // The enhanced store will handle preventing duplicate API calls
+      setActiveConversation(conversation);
     }
   }
 

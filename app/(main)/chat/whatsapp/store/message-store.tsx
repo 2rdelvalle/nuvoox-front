@@ -15,8 +15,7 @@ export const useMessageStore = create<useMessageStoreForm>((set) => ({
   newMessage: null,
   setMessages: (cnv : MessageModel[]) => set((state) => ({ messages: cnv })),
   pushMessage: (cnv : MessageModel) => set((state) => {
-    console.log('[STORE DEBUG] Adding message:', cnv); // Debug 13
-    console.log('[STORE DEBUG] Current messages:', state.messages); // Debug 14
+    // Removed console.logs to prevent unnecessary renders
     return {
       messages: [...state.messages, cnv].sort((a, b) => 
         // Ordenar por sentAt que es el campo que contiene la marca de tiempo en milisegundos

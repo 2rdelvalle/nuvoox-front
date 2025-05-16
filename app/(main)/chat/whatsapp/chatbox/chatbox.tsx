@@ -2,6 +2,7 @@ import { emojis } from "@/shared/components/chat/emojis/emojis"
 import { useToast } from "@/shared/context/toast/toastContext"
 import { usePostRequest } from "@/shared/customHooks/usePostRequestResult"
 import { useFetch } from "@/shared/hooks/useFetch"
+import { axiosInstance } from "@/shared/instances/axios-instance"
 import { usePush } from "@/shared/hooks/usePush"
 import useRealtimeMessages from "@/shared/hooks/useRealtimeMessages"
 import { confirmDialog } from "primereact/confirmdialog"
@@ -17,7 +18,7 @@ import { InputText } from "primereact/inputtext"
 import { Message } from "primereact/message"
 import { OverlayPanel } from "primereact/overlaypanel"
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { sendPlainMessage, sendTemplateMessage } from "../service/chatServices"
+import { sendPlainMessage, sendTemplateMessage, getAgents, getGroups } from "../service/chatServices"
 import { useChatStore } from "../store/chat-store"
 import { useMessageStore } from "../store/message-store"
 import { Dialog } from 'primereact/dialog';
@@ -26,6 +27,7 @@ interface Agent {
   id: string;
   name: string;
   status: string;
+  type: string;
 }
 
 interface Group {
@@ -148,88 +150,80 @@ export const ChatBox = (props: any) => {
     };
   };
 
-  // Manejo de mensajes entrantes - versión directa con máxima compatibilidad
+  // Manejo de mensajes entrantes - versión optimizada
   useEffect(() => {
-    console.log('Efecto de procesamiento de mensajes ejecutado');
-    console.log('Total mensajes en el socket:', messagesSocket.length);
+    // Evitar procesamiento si no hay mensajes
+    if (!messagesSocket.length) return;
     
-    if (messagesSocket.length > 0) {
-      // Enfoque directo: procesar mensajes uno por uno
-      messagesSocket.forEach(msg => {
-        console.log('Procesando mensaje de socket:', msg);
+    // Procesar todos los mensajes a la vez para evitar múltiples renders
+    const newMessages: MessageModel[] = [];
+    
+    messagesSocket.forEach(msg => {
+      // 1. Transformar mensaje a formato MessageModel
+      const transformedMsg: MessageModel = {
+        content: msg.content || '',
+        owner: msg.owner === 'CUSTOMER' ? MESSAGE_OWNER.CLIENT : MESSAGE_OWNER.AGENT,
+        sentAt: msg.sentAt || Date.now(),
+        type: MESSAGE_TYPE.TEXT,
+        // Asegurarse que tenga el conversationId correcto
+        conversationId: activeConversation?.conversationid || 0,
+        from: msg.from || '',
+        id: Date.now(), // ID temporal 
+        idWhatsapp: msg.idWhatsapp || ''
+      };
+      
+      // 2. Verificar si el mensaje ya existe para evitar duplicados
+      const isDuplicate = storedMessages.some(existingMsg => {
+        // Verificación principal por idWhatsapp si está disponible
+        if (existingMsg.idWhatsapp && msg.idWhatsapp) {
+          return existingMsg.idWhatsapp === msg.idWhatsapp;
+        }
         
-        // 1. Transformar mensaje a formato MessageModel
-        const transformedMsg: MessageModel = {
-          content: msg.content || '',
-          owner: msg.owner === 'CUSTOMER' ? MESSAGE_OWNER.CLIENT : MESSAGE_OWNER.AGENT,
-          sentAt: msg.sentAt || Date.now(),
-          type: MESSAGE_TYPE.TEXT,
-          // Asegurarse que tenga el conversationId correcto
-          conversationId: activeConversation?.conversationid || 0,
-          from: msg.from || '',
-          id: Date.now(), // ID temporal 
-          idWhatsapp: msg.idWhatsapp || ''
-        };
+        // Verificación por contenido y remitente y tiempo aproximado
+        const contentAndFromMatch = existingMsg.content === msg.content && existingMsg.from === msg.from;
         
-        // 2. Verificar si el mensaje ya existe para evitar duplicados
-        const isDuplicate = storedMessages.some(existingMsg => {
-          // Verificación principal por idWhatsapp si está disponible
-          if (existingMsg.idWhatsapp && msg.idWhatsapp) {
-            return existingMsg.idWhatsapp === msg.idWhatsapp;
-          }
-          
-          // Verificación por contenido y remitente
-          const contentAndFromMatch = existingMsg.content === msg.content && existingMsg.from === msg.from;
-          
-          // Verificación de tiempo si ambos tienen sentAt
-          if (contentAndFromMatch && existingMsg.sentAt && msg.sentAt) {
-            return Math.abs(existingMsg.sentAt - msg.sentAt) < 10000; // 10 segundos de tolerancia
-          }
-          
-          // Si solo coincide el contenido y remitente pero no podemos verificar el tiempo
-          return contentAndFromMatch;
-        });
+        if (contentAndFromMatch && existingMsg.sentAt && msg.sentAt) {
+          return Math.abs(existingMsg.sentAt - msg.sentAt) < 10000; // 10 segundos de tolerancia
+        }
         
-        if (!isDuplicate) {
-          console.log('Añadiendo mensaje NO duplicado al store:', transformedMsg);
+        return contentAndFromMatch;
+      });
+      
+      // Solo añadir mensajes no duplicados
+      if (!isDuplicate) {
+        newMessages.push(transformedMsg);
+        
+        // Gestionar contador de mensajes no leídos para mensajes del cliente
+        // que no pertenecen a la conversación activa
+        if (transformedMsg.owner === MESSAGE_OWNER.CLIENT && 
+            transformedMsg.conversationId &&
+            (!activeConversation || transformedMsg.conversationId !== activeConversation.conversationid) &&
+            typeof transformedMsg.conversationId === 'number') {
           
-          // 3. Añadir el mensaje al store utilizando el array actual
-          // y creando un nuevo array que incluya el mensaje transformado
-          setMessages([...storedMessages, transformedMsg]);
+          incrementUnreadCount(transformedMsg.conversationId);
           
-          // 4. Si es un mensaje del cliente, incrementar el contador de mensajes no leídos
-          // cuando no es la conversación actualmente seleccionada
-          if (transformedMsg.owner === MESSAGE_OWNER.CLIENT && 
-              transformedMsg.conversationId) {
-            if (!activeConversation || transformedMsg.conversationId !== activeConversation.conversationid) {
-              console.log(`Incrementando contador de mensajes no leídos para la conversación ${transformedMsg.conversationId}`);
-              
-              // Actualizar directamente en el store global (sin usar localStorage)
-              // Este enfoque es más directo y evita problemas de sincronización
-              if (typeof transformedMsg.conversationId === 'number') {
-                incrementUnreadCount(transformedMsg.conversationId);
-                
-                // Actualizar contador en localStorage también para persistencia
-                try {
-                  // Incrementar el contador global en Zustand store
-                  const conversation = useChatStore.getState().conversations.find(
-                    c => c.conversationid === transformedMsg.conversationId
-                  );
-                  
-                  if (conversation) {
-                    const currentCount = conversation.unreadCount || 0;
-                    localStorage.setItem(`unread_${transformedMsg.conversationId}`, String(currentCount + 1));
-                  }
-                } catch (e) {
-                  console.error('Error al actualizar contador:', e);
-                }
-              }
+          // Actualizar contador en localStorage también para persistencia
+          try {
+            const conversation = useChatStore.getState().conversations.find(
+              c => c.conversationid === transformedMsg.conversationId
+            );
+            
+            if (conversation) {
+              const currentCount = conversation.unreadCount || 0;
+              localStorage.setItem(`unread_${transformedMsg.conversationId}`, String(currentCount + 1));
             }
+          } catch (e) {
+            console.error('Error al actualizar contador:', e);
           }
         }
-      });
+      }
+    });
+    
+    // Actualizar el store con todos los nuevos mensajes de una sola vez
+    if (newMessages.length > 0) {
+      setMessages([...storedMessages, ...newMessages]);
     }
-  }, [messagesSocket, activeConversation]); // Dependencies include messagesSocket to detect any changes
+  }, [messagesSocket, activeConversation?.conversationid]); // Dependency más específica
 
   useEffect(() => {
     if (chatWindow.current) {
@@ -243,30 +237,208 @@ export const ChatBox = (props: any) => {
   }, [activeConversation])
 
   useEffect(() => {
-    console.log('Messages being rendered:', storedMessages); // Debug 5
+    // Removed console.log to prevent infinite loop
     if (chatWindow.current) {
       chatWindow.current.scrollTo({ top: chatWindow.current.scrollHeight, behavior: "smooth" })
     }
   }, [storedMessages]);
 
-  const { data: dataMessage, postData } = usePostRequest<{ conversationId : number }, MessageModel[] >()
-  function fetchMesagesData (conversationId : number) {
-    postData("/message/getMessages", {
-      conversationId
-    })
+  // GLOBAL CIRCUIT BREAKER PATTERN
+// This is a last-resort mechanism to prevent infinite API calls
+const MessageFetchingManager = (() => {
+  // Private state - using store for fetchedConversationIds to make it more permanent
+  let isFetching = false;
+  let lastFetchedId: number | null = null;
+  let callCount = 0;
+  let lastCallTime = 0;
+  
+  // Circuit breaker - limits API calls per minute
+  const MAX_CALLS_PER_MINUTE = 5;
+  const callTimes: number[] = [];
+  
+  const isCircuitOpen = () => {
+    // Clear old call times
+    const now = Date.now();
+    const oneMinuteAgo = now - 60000;
+    while (callTimes.length > 0 && callTimes[0] < oneMinuteAgo) {
+      callTimes.shift();
+    }
+    
+    // Check if we've exceeded our rate limit
+    return callTimes.length >= MAX_CALLS_PER_MINUTE;
+  };
+  
+  // Get the chat store state safely
+  const getChatStore = () => {
+    try {
+      return useChatStore.getState();
+    } catch (e) {
+      console.warn('Failed to access chat store, using fallback');
+      return { 
+        fetchedConversationIds: new Set<number>(),
+        hasConversationBeenFetched: () => false,
+        markConversationFetched: () => {},
+        resetConversationFetchStatus: () => {}
+      };
+    }
+  };
+  
+  return {
+    // Public interface
+    shouldFetchMessages: (conversationId: number): boolean => {
+      // Guard clauses
+      if (!conversationId) return false;
+      if (isFetching) return false;
+      if (lastFetchedId === conversationId) return false;
+      
+      // Check with the chat store if we've already fetched this conversation
+      const chatStore = getChatStore();
+      if (chatStore.hasConversationBeenFetched(conversationId)) {
+        // Already fetched, but log less to reduce console noise
+        if (Math.random() < 0.01) { // Only log 1% of the time
+          console.log(`Already fetched conversation ${conversationId} (stored in chat store)`);
+        }
+        return false;
+      }
+      
+      if (isCircuitOpen()) {
+        // Log less frequently
+        if (Math.random() < 0.1) { // Only log 10% of the time
+          console.warn('🛑 CIRCUIT BREAKER: Too many message fetch requests. Limiting API calls.');
+        }
+        return false;
+      }
+      
+      return true;
+    },
+    
+    markFetchStarted: (conversationId: number) => {
+      isFetching = true;
+      lastFetchedId = conversationId;
+      callCount++;
+      lastCallTime = Date.now();
+      callTimes.push(lastCallTime);
+    },
+    
+    markFetchComplete: (conversationId: number, success: boolean) => {
+      isFetching = false;
+      if (success) {
+        // Use the chat store to mark this conversation as fetched
+        const chatStore = getChatStore();
+        chatStore.markConversationFetched(conversationId);
+      }
+    },
+    
+    resetForConversation: (conversationId: number) => {
+      // Use the chat store to reset the fetch status for this conversation
+      const chatStore = getChatStore();
+      chatStore.resetConversationFetchStatus(conversationId);
+    },
+    
+    resetAll: () => {
+      // Just reset local tracking - don't clear chat store as it's meant to be persistent
+      isFetching = false;
+      lastFetchedId = null;
+      callCount = 0;
+    },
+    
+    getStats: () => {
+      const chatStore = getChatStore();
+      return {
+        fetchedCount: chatStore.fetchedConversationIds.size,
+        totalCalls: callCount,
+        lastCallTime,
+        isCircuitOpen: isCircuitOpen(),
+      };
+    },
+  };
+})();
+
+/**
+ * Fetches message data for a specific conversation - OPTIMIZED VERSION
+ * Uses both the global chat store and a circuit breaker to prevent infinite API calls
+ * @param conversationId - The conversation ID to fetch messages for
+ */
+async function fetchMesagesData(conversationId: number) {
+  if (!conversationId) return;
+  
+  // Check chat store first - if messages for this conversation have already been fetched, skip
+  const chatStore = useChatStore.getState();
+  if (chatStore.hasConversationBeenFetched(conversationId)) {
+    console.log(`Skipping message fetch for conversation ${conversationId} - already fetched`);
+    return; // Skip fetching
   }
-
-  useEffect(() => {
-    if (activeConversation?.destination_number) {
-      fetchMesagesData(activeConversation?.conversationid)
+  
+  // Double-check with our circuit breaker manager
+  if (!MessageFetchingManager.shouldFetchMessages(conversationId)) {
+    console.log(`Circuit breaker prevented fetch for conversation ${conversationId}`);
+    return; // Skip fetching
+  }
+  
+  // Mark that we're starting to fetch in both places
+  MessageFetchingManager.markFetchStarted(conversationId);
+  
+  try {
+    // API call with proper error handling
+    console.log(`Fetching messages for conversation ${conversationId}`);
+    const response = await axiosInstance.post("/message/getMessages", { conversationId });
+    
+    // Only process if we have valid data
+    if (response?.data && Array.isArray(response.data)) {
+      // Set messages directly
+      setMessages(response.data);
+      
+      // Mark fetch as successful in both systems
+      MessageFetchingManager.markFetchComplete(conversationId, true);
+      chatStore.markConversationFetched(conversationId);
+      
+      console.log(`Successfully fetched ${response.data.length} messages for conversation ${conversationId}`);
+      return;
     }
-  }, [activeConversation?.destination_number])
-
-  useEffect(() => {
-    if (dataMessage) {
-      setMessages(dataMessage)
+    
+    // If we get here, we didn't get valid data
+    MessageFetchingManager.markFetchComplete(conversationId, false);
+    console.warn(`Received invalid data for conversation ${conversationId}`);
+  } catch (error: any) {
+    // Check if this is a canceled request from our circuit breaker
+    if (error?.name === 'CanceledError' && error?.message?.includes('duplicate message fetch request')) {
+      // This is expected - silently ignore but log for debugging
+      console.log('Request was canceled by circuit breaker - expected behavior');
+    } else {
+      // This is an unexpected error
+      console.warn(`Error fetching messages for conversation ${conversationId}:`, 
+        error?.name || 'Unknown error');
     }
-  }, [dataMessage])
+    
+    MessageFetchingManager.markFetchComplete(conversationId, false);
+  }
+}
+
+// EFFECT TO HANDLE ACTIVE CONVERSATION CHANGE ---
+// Enhanced with circuit breaker and fetch tracking
+useEffect(() => {
+  if (!activeConversation?.conversationid) return;
+  
+  // Check if messages have already been fetched for this conversation
+  const chatStore = useChatStore.getState();
+  const conversationId = activeConversation.conversationid;
+  
+  // Only fetch messages if they haven't been fetched already
+  if (!chatStore.hasConversationBeenFetched(conversationId)) {
+    console.log(`Fetching messages for newly selected conversation ${conversationId}`);
+    fetchMesagesData(conversationId);
+  } else {
+    console.log(`Skipping fetch for conversation ${conversationId} - messages already loaded`);
+  }
+}, [activeConversation?.conversationid]);
+
+// Clean up when component unmounts
+useEffect(() => {
+  return () => {
+    // Reset the MessageFetchingManager
+    MessageFetchingManager.resetAll();
+  };
+}, []);
 
   // Lista de respuestas rápidas predefinidas
   const quickResponses = [
@@ -283,111 +455,58 @@ export const ChatBox = (props: any) => {
     quickResponseOp.current?.hide()
   }
 
-  const [transferModalVisible, setTransferModalVisible] = useState(false);
+  // Estado para controlar la visibilidad del modal de transferencia
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  // Estado para la selección dentro del modal
+  const [transferOption, setTransferOption] = useState<'agent' | 'group' | 'bot' | null>(null);
 
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loadingTransferOptions, setLoadingTransferOptions] = useState(false);
+
+  useEffect(() => {
+    if (companyId) {
+      const fetchTransferOptions = async () => {
+        setLoadingTransferOptions(true);
+        try {
+          const [agentsResponse, groupsResponse] = await Promise.all([
+            getAgents(companyId.toString()),
+            getGroups(companyId.toString())
+          ]);
+          
+          if (!agentsResponse.length) {
+            showError('No se encontraron agentes disponibles');
+          }
+          
+          if (!groupsResponse.length) {
+            showError('No se encontraron grupos disponibles');
+          }
+          
+          setAgents(agentsResponse);
+          setGroups(groupsResponse);
+        } catch (error) {
+          console.error('Error fetching transfer options:', error);
+          showError('Error al cargar opciones de transferencia. Intente nuevamente.');
+          setAgents([]);
+          setGroups([]);
+        } finally {
+          setLoadingTransferOptions(false);
+        }
+      };
+      
+      fetchTransferOptions();
+    }
+  }, [companyId, showError]);
+
+  // Función para manejar la transferencia
   const handleTransfer = (type: 'agent' | 'group' | 'bot', id?: string) => {
     console.log('Transferencia de chat a:', type, id);
-    setTransferModalVisible(false);
-  };
-
-  const TransferModal = ({ visible, onHide, onTransfer }: { 
-    visible: boolean; 
-    onHide: () => void; 
-    onTransfer: (type: 'agent' | 'group' | 'bot', id?: string) => void;
-  }) => {
-    const [selectedOption, setSelectedOption] = useState<'agent' | 'group' | 'bot' | null>(null);
-    
-    // Datos de ejemplo - reemplazar con llamadas reales a la API
-    const agents: Agent[] = [
-      { id: '1', name: 'Agente 1', status: 'Disponible' },
-      { id: '2', name: 'Agente 2', status: 'Ocupado' }
-    ];
-    
-    const groups: Group[] = [
-      { id: 'g1', name: 'Grupo Ventas' },
-      { id: 'g2', name: 'Grupo Soporte' }
-    ];
-
-    return (
-      <Dialog 
-        header="Transferencia de chat" 
-        visible={visible} 
-        onHide={onHide}
-        style={{ width: '50vw', maxWidth: '800px' }}
-        breakpoints={{ '960px': '90vw', '641px': '95vw' }}
-      >
-        {!selectedOption ? (
-          <div className="flex flex-column gap-2" style={{ padding: '0 1.5rem' }}>
-            <Button 
-              label="A un agente" 
-              icon="pi pi-user" 
-              className="p-button-outlined"
-              style={{ 
-                padding: '0 1rem',
-                width: '80%',
-                margin: '0 auto'
-              }}
-              onClick={() => setSelectedOption('agent')}
-            />
-            <Button 
-              label="A un grupo de agentes" 
-              icon="pi pi-users" 
-              className="p-button-outlined"
-              style={{ 
-                padding: '0 1rem',
-                width: '80%',
-                margin: '0 auto'
-              }}
-              onClick={() => setSelectedOption('group')}
-            />
-            <Button 
-              label="A un bot" 
-              icon="pi pi-robot" 
-              className="p-button-outlined"
-              style={{ 
-                padding: '0 1rem',
-                width: '80%',
-                margin: '0 auto',
-                opacity: 0.6
-              }}
-              disabled
-            />
-          </div>
-        ) : (
-          <div className="flex flex-column gap-3">
-            <div className="flex align-items-center gap-2">
-              <Button 
-                icon="pi pi-arrow-left" 
-                className="p-button-text"
-                onClick={() => setSelectedOption(null)}
-              />
-              <h3>{selectedOption === 'agent' ? 'Seleccione un agente' : 'Seleccione un grupo'}</h3>
-            </div>
-            
-            {(selectedOption === 'agent' ? agents : groups).map(item => (
-              <div 
-                key={item.id} 
-                className="p-3 border-round border-1 surface-border cursor-pointer hover:surface-hover"
-                onClick={() => {
-                  onTransfer(selectedOption, item.id);
-                  onHide();
-                }}
-              >
-                <div className="flex align-items-center gap-3">
-                  <i className={selectedOption === 'agent' ? 'pi pi-user' : 'pi pi-users'}></i>
-                  <div>
-                    <div className="font-medium">{item.name}</div>
-                    {selectedOption === 'agent' && 'status' in item && (
-                      <div className="text-sm">Estado: {(item as Agent).status}</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Dialog>
-    );
+    // Lógica para transferir el chat
+    showSuccess(`Chat transferido a ${type} ${id}`);
+    // Cerrar el diálogo
+    setShowTransferDialog(false);
+    // Reiniciar la selección
+    setTransferOption(null);
   };
 
   // Envía un mensaje de plantilla usando la función del servicio
@@ -559,7 +678,9 @@ export const ChatBox = (props: any) => {
   const { setDialogTransfer, setActiveConversation, deleteConversation, incrementUnreadCount } = useChatStore()
   // Abre el diálogo para transferir el chat
   const transferChat = () => {
-    setDialogTransfer(true)
+    // Usar el nuevo estado local
+    setShowTransferDialog(true);
+    console.log('Abriendo modal de transferencia de chat');
   }
 
   /**
@@ -606,8 +727,7 @@ export const ChatBox = (props: any) => {
 
   // Mensajes a mostrar con filtro de búsqueda si es necesario
   const displayedMessages = useMemo(() => {
-    console.log('Recalculando displayedMessages');
-    console.log('Mensajes totales disponibles:', storedMessages.length);
+    // Removed console logs to prevent infinite loop
     
     if (storedMessages.length === 0) {
       return [];
@@ -625,25 +745,9 @@ export const ChatBox = (props: any) => {
     return storedMessages;
   }, [storedMessages, searchText]);
   
-  // Agrega este efecto para imprimir todos los mensajes
-  useEffect(() => {
-    console.log('TODOS LOS MENSAJES EN EL STORE:');
-    storedMessages.forEach((msg, index) => {
-      console.log(`Mensaje #${index + 1}:`, {
-        content: msg.content,
-        owner: msg.owner,
-        from: msg.from,
-        conversationId: msg.conversationId,
-        sentAt: new Date(msg.sentAt).toLocaleString()
-      });
-    });
-  }, [storedMessages]);
+  // Removed message logging effect to prevent infinite loop
 
-  // Debug
-  useEffect(() => {
-    console.log('[DEBUG] Current messages:', storedMessages);
-    console.log('[DEBUG] Displayed messages:', displayedMessages);
-  }, [storedMessages, displayedMessages]);
+  // Removed debug logging effect to prevent infinite loop
 
   return (
     <React.Fragment>
@@ -674,7 +778,7 @@ export const ChatBox = (props: any) => {
               tooltipOptions={{ position: 'top' }}
             ></Button>
             <Button
-              onClick={() => setTransferModalVisible(true)}
+              onClick={() => setShowTransferDialog(true)}
               type="button"
               icon="pi pi-sign-out"
               rounded
@@ -831,6 +935,7 @@ export const ChatBox = (props: any) => {
               type="button"
               className="w-full sm:w-auto"
               onClick={(event) => templateOp.current?.toggle(event)}></Button> */}
+            
             <Button
               label="Finalizar"
               icon="pi pi-phone-slash"
@@ -934,11 +1039,90 @@ export const ChatBox = (props: any) => {
         </div>
       </OverlayPanel>
 
-      <TransferModal 
-        visible={transferModalVisible} 
-        onHide={() => setTransferModalVisible(false)} 
-        onTransfer={handleTransfer} 
-      />
+      {/* Dialog de transferencia de chat - implementación directa */}
+      <Dialog 
+        header="Transferencia de chat" 
+        visible={showTransferDialog} 
+        onHide={() => setShowTransferDialog(false)}
+        style={{ width: '50vw', maxWidth: '800px' }}
+        breakpoints={{ '960px': '90vw', '641px': '95vw' }}
+      >
+        {loadingTransferOptions ? (
+          <div className="flex justify-content-center align-items-center" style={{ height: '200px' }}>
+            <i className="pi pi-spinner pi-spin" style={{ fontSize: '2rem' }}></i>
+          </div>
+        ) : (
+          !transferOption ? (
+            <div className="flex flex-column gap-2" style={{ padding: '0 1.5rem' }}>
+              <Button 
+                label="A un agente" 
+                icon="pi pi-user" 
+                className="p-button-outlined"
+                style={{ 
+                  padding: '0 1rem',
+                  width: '80%',
+                  margin: '0 auto'
+                }}
+                onClick={() => setTransferOption('agent')}
+              />
+              <Button 
+                label="A un grupo de agentes" 
+                icon="pi pi-users" 
+                className="p-button-outlined"
+                style={{ 
+                  padding: '0 1rem',
+                  width: '80%',
+                  margin: '0 auto'
+                }}
+                onClick={() => setTransferOption('group')}
+              />
+              <Button 
+                label="A un bot" 
+                icon="pi pi-robot" 
+                className="p-button-outlined"
+                style={{ 
+                  padding: '0 1rem',
+                  width: '80%',
+                  margin: '0 auto',
+                  opacity: 0.6
+                }}
+                disabled
+              />
+            </div>
+          ) : (
+            <div className="flex flex-column gap-3">
+              <div className="flex align-items-center gap-2">
+                <Button 
+                  icon="pi pi-arrow-left" 
+                  className="p-button-text"
+                  onClick={() => setTransferOption(null)}
+                />
+                <h3>{transferOption === 'agent' ? 'Seleccione un agente' : 'Seleccione un grupo'}</h3>
+              </div>
+              
+              {(transferOption === 'agent' ? agents : groups).map(item => (
+                <div 
+                  key={item.id} 
+                  className="p-3 border-round border-1 surface-border cursor-pointer hover:surface-hover"
+                  onClick={() => {
+                    handleTransfer(transferOption, item.id);
+                  }}
+                >
+                  <div className="flex align-items-center gap-3">
+                    <i className={transferOption === 'agent' ? 'pi pi-user' : 'pi pi-users'}></i>
+                    <div>
+                      <div className="font-medium">{item.name}</div>
+                      {transferOption === 'agent' && 'status' in item && (
+                        <div className="text-sm">Estado: {(item as Agent).status}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+      </Dialog>
     </React.Fragment>
   )
 }

@@ -1,4 +1,17 @@
 import { WhatsAppResponseSendMessage } from "@/shared/models/conversation/messages.model"
+import { axiosInstance } from "@/shared/instances/axios-instance"
+
+interface Agent {
+  id: string;
+  name: string;
+  status: string;
+  type: string;
+}
+
+interface Group {
+  id: string;
+  name: string;
+}
 
 /**
  * Envía un mensaje simple (texto) a través de la API de WhatsApp.
@@ -125,5 +138,53 @@ export async function sendTemplateMessage (recipientPhone: string,
   } catch (error) {
     console.error("Error en el envío de plantilla:", error)
     throw error
+  }
+}
+
+// Configuración de endpoints correcta
+const API_ENDPOINTS = {
+  AGENTS: '/users/type/agent', // Endpoint para obtener agentes
+  GROUPS: '/groups'          // Endpoint para obtener grupos
+};
+
+/**
+ * Obtiene la lista de agentes disponibles para transferencia
+ * @param companyId ID de la compañía
+ * @returns Lista de agentes (solo usuarios de tipo agente)
+ */
+export async function getAgents(companyId: string): Promise<Agent[]> {
+  try {
+    console.log(`Fetching agents from: ${process.env.NEXT_PUBLIC_URL_SIRA_BACK}${API_ENDPOINTS.AGENTS}`);
+    const response = await axiosInstance.get(`${API_ENDPOINTS.AGENTS}?companyId=${companyId}`);
+    // Si la API ya filtra por tipo, podemos omitir esto
+    // return response.data.filter((user: any) => user.type === 'AGENT');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching agents:', {
+      url: `${process.env.NEXT_PUBLIC_URL_SIRA_BACK}${API_ENDPOINTS.AGENTS}`,
+      error
+    });
+    // En caso de error, devolver un array vacío para evitar errores en la UI
+    return [];
+  }
+}
+
+/**
+ * Obtiene la lista de grupos disponibles para transferencia
+ * @param companyId ID de la compañía
+ * @returns Lista de grupos
+ */
+export async function getGroups(companyId: string): Promise<Group[]> {
+  try {
+    console.log(`Fetching groups from: ${process.env.NEXT_PUBLIC_URL_SIRA_BACK}${API_ENDPOINTS.GROUPS}`);
+    const response = await axiosInstance.get(`${API_ENDPOINTS.GROUPS}?companyId=${companyId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching groups:', {
+      url: `${process.env.NEXT_PUBLIC_URL_SIRA_BACK}${API_ENDPOINTS.GROUPS}`,
+      error
+    });
+    // En caso de error, devolver un array vacío para evitar errores en la UI
+    return [];
   }
 }

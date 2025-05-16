@@ -34,4 +34,5 @@ export interface ConversationCaratule {
   start: string;
   end: string;
   phone: string;
+  agentName?: string; // Nombre personalizado para el agente
 }

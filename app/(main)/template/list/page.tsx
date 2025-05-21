@@ -53,15 +53,7 @@ const TemplatesPage = () => {
   return (
       <EmptyPage>
         {/* Mostrar estadísticas solo para usuarios con rol de empresa */}
-        {isCompanyRole && user?.company?.companyId && (
-          <Card className="mb-4" title="Estadísticas de Plantillas" subTitle="Distribución por categoría">
-            <div className="grid">
-              <div className="col-12 md:col-6 lg:col-4">
-                <TemplateStats companyId={user.company.companyId} />
-              </div>
-            </div>
-          </Card>
-        )}
+        
         
         <CustomToolbar className="m-2 mb-4" startStatus endStatus
           downloadExcel={() => downloadExcel(templates)}

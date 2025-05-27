@@ -7,6 +7,8 @@ import { usePush } from "@/shared/hooks/usePush"
 import useRealtimeMessages from "@/shared/hooks/useRealtimeMessages"
 import { confirmDialog } from "primereact/confirmdialog"
 import { MESSAGE_OWNER, MESSAGE_TYPE, MessageModel } from "@/shared/models/conversation/messages.model"
+import FileAttachment from "../components/FileAttachment"
+import MediaMessage from "../components/MediaMessage"
 import {
   TemplateService as _template
 }
@@ -22,6 +24,7 @@ import { sendPlainMessage, sendTemplateMessage, getAgents, getGroups } from "../
 import { useChatStore } from "../store/chat-store"
 import { useMessageStore } from "../store/message-store"
 import { Dialog } from 'primereact/dialog';
+import BalanceService from "@/shared/services/balance/balance.service";
 
 interface Agent {
   id: string;
@@ -70,25 +73,47 @@ export const ChatBox = (props: any) => {
 
   // Verificación de token - control más seguro para prevenir bucles
   const [shouldRedirect, setShouldRedirect] = useState(false)
-
+  const [mounted, setMounted] = useState(false)
+  const [tokenCheckComplete, setTokenCheckComplete] = useState(false)
+  
+  // Efecto para marcar el componente como montado (solo en el cliente)
   useEffect(() => {
-    // Solo verificamos cuando el componente se monta
-    if (!dataToken && !shouldRedirect) {
-      showError("Token No Encontrado")
+    setMounted(true)
+    
+    // Dar tiempo para que se carguen las cookies correctamente
+    const initTimer = setTimeout(() => {
+      setTokenCheckComplete(true)
+    }, 500) // Pequeño retraso para asegurar que las cookies se carguen
+    
+    return () => clearTimeout(initTimer)
+  }, [])
+
+  // Realizar verificación de token solo cuando esté listo para hacerlo
+  useEffect(() => {
+    // Solo verificamos cuando:
+    // 1. El componente está montado en el cliente
+    // 2. La verificación de token ha completado su tiempo de espera
+    // 3. No hay token disponible
+    // 4. No se ha programado una redirección aún
+    if (mounted && tokenCheckComplete && !dataToken && !shouldRedirect) {
+      console.log('Verificación de token fallida (cliente)')
+      // En lugar de mostrar un error en pantalla, lo registramos y redirigimos silenciosamente
+      console.warn("Se requiere iniciar sesión para acceder a esta funcionalidad")
       setShouldRedirect(true)
     }
-  }, [dataToken, shouldRedirect, showError])
+  }, [dataToken, shouldRedirect, tokenCheckComplete, mounted])
   
   // Efecto separado para manejar la redirección
   useEffect(() => {
-    if (shouldRedirect) {
+    if (mounted && shouldRedirect) {
       // Usar setTimeout para evitar redirecciones durante el renderizado
       const redirectTimer = setTimeout(() => {
+        console.log('Redirigiendo a la página de login...')
         onClickAction()
-      }, 100)
+      }, 300) // Un poco más de tiempo para una mejor experiencia
       return () => clearTimeout(redirectTimer)
     }
-  }, [shouldRedirect, onClickAction])
+  }, [shouldRedirect, onClickAction, mounted])
 
   // Transformación de mensajes
   const transformMessage = (msg: any): MessageModel => {
@@ -219,9 +244,16 @@ export const ChatBox = (props: any) => {
       }
     });
     
-    // Actualizar el store con todos los nuevos mensajes de una sola vez
+    // Actualizar el store con los nuevos mensajes
     if (newMessages.length > 0) {
       setMessages([...storedMessages, ...newMessages]);
+      
+      // Auto-scroll al último mensaje
+      setTimeout(() => {
+        if (chatWindow.current) {
+          chatWindow.current.scrollTop = chatWindow.current.scrollHeight;
+        }
+      }, 100);
     }
   }, [messagesSocket, activeConversation?.conversationid]); // Dependency más específica
 
@@ -242,6 +274,26 @@ export const ChatBox = (props: any) => {
       chatWindow.current.scrollTo({ top: chatWindow.current.scrollHeight, behavior: "smooth" })
     }
   }, [storedMessages]);
+  
+  /**
+   * Añade un mensaje al estado local y lo muestra en la interfaz
+   * @param message El mensaje a añadir
+   */
+  const addMessage = (message: MessageModel) => {
+    if (message.idWhatsapp && storedMessages.some(m => m.idWhatsapp === message.idWhatsapp)) {
+      // Evitar mensajes duplicados
+      return;
+    }
+    
+    setMessages([...storedMessages, message]);
+    
+    // Auto-scroll al último mensaje
+    setTimeout(() => {
+      if (chatWindow.current) {
+        chatWindow.current.scrollTop = chatWindow.current.scrollHeight;
+      }
+    }, 100);
+  }
 
   // GLOBAL CIRCUIT BREAKER PATTERN
 // This is a last-resort mechanism to prevent infinite API calls
@@ -509,6 +561,38 @@ useEffect(() => {
     setTransferOption(null);
   };
 
+  const updateBalanceAfterSendingTemplates = async (numberOfTemplates: number, costPerTemplate: number) => {
+    // Validamos que tengamos un ID de empresa válido antes de intentar decrementar el saldo
+    if (!companyId) {
+      console.error('No se pudo decrementar el saldo: ID de empresa no disponible');
+      return;
+    }
+    
+    const totalCost = numberOfTemplates * costPerTemplate;
+    try {
+      // Determinamos el tipo de plantilla basado en selectedTemplate
+      const templateType = selectedTemplate?.categoryTemplateWhatsapp || 'MARKETING';
+      const templateDestination = activeConversation?.phone || '';
+      
+      // Llamamos al servicio con todos los parámetros requeridos
+      const updatedBalance = await BalanceService.decrementBalance(
+        companyId, 
+        totalCost,
+        templateType,
+        templateDestination
+      );
+      
+      console.log(`Saldo actualizado después de enviar plantilla ${templateType}: ${updatedBalance.balanceUSD} USD`);
+    } catch (error) {
+      // Manejamos errores específicos como saldo insuficiente
+      if (error instanceof Error && error.message.includes('Saldo insuficiente')) {
+        showError('No hay saldo suficiente para enviar esta plantilla. Por favor recargue su saldo.');
+      } else {
+        console.error('Error al actualizar el saldo:', error);
+      }
+    }
+  };
+
   // Envía un mensaje de plantilla usando la función del servicio
   const onSendTemplateMessage = async () => {
     if (!selectedTemplate) {
@@ -527,6 +611,8 @@ useEffect(() => {
       const ok = await sendTemplateMessage(recipientPhone, accessToken, idNumberFromSendMessage, selectedTemplate.name)
       if (ok) {
         showSuccess("Mensaje enviado")
+        // Actualizar el saldo después de enviar la plantilla
+        await updateBalanceAfterSendingTemplates(1, 0.0125);
       }
     } catch (error: any) {
       // Maneja el error en caso de token expirado u otros
@@ -806,7 +892,7 @@ useEffect(() => {
                   ? (
                     <div className="grid grid-nogutter mb-4">
                       <div className="col mt-3 text-right">
-                         <span
+                        <span
                           className="inline-block font-medium relative
                           white-space-normal border-round"
                           style={{
@@ -824,25 +910,29 @@ useEffect(() => {
                             overflow: "visible"     // Permitir que los elementos hijos queden visibles fuera del contenedor
                           }}
                         >
-                          {message.content}
+                          {message.type !== MESSAGE_TYPE.TEXT ? (
+                            <MediaMessage message={message} parseDate={parseDate} />
+                          ) : (
+                            message.content
+                          )}
                           <div className="absolute right-0 top-50 text-white text-xs px-2 flex align-items-center"
-                               style={{
-                                 transform: "translateY(-50%)", 
-                                 height: "20px", 
-                                 whiteSpace: "nowrap",
-                                 zIndex: 2,
-                                 right: "8px",          // Posicionamiento más preciso
-                                 backgroundColor: "rgba(103, 58, 183, 0.8)", // Fondo ligeramente transparente que coincide con el mensaje
-                                 borderRadius: "10px",  // Borde redondeado para separación visual
-                                 padding: "2px 6px"     // Espacio interno para mejorar legibilidad
-                               }}>
+                            style={{
+                              transform: "translateY(-50%)",
+                              height: "20px",
+                              whiteSpace: "nowrap",
+                              zIndex: 2,
+                              right: "8px",          // Posicionamiento más preciso
+                              backgroundColor: "rgba(103, 58, 183, 0.8)", // Fondo ligeramente transparente que coincide con el mensaje
+                              borderRadius: "10px",  // Borde redondeado para separación visual
+                              padding: "2px 6px"     // Espacio interno para mejorar legibilidad
+                            }}>
                             {parseDate(message.sentAt)}{" "}
                             <i className="pi pi-check ml-1 text-green-400"></i>
                           </div>
                         </span>
                       </div>
                     </div>
-                    )
+                  )
                   : (
                     <div className="grid grid-nogutter mb-4">
                       <div className="mr-3 mt-1">
@@ -873,18 +963,22 @@ useEffect(() => {
                             overflow: "visible"     // Permitir que los elementos hijos queden visibles fuera del contenedor
                           }}
                         >
-                          {message.content}
+                          {message.type !== MESSAGE_TYPE.TEXT ? (
+                            <MediaMessage message={message} parseDate={parseDate} />
+                          ) : (
+                            message.content
+                          )}
                           <div className="absolute right-0 top-50 text-600 text-xs px-2 flex align-items-center"
-                               style={{
-                                 transform: "translateY(-50%)", 
-                                 height: "20px", 
-                                 whiteSpace: "nowrap",
-                                 zIndex: 2,
-                                 right: "8px",          // Posicionamiento más preciso
-                                 backgroundColor: "rgba(237, 231, 246, 0.9)", // Fondo ligeramente transparente que coincide con el mensaje
-                                 borderRadius: "10px",  // Borde redondeado para separación visual
-                                 padding: "2px 6px"     // Espacio interno para mejorar legibilidad
-                               }}>
+                            style={{
+                              transform: "translateY(-50%)",
+                              height: "20px",
+                              whiteSpace: "nowrap",
+                              zIndex: 2,
+                              right: "8px",          // Posicionamiento más preciso
+                              backgroundColor: "rgba(237, 231, 246, 0.9)", // Fondo ligeramente transparente que coincide con el mensaje
+                              borderRadius: "10px",  // Borde redondeado para separación visual
+                              padding: "2px 6px"     // Espacio interno para mejorar legibilidad
+                            }}>
                             {parseDate(message.sentAt)}{" "}
                             <i className="pi pi-check ml-1 text-green-400"></i>
                           </div>
@@ -905,6 +999,18 @@ useEffect(() => {
           >
             😀
           </Button>
+          {/* Componente de adjuntar archivos */}
+          <FileAttachment
+            activeConversation={activeConversation}
+            dataToken={dataToken}
+            actualNumberOfMaintanceSelected={actualNumberOfMaintanceSelected}
+            showError={showError}
+            showSuccess={showSuccess}
+            onLocalMessage={(msg) => {
+              // Añadir el mensaje localmente para mostrar en UI inmediatamente
+              addMessage(msg);
+            }}
+          />
           <Button
             className="justify-content-center"
             severity="secondary"

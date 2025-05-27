@@ -1,5 +1,15 @@
 import { Button } from "primereact/button"
-import { PropsActionButton } from "./types/propsActionButton"
+import React from "react"
+
+// Definición de la interfaz para los botones de acción
+interface PropsActionButton {
+  actionDelete?: () => void;
+  actionEye?: () => void;
+  actionPencil?: () => void;
+  actionAsignate?: () => void;
+  actionCharge?: () => void;
+  actionRecharge?: () => void; // Nueva acción para recargar saldo
+}
 
 const ActionButton = (props : PropsActionButton) => {
   const {
@@ -7,7 +17,8 @@ const ActionButton = (props : PropsActionButton) => {
     actionEye,
     actionPencil,
     actionAsignate,
-    actionCharge
+    actionCharge,
+    actionRecharge
   } = props
 
   return (
@@ -22,6 +33,8 @@ const ActionButton = (props : PropsActionButton) => {
             type="button" onClick={actionAsignate} rounded text raised severity="danger" aria-label="Asignate" />}
         {actionCharge && <Button icon="pi pi-upload"
             type="button" onClick={actionCharge} rounded text raised severity="danger" aria-label="Carga" />}
+        {actionRecharge && <Button icon="pi pi-dollar"
+            type="button" onClick={actionRecharge} rounded text raised severity="success" aria-label="Recargar Saldo" tooltip="Recargar Saldo" tooltipOptions={{ position: 'top' }} />}
     </div>
 
   )

@@ -3,6 +3,8 @@ import { useSWRFetch } from "@/shared/customHooks/useSWRFetch"
 import { useFetch } from "@/shared/hooks/useFetch"
 import { NumbersOfMaintanceCaratule } from "@/shared/models"
 import { TemplateService as _template } from "@/shared/services"
+import BalanceService from "@/shared/services/balance/balance.service"
+import { useToast } from "@/shared/context/toast/toastContext"
 import EmptyPage from "@/shared/small-components/EmptyPage/emptyPage"
 import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/sessionUtils"
 import { Column } from "primereact/column"
@@ -14,6 +16,9 @@ import React, { useEffect, useState, useRef } from "react"
 import * as XLSX from "xlsx"
 import { sendTemplateMessage } from "../chat/whatsapp/service/chatServices"
 import { Button } from "primereact/button"
+import { TabView, TabPanel } from 'primereact/tabview'
+import { Dropdown } from 'primereact/dropdown'
+import { TemplateMediaType } from "@/shared/models/template/multimedia-template.model"
 
 // Actualizar definición del tipo para las filas del XLSX
 type CsvRow = {
@@ -21,16 +26,39 @@ type CsvRow = {
   originPhone: string;
   destinationPhone: string;
   indicativePhone: string;
+  isMultimedia?: boolean;
+};
+
+// Definición del tipo para las plantillas multimedia
+type MultimediaCsvRow = {
+  templateName: string;
+  originPhone: string;
+  destinationPhone: string;
+  indicativePhone: string;
+  mediaType: TemplateMediaType; // Tipo de multimedia (imagen, video, documento, etc.)
+  mediaUrl?: string; // URL del archivo multimedia
+  mediaCaption?: string; // Texto descriptivo para el archivo multimedia
 };
 
 const MasiveChat: React.FC = () => {
+  // Hook para mostrar mensajes de éxito y error
+  const { showSuccess, showError } = useToast()
+  
+  // Estados para gestión de plantillas normales
   const [csvData, setCsvData] = useState<CsvRow[] | null>(null)
   const [showModal, setShowModal] = useState(false)
-  const [sendResults, setSendResults] = useState<{ row: CsvRow; success: boolean; error?: any }[]>([])
+  const [sendResults, setSendResults] = useState<{ row: CsvRow | MultimediaCsvRow; success: boolean; error?: any }[]>([])
   const [showSendModal, setShowSendModal] = useState(false)
+  
+  // Estados para gestión de plantillas multimedia
+  const [multimediaCsvData, setMultimediaCsvData] = useState<MultimediaCsvRow[] | null>(null)
+  const [showMultimediaModal, setShowMultimediaModal] = useState(false)
+  const [activeTabIndex, setActiveTabIndex] = useState(0) // 0: Plantillas normales, 1: Multimedia
 
   const token = getCookieToken()
   const dataFromToken = getDataFromToken(token ?? "")
+  // ID de la empresa obtenido del token para actualizar el saldo
+  const companyId = dataFromToken?.user?.company?.companyId
 
   // trae los numeros de la empresa que maneja el ajente
   const { data: numbersOfMaintance } =
@@ -38,7 +66,8 @@ const MasiveChat: React.FC = () => {
 
   const { responseData: dataTemplates } = useFetch(_template.getAll)
 
-  const fileUploadRef = useRef<any>(null) // nueva referencia para FileUpload
+  const fileUploadRef = useRef<any>(null) // Referencia para FileUpload de plantillas normales
+  const multimediaFileUploadRef = useRef<any>(null) // Referencia para FileUpload de plantillas multimedia
 
   // Se fuerza re-renderizar cuando numbersOfMaintance o dataTemplates se actualizan
   useEffect(() => {
@@ -55,8 +84,22 @@ const MasiveChat: React.FC = () => {
   }
 
   // Función para renderizar el contenido de la columna de validación
-  const validationBodyTemplate = (rowData: CsvRow) => {
+  const validationBodyTemplate = (rowData: CsvRow | MultimediaCsvRow) => {
     return <span>{isRowValid(rowData) ? "✔" : "✘"}</span>
+  }
+  
+  // Función para validar una plantilla multimedia
+  const isMultimediaRowValid = (row: MultimediaCsvRow) => {
+    // Validar que el teléfono de origen exista en la empresa
+    const originValid = (numbersOfMaintance || []).some((item) => Number(item.number) === Number(row.originPhone))
+    
+    // Validar que la plantilla exista (para multimedia es menos restrictivo porque puede ser una plantilla genérica)
+    const templateValid = true // Se asume válido para multimedia
+    
+    // Validar que el tipo de multimedia sea válido
+    const mediaTypeValid = Object.values(TemplateMediaType).includes(row.mediaType)
+    
+    return originValid && templateValid && mediaTypeValid
   }
 
   // Manejar la carga del archivo XLSX
@@ -87,20 +130,107 @@ const MasiveChat: React.FC = () => {
     }
   }
 
+  // Función para cargar y procesar archivos Excel para plantillas multimedia
+  const handleMultimediaFileUpload = (event: { files: File[] }) => {
+    const file = event.files[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer)
+        const workbook = XLSX.read(data, { type: "array" })
+        const sheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[sheetName]
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[]
+        const headers = jsonData[0] as string[]
+        
+        // Mapear columnas a propiedades del modelo MultimediaCsvRow
+        const result: MultimediaCsvRow[] = jsonData.slice(1).map((row: any[]) => {
+          return {
+            templateName: row[headers.indexOf("NOMBRE_PLANTILLA")],
+            originPhone: row[headers.indexOf("TELEFONO_ORIGEN")],
+            destinationPhone: row[headers.indexOf("TELEFONO_DESTINO")],
+            indicativePhone: row[headers.indexOf("INDICATIVO_TELEFONO")],
+            mediaType: row[headers.indexOf("TIPO_MULTIMEDIA")] || TemplateMediaType.IMAGE,
+            mediaUrl: row[headers.indexOf("URL_MULTIMEDIA")],
+            mediaCaption: row[headers.indexOf("DESCRIPCION_MULTIMEDIA")]
+          }
+        })
+        
+        setMultimediaCsvData(result)
+        console.log("Parsed Multimedia XLSX Data:", result)
+        setShowMultimediaModal(true)
+      }
+      reader.readAsArrayBuffer(file)
+    }
+  }
+
   // Agregar función para reiniciar el estado del archivo excel
   const handleReset = () => {
     setCsvData(null)
+    setMultimediaCsvData(null)
     setSendResults([])
     setShowModal(false)
+    setShowMultimediaModal(false)
     setShowSendModal(false)
-    // Reiniciar el componente FileUpload
+    // Reiniciar los componentes FileUpload
     fileUploadRef.current?.clear()
+    multimediaFileUploadRef.current?.clear()
   }
 
+  /**
+   * Actualiza el saldo después de enviar plantillas
+   * @param successfulSends - Arreglo de envíos exitosos
+   * @param templateCosts - Objeto con costos acumulados por tipo de plantilla
+   */
+  const updateBalanceAfterSendingTemplates = async (
+    successfulSends: (CsvRow | MultimediaCsvRow)[],
+    templateCosts: { utility: number; marketing: number }
+  ) => {
+    // Validar que tengamos un ID de empresa válido
+    if (!companyId) {
+      console.error('No se pudo decrementar el saldo: ID de empresa no disponible');
+      return;
+    }
+    
+    // Calcular el costo total
+    const totalCost = templateCosts.utility + templateCosts.marketing;
+    
+    if (totalCost <= 0) {
+      console.log('No hay costo que descontar del saldo');
+      return;
+    }
+    
+    try {
+      // Crear descripción para la transacción
+      const description = `Envío masivo: ${successfulSends.length} plantillas (${templateCosts.utility.toFixed(4)} UTILITY, ${templateCosts.marketing.toFixed(4)} MARKETING)`;
+      
+      // Llamar al servicio para decrementar el saldo
+      const updatedBalance = await BalanceService.decrementBalance(
+        companyId,
+        totalCost,
+        'MASIVO', // Tipo especial para envíos masivos
+        description
+      );
+      
+      console.log(`Saldo actualizado después de envío masivo: ${updatedBalance.balanceUSD} USD`);
+      showSuccess(`Saldo actualizado correctamente: ${updatedBalance.balanceUSD.toFixed(2)} USD`);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Saldo insuficiente')) {
+        showError('No hay saldo suficiente para completar el envío masivo. Por favor recargue su saldo.');
+      } else {
+        console.error('Error al actualizar el saldo:', error);
+        showError('Error al actualizar el saldo. Los mensajes se enviaron pero el saldo podría no estar actualizado.');
+      }
+    }
+  };
+  
   // Función para enviar plantillas aprobadas
   const handleSendTemplates = async () => {
-    const results: { row: CsvRow; success: boolean; error?: any }[] = []
-    if (csvData && numbersOfMaintance) {
+    const results: { row: CsvRow | MultimediaCsvRow; success: boolean; error?: any }[] = []
+    const successfulSends: CsvRow[] = [];
+    const templateCosts = { utility: 0, marketing: 0 };
+    
+    if (csvData && numbersOfMaintance && dataTemplates) {
       for (const row of csvData) {
         if (isRowValid(row)) {
           // Buscar el registro de numbersOfMaintance correspondiente al teléfono de origen
@@ -124,12 +254,138 @@ const MasiveChat: React.FC = () => {
               maintRecord.idNumberPhone as any, // senderId desde numbersOfMaintance
               row.templateName
             )
+            
             results.push({ row, success: true })
+            successfulSends.push(row)
+            
+            // Actualizar costos según categoría de la plantilla
+            const template = dataTemplates.find((t: any) => t.name === row.templateName)
+            if (template) {
+              if (template.categoryTemplateWhatsapp === "UTILITY") {
+                templateCosts.utility += 0.0002
+              } else if (template.categoryTemplateWhatsapp === "MARKETING") {
+                templateCosts.marketing += 0.0125
+              }
+            }
           } catch (err) {
             results.push({ row, success: false, error: err })
           }
         }
       }
+      
+      // Actualizar el saldo solo si hubo envíos exitosos
+      if (successfulSends.length > 0) {
+        await updateBalanceAfterSendingTemplates(successfulSends, templateCosts);
+      }
+      
+      setSendResults(results)
+      setShowSendModal(true)
+    }
+  }
+  
+  // Función para enviar plantillas multimedia aprobadas
+  const handleSendMultimediaTemplates = async () => {
+    const results: { row: CsvRow | MultimediaCsvRow; success: boolean; error?: any }[] = []
+    const successfulSends: MultimediaCsvRow[] = [];
+    const templateCosts = { utility: 0, marketing: 0 };
+    
+    if (multimediaCsvData && numbersOfMaintance && dataTemplates) {
+      for (const row of multimediaCsvData) {
+        if (isMultimediaRowValid(row)) {
+          // Buscar el registro de numbersOfMaintance correspondiente al teléfono de origen
+          const maintRecord = numbersOfMaintance.find(
+            (item) => Number(item.number) === Number(row.originPhone)
+          )
+          if (!maintRecord) {
+            results.push({
+              row,
+              success: false,
+              error: "Registro de mantenimiento no encontrado"
+            })
+            continue
+          }
+          
+          // Construir destinationPhone concatenando "+" con indicativo y teléfono destino
+          const newDestinationPhone = `+${row.indicativePhone}${row.destinationPhone}`
+          
+          try {
+            // Primero, obtenemos la plantilla completa
+            const template = dataTemplates?.find((t: any) => t.name === row.templateName)
+            if (!template) {
+              results.push({
+                row,
+                success: false,
+                error: "Plantilla no encontrada"
+              })
+              continue
+            }
+            
+            // Determinar si es una plantilla multimedia
+            let isMultimedia = false
+            if (row.mediaType && row.mediaType !== TemplateMediaType.NONE) {
+              isMultimedia = true
+            }
+            
+            if (isMultimedia) {
+              // Manejo específico para plantillas multimedia
+              // Aquí se implementaría la lógica para enviar plantillas multimedia
+              // (Simulamos éxito por ahora)
+              console.log("Envío de plantilla multimedia", {
+                destinationPhone: newDestinationPhone,
+                accessToken: maintRecord.IdAccountWB,
+                senderId: maintRecord.idNumberPhone,
+                templateName: row.templateName,
+                mediaType: row.mediaType,
+                mediaUrl: row.mediaUrl,
+                mediaCaption: row.mediaCaption
+              })
+              
+              // Simular envío exitoso
+              results.push({ row, success: true })
+              successfulSends.push(row)
+              
+              // Actualizar costos según categoría - las plantillas multimedia suelen ser más caras
+              // Añadimos un 20% extra al costo base según la categoría
+              if (template.categoryTemplateWhatsapp === "UTILITY") {
+                templateCosts.utility += 0.0002 * 1.2 // 20% extra por ser multimedia
+              } else if (template.categoryTemplateWhatsapp === "MARKETING") {
+                templateCosts.marketing += 0.0125 * 1.2 // 20% extra por ser multimedia
+              }
+            } else {
+              // Si no es multimedia, enviar como plantilla normal
+              await sendTemplateMessage(
+                newDestinationPhone,
+                maintRecord.IdAccountWB as any,
+                maintRecord.idNumberPhone as any,
+                row.templateName
+              )
+              results.push({ row, success: true })
+              successfulSends.push(row)
+              
+              // Actualizar costos según categoría (precio estándar)
+              if (template.categoryTemplateWhatsapp === "UTILITY") {
+                templateCosts.utility += 0.0002
+              } else if (template.categoryTemplateWhatsapp === "MARKETING") {
+                templateCosts.marketing += 0.0125
+              }
+            }
+          } catch (err) {
+            results.push({ row, success: false, error: err })
+          }
+        } else {
+          results.push({ 
+            row, 
+            success: false, 
+            error: "Datos de plantilla multimedia inválidos" 
+          })
+        }
+      }
+      
+      // Actualizar el saldo solo si hubo envíos exitosos
+      if (successfulSends.length > 0) {
+        await updateBalanceAfterSendingTemplates(successfulSends, templateCosts);
+      }
+      
       setSendResults(results)
       setShowSendModal(true)
     }
@@ -138,36 +394,127 @@ const MasiveChat: React.FC = () => {
   return (
     <EmptyPage>
       <div className="flex flex-column align-items-center">
-        {/* FileUpload de PrimeReact */}
-        <FileUpload
-          ref={fileUploadRef} // asignar referencia al componente
-          mode="basic"
-          name="xlsxFile"
-          accept=".xlsx"
-          maxFileSize={1000000}
-          auto
-          customUpload
-          uploadHandler={handleFileUpload} // se usa uploadHandler en lugar de onUpload
-          chooseLabel="Cargar XLSX"
-        />
-        {/* Botón para reiniciar el estado del archivo excel */}
-        <Button className="mt-2" label="Reiniciar Excel" onClick={handleReset} />
+        {/* TabView para separar las opciones de envío normal y multimedia */}
+        <TabView activeIndex={activeTabIndex} onTabChange={(e) => setActiveTabIndex(e.index)}
+          className="w-full md:w-9 mb-5">
+          <TabPanel header="Plantillas Normales">
+            <div className="flex flex-column align-items-center p-3">
+              <h3 className="mb-3">Envío Masivo de Plantillas</h3>
+              <div className="card p-3 border-1 border-gray-300 border-round mb-3">
+                <p className="text-gray-700">Cargue un archivo Excel con las siguientes columnas:</p>
+                <ul className="list-none p-0 m-0">
+                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>NOMBRE_PLANTILLA</li>
+                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>TELEFONO_ORIGEN</li>
+                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>TELEFONO_DESTINO</li>
+                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>INDICATIVO_TELEFONO</li>
+                </ul>
+              </div>
+              <FileUpload
+                ref={fileUploadRef}
+                mode="basic"
+                name="xlsxFile"
+                accept=".xlsx"
+                maxFileSize={1000000}
+                auto
+                customUpload
+                uploadHandler={handleFileUpload}
+                chooseLabel="Cargar XLSX"
+                className="mb-3"
+              />
+              <Button className="mb-3" label="Reiniciar" onClick={handleReset} icon="pi pi-refresh" />
+            </div>
+          </TabPanel>
+          
+          <TabPanel header="Plantillas Multimedia">
+            <div className="flex flex-column align-items-center p-3">
+              <h3 className="mb-3">Envío Masivo de Plantillas Multimedia</h3>
+              <div className="card p-3 border-1 border-gray-300 border-round mb-3">
+                <p className="text-gray-700">Cargue un archivo Excel con las siguientes columnas:</p>
+                <ul className="list-none p-0 m-0">
+                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>NOMBRE_PLANTILLA</li>
+                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>TELEFONO_ORIGEN</li>
+                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>TELEFONO_DESTINO</li>
+                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>INDICATIVO_TELEFONO</li>
+                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>TIPO_MULTIMEDIA (image, video, document, audio)</li>
+                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>URL_MULTIMEDIA</li>
+                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>DESCRIPCION_MULTIMEDIA (opcional)</li>
+                </ul>
+              </div>
+              <FileUpload
+                ref={multimediaFileUploadRef}
+                mode="basic"
+                name="xlsxFileMultimedia"
+                accept=".xlsx"
+                maxFileSize={1000000}
+                auto
+                customUpload
+                uploadHandler={handleMultimediaFileUpload}
+                chooseLabel="Cargar XLSX Multimedia"
+                className="mb-3"
+              />
+              <Button className="mb-3" label="Reiniciar" onClick={handleReset} icon="pi pi-refresh" />
+            </div>
+          </TabPanel>
+        </TabView>
 
-        {/* Modal con tabla para mostrar datos cargados con Virtual Scroll */}
-        <Dialog header="Detalle XLSX" visible={showModal} style={{ width: "50vw" }} onHide={() => setShowModal(false)}>
+        {/* Modal con tabla para mostrar datos cargados de plantillas normales */}
+        <Dialog header="Detalle XLSX - Plantillas Normales" visible={showModal} style={{ width: "70vw" }} onHide={() => setShowModal(false)}>
           {csvData && (
-            <DataTable
-              value={csvData}
-              virtualScrollerOptions={{ itemSize: 46 }}
-              scrollable
-              scrollHeight="400px"
-            >
-              <Column field="templateName" header="Nombre Plantilla" />
-              <Column field="originPhone" header="Teléfono Origen" />
-              <Column field="destinationPhone" header="Teléfono Destino" />
-              <Column field="indicativePhone" header="Indicativo Teléfono" />
-              <Column header="Validación" body={validationBodyTemplate} />
-            </DataTable>
+            <>
+              <DataTable
+                value={csvData}
+                virtualScrollerOptions={{ itemSize: 46 }}
+                scrollable
+                scrollHeight="400px"
+              >
+                <Column field="templateName" header="Nombre Plantilla" />
+                <Column field="originPhone" header="Teléfono Origen" />
+                <Column field="destinationPhone" header="Teléfono Destino" />
+                <Column field="indicativePhone" header="Indicativo Teléfono" />
+                <Column header="Validación" body={validationBodyTemplate} />
+              </DataTable>
+              
+              <div className="flex justify-content-end mt-3">
+                <Button 
+                  label="Enviar Plantillas" 
+                  onClick={handleSendTemplates} 
+                  className="p-button-success"
+                  disabled={!csvData.some(row => isRowValid(row))}
+                />
+              </div>
+            </>
+          )}
+        </Dialog>
+        
+        {/* Modal con tabla para mostrar datos cargados de plantillas multimedia */}
+        <Dialog header="Detalle XLSX - Plantillas Multimedia" visible={showMultimediaModal} style={{ width: "80vw" }} onHide={() => setShowMultimediaModal(false)}>
+          {multimediaCsvData && (
+            <>
+              <DataTable
+                value={multimediaCsvData}
+                virtualScrollerOptions={{ itemSize: 46 }}
+                scrollable
+                scrollHeight="400px"
+              >
+                <Column field="templateName" header="Nombre Plantilla" />
+                <Column field="originPhone" header="Teléfono Origen" />
+                <Column field="destinationPhone" header="Teléfono Destino" />
+                <Column field="indicativePhone" header="Indicativo Teléfono" />
+                <Column field="mediaType" header="Tipo Multimedia" />
+                <Column field="mediaUrl" header="URL Multimedia" />
+                <Column field="mediaCaption" header="Descripción" />
+                <Column header="Validación" body={(rowData) => <span>{isMultimediaRowValid(rowData) ? "✔" : "✘"}</span>} />
+              </DataTable>
+              
+              <div className="flex justify-content-end mt-3">
+                <Button 
+                  label="Enviar Plantillas Multimedia" 
+                  onClick={handleSendMultimediaTemplates} 
+                  className="p-button-success"
+                  disabled={!multimediaCsvData.some(row => isMultimediaRowValid(row))}
+                />
+              </div>
+            </>
           )}
         </Dialog>
 

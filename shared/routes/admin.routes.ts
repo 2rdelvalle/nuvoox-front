@@ -14,7 +14,8 @@ export const ADMIN_ROUTES = {
   },
   COMPANY: {
     LIST: "/admin/company/list",
-    CREATE: "/admin/company/form"
+    CREATE: "/admin/company/form",
+    TRANSACTION_HISTORY: "/admin/company/transaction-history"
   },
   GROUP_AGENT: {
     LIST: "/admin/group-agent/list",

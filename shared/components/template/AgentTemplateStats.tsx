@@ -1,23 +1,26 @@
 import { useEffect, useState } from 'react';
 import { AgentTemplateStatsService } from '@/shared/services/template/agent-template-stats.service';
-import type { AgentTemplateStats } from '@/shared/services/template/agent-template-stats.service';
+import type { AgentTemplateStats, DateFilter } from '@/shared/services/template/agent-template-stats.service';
 import { Chart } from 'chart.js/auto';
 import { Card } from 'primereact/card';
 import { Dropdown } from 'primereact/dropdown';
 import { Skeleton } from 'primereact/skeleton';
+import DateRangeFilter, { DateRange } from '../filters/DateRangeFilter';
 
 /**
  * Props para el componente AgentTemplateStats
  */
 interface AgentTemplateStatsProps {
   companyId: number | string;
+  showDateFilter?: boolean;
 }
 
 /**
  * Componente que muestra estadísticas de plantillas enviadas por cada agente, clasificadas por categoría
  * @param companyId - ID de la empresa para la cual mostrar estadísticas
+ * @param showDateFilter - Si se debe mostrar el filtro de fechas
  */
-export default function AgentTemplateStats({ companyId }: AgentTemplateStatsProps) {
+export default function AgentTemplateStats({ companyId, showDateFilter = true }: AgentTemplateStatsProps) {
   // Estado para almacenar los datos de estadísticas de todos los agentes
   const [agentStats, setAgentStats] = useState<AgentTemplateStats[]>([]);
   
@@ -35,8 +38,19 @@ export default function AgentTemplateStats({ companyId }: AgentTemplateStatsProp
   
   // Referencia a la instancia de la gráfica
   const chartInstance = useState<Chart | null>(null);
+  
+  // Estado para el rango de fechas
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+    return {
+      startDate: thirtyDaysAgo,
+      endDate: now
+    };
+  });
 
-  // Cargar datos de agentes al montar el componente
+  // Cargar datos de agentes al montar el componente o cuando cambia el filtro de fechas
   useEffect(() => {
     const fetchAgentStats = async () => {
       if (!companyId) return;
@@ -45,13 +59,27 @@ export default function AgentTemplateStats({ companyId }: AgentTemplateStatsProp
       setError(null);
       
       try {
-        // Obtener estadísticas de plantillas por agente
-        const data = await AgentTemplateStatsService.getAgentTemplateStats(companyId);
+        // Formatear fechas para la API
+        const startDate = dateRange.startDate.toISOString().split('T')[0];
+        const endDate = dateRange.endDate.toISOString().split('T')[0];
+        
+        // Definir el filtro de fechas
+        const dateFilter: DateFilter = { startDate, endDate };
+        
+        // Obtener estadísticas de plantillas por agente con filtro de fechas
+        const data = await AgentTemplateStatsService.getAgentTemplateStats(
+          companyId,
+          dateFilter
+        );
+        
         setAgentStats(data);
         
         // Seleccionar el primer agente por defecto si hay datos y no hay ninguno seleccionado
         if (data.length > 0 && !selectedAgentId) {
           setSelectedAgentId(data[0].agentId);
+        } else if (data.length === 0) {
+          // Si no hay datos, resetear el agente seleccionado
+          setSelectedAgentId(null);
         }
       } catch (err) {
         console.error('Error al obtener estadísticas de plantillas por agente:', err);
@@ -62,7 +90,12 @@ export default function AgentTemplateStats({ companyId }: AgentTemplateStatsProp
     };
 
     fetchAgentStats();
-  }, [companyId]);
+  }, [companyId, dateRange]);
+  
+  // Manejar cambio en el rango de fechas
+  const handleDateRangeChange = (range: DateRange) => {
+    setDateRange(range);
+  };
   
   // Obtener datos del agente seleccionado
   const selectedAgent = selectedAgentId 
@@ -139,11 +172,21 @@ export default function AgentTemplateStats({ companyId }: AgentTemplateStatsProp
 
   // Renderizar componente con los datos
   return (
-    <Card 
-      className="agent-template-stats-card" 
-      title="Plantillas por Agente"
-      subTitle="Distribución por categoría"
-    >
+    <Card className="agent-template-stats-card">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 px-4 pt-4">
+        <div>
+          <h3 className="text-lg font-semibold m-0">Plantillas por Agente</h3>
+          <p className="text-sm text-gray-500 m-0">Distribución por categoría</p>
+        </div>
+        
+        {showDateFilter && (
+          <DateRangeFilter 
+            onChange={handleDateRangeChange} 
+            className="ml-auto" 
+            showApplyButton={false}
+          />
+        )}
+      </div>
       <div className="mb-4">
         <Dropdown
           value={selectedAgentId}

@@ -67,12 +67,18 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
       }
     };
     
-    // Verificar inmediatamente y luego cada 500ms
+    // Verificar inmediatamente
     updateUnreadCount();
-    const intervalId = setInterval(updateUnreadCount, 500);
     
-    // Limpiar intervalo al desmontar
-    return () => clearInterval(intervalId);
+    // Crear una suscripción al store de chat para actualizar cuando cambie el estado
+    const unsubscribe = useChatStore.subscribe((state) => {
+      // Cuando cambien las conversaciones, actualizar el contador
+      updateUnreadCount();
+      return state;
+    });
+    
+    // Limpiar suscripción al desmontar
+    return () => unsubscribe();
   }, [conversation.conversationid, activeConversation, resetUnreadCount]);
 
   /**
@@ -282,12 +288,28 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
   }
 
   return (
-    <div
-      className="flex flex-nowrap justify-content-between align-items-center border-1 surface-border border-round p-3 cursor-pointer
-      select-none hover:surface-hover transition-colors transition-duration-150"
-      onClick={changeView}
-      tabIndex={0}
-    >
+    <>
+      {/* Estilos CSS para la animación del badge */}
+      <style jsx global>{`
+        @keyframes pulse {
+          0% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+      `}</style>
+      
+      <div
+        className="flex flex-nowrap justify-content-between align-items-center border-1 surface-border border-round p-3 cursor-pointer
+        select-none hover:surface-hover transition-colors transition-duration-150"
+        onClick={changeView}
+        tabIndex={0}
+      >
       <div className="flex align-items-center">
         <div className="relative md:mr-3">
           <div className="relative">
@@ -307,23 +329,27 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
               style={{ bottom: "2px", right: "2px" }}
             ></span>
             
-            {/* Badge de notificación para mensajes no leídos */}
-            {unreadCount > 0 && (
-              <span 
-                className="absolute flex align-items-center justify-content-center border-circle bg-purple-600 text-white font-bold"
-                style={{
-                  top: '-5px',
-                  right: '-5px',
-                  width: unreadCount > 99 ? '22px' : unreadCount > 9 ? '20px' : '18px',
-                  height: unreadCount > 99 ? '22px' : unreadCount > 9 ? '20px' : '18px',
-                  fontSize: unreadCount > 99 ? '10px' : '11px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                  zIndex: 2
-                }}
-              >
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}  
+            {/* Badge de notificación para mensajes no leídos - siempre visible */}
+            <span 
+              className={`absolute flex align-items-center justify-content-center border-circle ${unreadCount > 0 ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'} font-bold`}
+              style={{
+                top: '-5px',
+                right: '-5px',
+                width: unreadCount > 99 ? '22px' : unreadCount > 9 ? '20px' : '18px',
+                height: unreadCount > 99 ? '22px' : unreadCount > 9 ? '20px' : '18px',
+                fontSize: unreadCount > 99 ? '10px' : '11px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                zIndex: 2,
+                animation: unreadCount > 0 ? 'pulse 1.5s infinite ease-in-out' : 'none',
+                transformOrigin: 'center',
+                border: unreadCount === 0 ? '1px solid #ddd' : 'none'
+              }}
+              title={unreadCount > 0 ? 
+                `${unreadCount} mensaje${unreadCount > 1 ? 's' : ''} sin leer` : 
+                'No hay mensajes sin leer'}
+            >
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
           </div>
         </div>
         <div className="flex-column hidden md:flex">
@@ -339,6 +365,7 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
         </div>
       </div>
     </div>
+    </>
   )
 }
 

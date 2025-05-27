@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
+import { useChatStore } from '../store/chat-store';
 
 // Definir la interfaz Message directamente para evitar problemas de importación
 interface Message {
@@ -114,8 +115,14 @@ const closeButtonStyle = {
 export function WhatsappMessageNotification() {
   const [notification, setNotification] = useState<Message | null>(null);
   const [visible, setVisible] = useState(false);
+  
+  // Acceder al store para obtener funciones y datos de las conversaciones
+  const { incrementUnreadCount, conversations, activeConversation } = useChatStore();
 
   useEffect(() => {
+    // Depurar información de las conversaciones actuales
+    console.log('Estado inicial de conversaciones:', conversations);
+    
     // Intentar conectarse a diferentes sockets para mayor robustez
     const socketUrls = [
       `${process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4001'}/local`,
@@ -124,13 +131,21 @@ export function WhatsappMessageNotification() {
       'http://localhost:4001'
     ];
     
+    console.log('Intentando conectar a los siguientes sockets:', socketUrls);
+    
+    // Configuración mejorada para los sockets
+    const socketOptions = {
+      reconnectionAttempts: 5,
+      timeout: 10000,
+      reconnectionDelay: 1000,
+      reconnection: true,
+      transports: ['websocket', 'polling']
+    };
+    
     const sockets = socketUrls.map(url => {
       try {
-        console.log(`Intentando conectar a socket: ${url}`);
-        return io(url, { 
-          reconnectionAttempts: 3,
-          timeout: 5000
-        });
+        console.log(`Intentando conexión al socket: ${url}`);
+        return io(url, socketOptions);
       } catch (error) {
         console.error(`Error al conectar a ${url}:`, error);
         return null;
@@ -144,14 +159,85 @@ export function WhatsappMessageNotification() {
       // Almacenar las URLs que intentamos para referencia
       const socketUrl = socketUrls[index] || 'desconocido';
       
+      // Eventos de estado del socket
       socket.on('connect', () => {
-        console.log(`Conectado a socket de notificación: ${socketUrl} (ID: ${socket.id})`);
+        console.log(`✅ CONECTADO a socket de notificación: ${socketUrl} (ID: ${socket.id})`);
       });
       
+      socket.on('connect_error', (error) => {
+        console.error(`❌ ERROR DE CONEXIÓN a socket ${socketUrl}:`, error);
+      });
+      
+      socket.on('disconnect', (reason) => {
+        console.log(`🔌 DESCONECTADO de socket ${socketUrl}:`, reason);
+      });
+      
+      socket.on('reconnect', (attemptNumber) => {
+        console.log(`🔄 RECONECTADO a socket ${socketUrl} (intento #${attemptNumber})`);
+      });
+      
+      // Manejar eventos de mensajes
       socket.on('message', (message: Message) => {
-        // Solo mostrar mensajes de clientes
+        console.log(`📩 SOCKET ${socketUrl} recibió mensaje:`, message);
+        
+        // Solo procesar mensajes de clientes
         if (message.owner === 'CLIENT' || message.owner === 'CUSTOMER') {
-          console.log('Notificación: Nuevo mensaje recibido', message);
+          console.log('🔔 NOTIFICACIÓN: Nuevo mensaje de cliente recibido', message);
+          
+          // Obtener lista actualizada de conversaciones del store
+          const currentConversations = useChatStore.getState().conversations;
+          console.log('Conversaciones actuales:', currentConversations);
+          
+          // Buscar la conversación correspondiente al número de teléfono del remitente
+          try {
+            // Normalizar el número de teléfono para la comparación
+            const fromNumber = message.from.replace(/\+/g, '').trim();
+            console.log(`🔍 Buscando conversación para número: ${fromNumber}`);
+            
+            // Buscar conversación por número de teléfono
+            const matchingConversation = currentConversations.find(c => {
+              const conversationPhone = (c.phone || '').replace(/\+/g, '').trim();
+              const destinationNumber = (c.destination_number || '').replace(/\+/g, '').trim();
+              
+              const isMatch = (
+                conversationPhone.includes(fromNumber) || 
+                fromNumber.includes(conversationPhone) ||
+                destinationNumber.includes(fromNumber) ||
+                fromNumber.includes(destinationNumber)
+              );
+              
+              if (isMatch) {
+                console.log(`✅ COINCIDENCIA ENCONTRADA: Conversación ID ${c.conversationid}`);
+              }
+              
+              return isMatch;
+            });
+            
+            // Obtener la conversación activa actual
+            const currentActiveConversation = useChatStore.getState().activeConversation;
+            console.log('Conversación activa actual:', currentActiveConversation);
+            
+            // Si encontramos la conversación, incrementar contador si no es la activa
+            if (matchingConversation?.conversationid) {
+              if (currentActiveConversation?.conversationid !== matchingConversation.conversationid) {
+                console.log(`🔢 INCREMENTANDO contador para conversación ID: ${matchingConversation.conversationid}`);
+                incrementUnreadCount(matchingConversation.conversationid);
+                
+                // Verificar que se incrementó correctamente
+                setTimeout(() => {
+                  const updatedConversations = useChatStore.getState().conversations;
+                  const updatedConversation = updatedConversations.find(c => c.conversationid === matchingConversation.conversationid);
+                  console.log(`Estado actualizado de la conversación:`, updatedConversation);
+                }, 100);
+              } else {
+                console.log(`❗ NO se incrementa contador - Es la conversación activa`);
+              }
+            } else {
+              console.log(`⚠️ No se encontró una conversación coincidente para el número ${fromNumber}`);
+            }
+          } catch (error) {
+            console.error('❌ ERROR al procesar contador de mensajes no leídos:', error);
+          }
           
           // Mostrar notificación
           setNotification(message);
@@ -165,9 +251,25 @@ export function WhatsappMessageNotification() {
       });
     });
     
+    // Registrar eventos del sistema para depuración
+    console.log('Componente WhatsappMessageNotification montado');
+    window.addEventListener('online', () => console.log('🌐 Navegador ONLINE'));
+    window.addEventListener('offline', () => console.log('❌ Navegador OFFLINE'));
+    
     // Limpiar al desmontar
     return () => {
-      sockets.forEach(socket => socket && socket.disconnect());
+      console.log('Componente WhatsappMessageNotification desmontando, desconectando sockets...');
+      sockets.forEach(socket => {
+        if (socket && socket.connected) {
+          console.log(`Desconectando socket ID: ${socket.id}`);
+          socket.disconnect();
+        }
+      });
+      
+      window.removeEventListener('online', () => console.log('🌐 Navegador ONLINE'));
+      window.removeEventListener('offline', () => console.log('❌ Navegador OFFLINE'));
+      
+      console.log('Limpieza completa');
     };
   }, []);
   

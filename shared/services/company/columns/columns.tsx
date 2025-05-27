@@ -7,10 +7,12 @@ import { useToast } from "@/shared/context/toast/toastContext"
 import { useRouter } from "next/navigation"
 import { ADMIN_ROUTES } from "@/shared/routes/admin.routes"
 type props = {
-  callback : ()=> void
+  callback: () => void;
+  extraActions?: (rowData: any) => React.ReactNode[];
+  actionRecharge?: (rowData: any) => void; // Añadida nueva propiedad para la acción de recarga
 }
 
-export const COLUMNS_COMPANY = ({ callback }: props) => {
+export const COLUMNS_COMPANY = ({ callback, extraActions, actionRecharge }: props) => {
   const { push } = useRouter()
 
   const { showInfo } = useToast()
@@ -50,12 +52,17 @@ export const COLUMNS_COMPANY = ({ callback }: props) => {
     {
       field: "",
       header: "Acciones",
-      style: { width: "17%" },
+      style: { width: "30%" },
       body: (rowData: any) => (
-        <ActionButton
-          actionPencil={() => goToUpdate(rowData)}
-          actionDelete={() => deleteWithId(rowData)}
-        />
+        <div className="flex flex-row gap-2 items-center">
+          <ActionButton
+            actionPencil={() => goToUpdate(rowData)}
+            actionDelete={() => deleteWithId(rowData)}
+            actionRecharge={actionRecharge ? () => actionRecharge(rowData) : undefined}
+          />
+          {/* Renderizar acciones adicionales si existen */}
+          {extraActions && extraActions(rowData)}
+        </div>
       )
     }
   ]

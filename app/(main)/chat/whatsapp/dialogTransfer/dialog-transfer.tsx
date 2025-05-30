@@ -22,7 +22,8 @@ const DialogTransfer = () => {
   const [expandedRows, setExpandedRows] = useState<DataTableExpandedRows | DataTableValueArray | undefined>(undefined)
 
   // Obtén el dataToken
-  const dataToken = getDataFromToken(getCookieToken() || "").user
+  const tokenData = getDataFromToken(getCookieToken() || "")
+  const dataToken = tokenData?.user
 
   useEffect(() => {
     if (dataToken?.company?.companyId) {
@@ -69,6 +70,11 @@ const DialogTransfer = () => {
   )
 
   async function transferChat (rowData : any) {
+    if (!dataToken) {
+      showError("No se pudo obtener la información del usuario")
+      return
+    }
+    
     if (rowData.mail === dataToken.mail) {
       showError("No puedes transferir el chat a ti mismo")
       return

@@ -18,13 +18,20 @@ const UserPage = () => {
   const { onClickAction } = usePush(ADMIN_ROUTES.USER.CREATE)
 
   // Obtén el dataToken
-  const dataToken = getDataFromToken(getCookieToken() || "").user
+  const tokenData = getDataFromToken(getCookieToken() || "")
+  const dataToken = tokenData?.user
 
   // Usa el nuevo hook
   const { responseData: users, isLoading, fetchData } = useFetchWithParams(_users.getCaratulesFromUserCompany)
 
   // Configura las columnas y el callback
-  const { columns } = COLUMNS_USER({ callback: () => fetchData(dataToken) })
+  const { columns } = COLUMNS_USER({ 
+    callback: () => {
+      if (dataToken) {
+        fetchData(dataToken)
+      }
+    }
+  })
 
   // Llama a fetchData al cargar la página
   useEffect(() => {

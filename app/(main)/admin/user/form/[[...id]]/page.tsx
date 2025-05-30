@@ -77,7 +77,15 @@ const UserForm = () => {
 
   const onSubmit: SubmitHandler<UserFormModel> = (data) => {
     // Priorizar empresa seleccionada en el select sobre la empresa del token
-    const companyToSubmit = data.company?.companyId ? { companyId: data.company.companyId } : dataFromToken?.user?.company
+    // Asegurarnos de que siempre haya un valor válido para company
+    let companyToSubmit = data.company?.companyId ? { companyId: data.company.companyId } : dataFromToken?.user?.company
+    
+    // Si aún no tenemos un valor válido, crear un objeto vacío con un valor por defecto
+    // Este es un caso de respaldo que idealmente no debería ocurrir
+    if (!companyToSubmit?.companyId) {
+      showError("No se pudo determinar la empresa. Verifica tu selección.")
+      return
+    }
 
     const userToSubmit : UserFormModel = {
       userId: data.userId ? data.userId : 0,
@@ -280,7 +288,7 @@ const UserForm = () => {
                         })} placeholder={"Ingrese su número de documento"} type="text" />
                         {errors.document && <Message severity="error" text={errors.document.message?.toString()} />}
                 </div>
-            {dataFromToken.user?.role?.name === "SUPERADMIN" &&
+            {dataFromToken?.user?.role?.name === "SUPERADMIN" &&
             (<div className="flex flex-column field mb-4 col-12 md:col-6 sm:col-12"> {/* Tipo Documento */}
                       <label htmlFor={"company"} className="font-medium text-900">
                       {"Empresa"}

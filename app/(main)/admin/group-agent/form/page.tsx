@@ -37,7 +37,8 @@ const GroupAgentForm = () => {
   })
 
   // Obtén el dataToken
-  const dataToken = getDataFromToken(getCookieToken() || "").user
+  const tokenData = getDataFromToken(getCookieToken() || "")
+  const dataToken = tokenData?.user
 
   const onSubmit: SubmitHandler<GroupAgent> = async (data) => {
     if (!dataToken) return alert("No se pudo obtener el token")

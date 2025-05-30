@@ -38,7 +38,7 @@ interface Group {
   name: string;
 }
 
-export const ChatBox = (props: any) => {
+export const ChatBox = () => {
   const { showError, showSuccess } = useToast()
   const [textContent, setTextContent] = useState("")
   const [searchText, setSearchText] = useState("") // Estado para almacenar el texto de búsqueda
@@ -60,13 +60,13 @@ export const ChatBox = (props: any) => {
 
   // Obtener las plantillas filtradas por compañía
   const companyId = dataToken?.user.company.companyId
-  
+
   // Usamos useMemo para que la función de fetch sea estable entre renders
   const fetchTemplates = useMemo(() => {
     // Aseguramos que siempre devuelva una función válida para evitar errores de tipo
     return () => _template.getAllByCompany(companyId || 0);
   }, [companyId]);
-  
+
   const { responseData: dataTemplates } = useFetch(fetchTemplates)
 
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null)
@@ -75,7 +75,7 @@ export const ChatBox = (props: any) => {
   const [shouldRedirect, setShouldRedirect] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [tokenCheckComplete, setTokenCheckComplete] = useState(false)
-  
+
   // Efecto para marcar el componente como montado (solo en el cliente)
   useEffect(() => {
     setMounted(true)
@@ -1126,9 +1126,9 @@ useEffect(() => {
               onChange={(e) => setSearchText(e.target.value)}
               className="w-full"
             />
-            <Button 
-              icon="pi pi-times" 
-              className="p-button-danger" 
+            <Button
+              icon="pi pi-times"
+              className="p-button-danger"
               onClick={() => setSearchText('')}
               disabled={!searchText}
               tooltip="Limpiar búsqueda"
@@ -1146,9 +1146,9 @@ useEffect(() => {
       </OverlayPanel>
 
       {/* Dialog de transferencia de chat - implementación directa */}
-      <Dialog 
-        header="Transferencia de chat" 
-        visible={showTransferDialog} 
+      <Dialog
+        header="Transferencia de chat"
+        visible={showTransferDialog}
         onHide={() => setShowTransferDialog(false)}
         style={{ width: '50vw', maxWidth: '800px' }}
         breakpoints={{ '960px': '90vw', '641px': '95vw' }}
@@ -1160,9 +1160,9 @@ useEffect(() => {
         ) : (
           !transferOption ? (
             <div className="flex flex-column gap-2" style={{ padding: '0 1.5rem' }}>
-              <Button 
-                label="A un agente" 
-                icon="pi pi-user" 
+              <Button
+                label="A un agente"
+                icon="pi pi-user"
                 className="p-button-outlined"
                 style={{ 
                   padding: '0 1rem',
@@ -1171,9 +1171,9 @@ useEffect(() => {
                 }}
                 onClick={() => setTransferOption('agent')}
               />
-              <Button 
-                label="A un grupo de agentes" 
-                icon="pi pi-users" 
+              <Button
+                label="A un grupo de agentes"
+                icon="pi pi-users"
                 className="p-button-outlined"
                 style={{ 
                   padding: '0 1rem',
@@ -1182,9 +1182,9 @@ useEffect(() => {
                 }}
                 onClick={() => setTransferOption('group')}
               />
-              <Button 
-                label="A un bot" 
-                icon="pi pi-robot" 
+              <Button
+                label="A un bot"
+                icon="pi pi-robot"
                 className="p-button-outlined"
                 style={{ 
                   padding: '0 1rem',
@@ -1198,8 +1198,8 @@ useEffect(() => {
           ) : (
             <div className="flex flex-column gap-3">
               <div className="flex align-items-center gap-2">
-                <Button 
-                  icon="pi pi-arrow-left" 
+                <Button
+                  icon="pi pi-arrow-left"
                   className="p-button-text"
                   onClick={() => setTransferOption(null)}
                 />
@@ -1207,8 +1207,8 @@ useEffect(() => {
               </div>
               
               {(transferOption === 'agent' ? agents : groups).map(item => (
-                <div 
-                  key={item.id} 
+                <div
+                  key={item.id}
                   className="p-3 border-round border-1 surface-border cursor-pointer hover:surface-hover"
                   onClick={() => {
                     handleTransfer(transferOption, item.id);

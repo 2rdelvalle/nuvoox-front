@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import axios from 'axios';
+// Importación comentada: actualmente no se utiliza en este archivo
+// import axios from 'axios';
 
-// URL base de la API
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/nuvoox/api';
+// URL base de la API (comentada por no usarse actualmente)
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/nuvoox/api';
 
 /**
  * Maneja solicitudes GET para obtener estadísticas de una empresa en un rango de fechas
- * 
+ *
  * @param request - Solicitud HTTP
  * @param params - Parámetros de ruta, incluyendo el ID de la empresa
  * @returns Respuesta con los datos de estadísticas o error
@@ -18,19 +19,19 @@ export async function GET(
   try {
     // Obtener el ID de la empresa de los parámetros de ruta
     const companyId = parseInt(params.id);
-    
-    if (isNaN(companyId)) {
+
+    if (!companyId || isNaN(companyId)) {
       return NextResponse.json(
         { error: 'ID de empresa inválido' },
         { status: 400 }
       );
     }
-    
+
     // Obtener los parámetros de consulta para el rango de fechas
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    
+
     // Validar fechas
     if (!startDate || !endDate) {
       return NextResponse.json(
@@ -38,17 +39,18 @@ export async function GET(
         { status: 400 }
       );
     }
-    
+
     // En un escenario real, aquí llamaríamos a la API del backend
     // Para fines de demostración, generamos datos simulados
     // En producción, descomentar el código siguiente y configurar la API real:
-    
+
     /*
-    const url = `${API_BASE_URL}/companies/${companyId}/stats?startDate=${startDate}&endDate=${endDate}`;
-    const response = await axios.get(url);
-    const data = response.data;
+    // Cuando se implemente la API real, descomentar estas líneas y las importaciones arriba
+    // const url = `${API_BASE_URL}/companies/${companyId}/stats?startDate=${startDate}&endDate=${endDate}`;
+    // const response = await axios.get(url);
+    // const data = response.data;
     */
-    
+
     // Datos simulados para demostración
     const mockData = {
       messagesSent: Math.floor(Math.random() * 1000) + 500,
@@ -63,12 +65,12 @@ export async function GET(
       dailyReceivedMessages: Array.from({ length: 7 }, () => Math.floor(Math.random() * 80) + 10),
       daysLabels: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
     };
-    
+
     // Devolver los datos como JSON
     return NextResponse.json(mockData);
   } catch (error) {
     console.error('Error al obtener estadísticas de la empresa:', error);
-    
+
     return NextResponse.json(
       { error: 'Error al obtener estadísticas de la empresa' },
       { status: 500 }

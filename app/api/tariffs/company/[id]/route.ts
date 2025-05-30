@@ -46,22 +46,22 @@ export async function GET(
   try {
     // Obtener el ID de la empresa de los parámetros de ruta
     const companyId = parseInt(params.id);
-    
+
     if (isNaN(companyId)) {
       return NextResponse.json(
         { error: 'ID de empresa inválido' },
         { status: 400 }
       );
     }
-    
+
     // Filtrar tarifas por empresa (en un entorno real, esto sería una consulta a la base de datos)
     const companyTariffs = mockTariffs.filter(tariff => tariff.companyId === companyId);
-    
+
     // Devolver las tarifas encontradas
     return NextResponse.json(companyTariffs);
   } catch (error) {
     console.error('Error al obtener tarifas de la empresa:', error);
-    
+
     return NextResponse.json(
       { error: 'Error al obtener tarifas de la empresa' },
       { status: 500 }

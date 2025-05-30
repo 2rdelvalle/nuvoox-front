@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   try {
     // Obtener los datos del cuerpo de la solicitud
     const data = await request.json();
-    
+
     // Validar datos requeridos
     if (!data.companyId || data.additionalCost === undefined) {
       return NextResponse.json(
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Crear nueva tarifa
     const newTariff: CompanyTariff = {
       id: nextId++,
@@ -65,15 +65,15 @@ export async function POST(request: NextRequest) {
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    
+
     // Agregar a la lista (en un entorno real, esto sería una inserción en la base de datos)
     mockTariffs.push(newTariff);
-    
+
     // Devolver la tarifa creada
     return NextResponse.json(newTariff, { status: 201 });
   } catch (error) {
     console.error('Error al crear tarifa:', error);
-    
+
     return NextResponse.json(
       { error: 'Error al crear tarifa' },
       { status: 500 }
@@ -91,7 +91,7 @@ export async function GET() {
     return NextResponse.json(mockTariffs);
   } catch (error) {
     console.error('Error al obtener tarifas:', error);
-    
+
     return NextResponse.json(
       { error: 'Error al obtener tarifas' },
       { status: 500 }

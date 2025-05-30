@@ -6,7 +6,7 @@ import { useInitializeUserFromToken } from "@/shared/customHooks/useInitializeUs
 import { useSWRRequest } from "@/shared/customHooks/useSWRRequest"
 import { BlockUI } from "primereact/blockui"
 import { useEffect, useState } from "react"
-import { TemplateStats, AgentTemplateStats } from "@/shared/components/template"
+import { AgentTemplateStats } from "@/shared/components/template"
 
 interface Dashboard {
   messagesSent: number;
@@ -38,8 +38,13 @@ export default function Home () {
 
   useEffect(() => {
     getDashBoard()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* Justificación: Omitimos getDashBoard intencionalmente como dependencia
+     * para evitar un posible ciclo infinito de llamadas a la API.
+     * Solo necesitamos actualizar cuando cambia el usuario.
+     */
   }, [user?.company?.companyId])
-  
+
   // Verificar si el usuario tiene rol de empresa
   useEffect(() => {
     if (user?.role?.name) {

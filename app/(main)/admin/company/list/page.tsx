@@ -7,8 +7,7 @@ import { usePush } from "@/shared/hooks/usePush"
 import { ADMIN_ROUTES } from "@/shared/routes/admin.routes"
 import { COLUMNS_COMPANY } from "@/shared/services/company/columns/columns"
 import {
-  CompanyService as _company,
-  BalanceService
+  CompanyService as _company
 } from "@/shared/services"
 import CustomToolbar from "@/shared/small-components/CustomToolbar/customToolbar"
 import EmptyPage from "@/shared/small-components/EmptyPage/emptyPage"
@@ -22,11 +21,11 @@ import { Button } from "primereact/button"
 const CompanyPage = () => {
   const router = useRouter()
   const { showError, showSuccess } = useToast()
-  
+
   // Estados para el modal de recarga de saldo
   const [rechargeModalOpen, setRechargeModalOpen] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState<{ id: number, name: string } | null>(null)
-  
+
   // Estados para el modal de tarifas
   const [tariffModalOpen, setTariffModalOpen] = useState(false)
   const [selectedCompanyForTariff, setSelectedCompanyForTariff] = useState<{ id: number, name: string } | null>(null)
@@ -34,14 +33,6 @@ const CompanyPage = () => {
   const { onClickAction } = usePush(ADMIN_ROUTES.COMPANY.CREATE)
 
   const { responseData: users, isLoading, callback } = useFetch(_company.caratule)
-  
-  // Agregar acción de recarga de saldo a las columnas
-  // Definir el tipo para las filas de la empresa
-  interface CompanyRow {
-    companyId: number;
-    name: string;
-    [key: string]: any;
-  }
   
   // Registro de ayuda para depuración - eliminar en producción
   console.log('Datos recibidos de usuarios:', users);
@@ -172,7 +163,11 @@ const CompanyPage = () => {
   };
   
   // Función que se ejecuta después de actualizar tarifas exitosamente
-  const handleTariffSuccess = (data: any) => {
+  const handleTariffSuccess = () => {
+    // Cerrar el modal
+    setTariffModalOpen(false);
+    setSelectedCompanyForTariff(null);
+    
     // Mostrar mensaje de éxito
     showSuccess('Tarifas actualizadas correctamente');
     

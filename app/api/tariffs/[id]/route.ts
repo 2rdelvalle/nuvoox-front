@@ -48,29 +48,29 @@ export async function GET(
   try {
     // Obtener el ID de la tarifa de los parámetros de ruta
     const tariffId = parseInt(params.id);
-    
+
     if (isNaN(tariffId)) {
       return NextResponse.json(
         { error: 'ID de tarifa inválido' },
         { status: 400 }
       );
     }
-    
+
     // Buscar tarifa por ID (en un entorno real, esto sería una consulta a la base de datos)
     const tariff = mockTariffs.find(t => t.id === tariffId);
-    
+
     if (!tariff) {
       return NextResponse.json(
         { error: 'Tarifa no encontrada' },
         { status: 404 }
       );
     }
-    
+
     // Devolver la tarifa encontrada
     return NextResponse.json(tariff);
   } catch (error) {
     console.error('Error al obtener tarifa:', error);
-    
+
     return NextResponse.json(
       { error: 'Error al obtener tarifa' },
       { status: 500 }
@@ -91,27 +91,27 @@ export async function PUT(
   try {
     // Obtener el ID de la tarifa de los parámetros de ruta
     const tariffId = parseInt(params.id);
-    
+
     if (isNaN(tariffId)) {
       return NextResponse.json(
         { error: 'ID de tarifa inválido' },
         { status: 400 }
       );
     }
-    
+
     // Obtener los datos del cuerpo de la solicitud
     const data = await request.json();
-    
+
     // Buscar el índice de la tarifa (en un entorno real, esto sería una consulta a la base de datos)
     const tariffIndex = mockTariffs.findIndex(t => t.id === tariffId);
-    
+
     if (tariffIndex === -1) {
       return NextResponse.json(
         { error: 'Tarifa no encontrada' },
         { status: 404 }
       );
     }
-    
+
     // Actualizar tarifa
     const updatedTariff: CompanyTariff = {
       ...mockTariffs[tariffIndex], // Mantener los datos existentes
@@ -120,15 +120,15 @@ export async function PUT(
       country: data.country || mockTariffs[tariffIndex].country,
       updatedAt: new Date()
     };
-    
+
     // Guardar la tarifa actualizada (en un entorno real, esto sería una actualización en la base de datos)
     mockTariffs[tariffIndex] = updatedTariff;
-    
+
     // Devolver la tarifa actualizada
     return NextResponse.json(updatedTariff);
   } catch (error) {
     console.error('Error al actualizar tarifa:', error);
-    
+
     return NextResponse.json(
       { error: 'Error al actualizar tarifa' },
       { status: 500 }
@@ -149,32 +149,32 @@ export async function DELETE(
   try {
     // Obtener el ID de la tarifa de los parámetros de ruta
     const tariffId = parseInt(params.id);
-    
+
     if (isNaN(tariffId)) {
       return NextResponse.json(
         { error: 'ID de tarifa inválido' },
         { status: 400 }
       );
     }
-    
+
     // Buscar el índice de la tarifa (en un entorno real, esto sería una consulta a la base de datos)
     const tariffIndex = mockTariffs.findIndex(t => t.id === tariffId);
-    
+
     if (tariffIndex === -1) {
       return NextResponse.json(
         { error: 'Tarifa no encontrada' },
         { status: 404 }
       );
     }
-    
+
     // Eliminar la tarifa (en un entorno real, esto sería una eliminación en la base de datos)
     mockTariffs.splice(tariffIndex, 1);
-    
+
     // Devolver mensaje de éxito
     return NextResponse.json({ message: 'Tarifa eliminada correctamente' });
   } catch (error) {
     console.error('Error al eliminar tarifa:', error);
-    
+
     return NextResponse.json(
       { error: 'Error al eliminar tarifa' },
       { status: 500 }

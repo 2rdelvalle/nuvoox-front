@@ -52,7 +52,7 @@ const GroupAgentForm = () => {
     }
     try {
       await _GAS.create(dataToSave)
-        .then((res) => {
+        .then(() => {
           showSuccess("Grupo de Agentes creado correctamente")
           onClickAction()
         }).catch((err) => {
@@ -73,7 +73,13 @@ const GroupAgentForm = () => {
       }
     }
     fetchDataAsync()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* Justificación: Omitimos fetchData y dataToken como dependencias de manera intencional
+     * porque queremos que este efecto se ejecute solo una vez al montar el componente.
+     * Si incluimos estas dependencias, podría causar múltiples llamadas a la API
+     * cuando estos valores cambien, lo que no es el comportamiento deseado en este caso.
+     */
+  }, []) // Solo se ejecuta una vez al montar el componente
 
   const handleRemoveUser = (index: number) => {
     setUsersSelected(usersSelected.filter((_, i) => i !== index))

@@ -50,12 +50,12 @@ const Login = () => {
       password: ""
     }
   });
-  
+
   // Efecto para manejar la hidratación
   useEffect(() => {
     setMounted(true);
   }, []);
-  
+
   // Retorno condicional después de todos los hooks
   if (!mounted) return null;
 

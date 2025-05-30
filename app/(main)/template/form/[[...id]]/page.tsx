@@ -13,7 +13,7 @@ import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/s
 import { BlockUI } from "primereact/blockui"
 import { Button } from "primereact/button"
 import { Card } from "primereact/card"
-import { Divider } from "primereact/divider"
+// import { Divider } from "primereact/divider" // No utilizado actualmente
 import { Dropdown } from "primereact/dropdown"
 import { FileUpload, FileUploadHandlerEvent } from "primereact/fileupload"
 import { InputText } from "primereact/inputtext"
@@ -31,14 +31,14 @@ import { Controller, SubmitHandler, useForm } from "react-hook-form"
 const TemplateForm = () => {
   const { onClickAction } = usePush(ADMIN_ROUTES.TEMPLATE.LIST)
   const { register, handleSubmit, formState: { errors: basicErrors, isValid: basicIsValid, isDirty: basicIsDirty } } = useForm<TemplateModel>()
-  
+
   // Formulario para plantillas multimedia
   const { 
     control,
     register: registerMultimedia, 
     handleSubmit: handleSubmitMultimedia, 
     setValue,
-    watch,
+    // watch, // No utilizado actualmente
     formState: { errors: multimediaErrors, isValid: multimediaIsValid, isDirty: multimediaIsDirty } 
   } = useForm<MultimediaTemplateModel>()
   
@@ -47,17 +47,18 @@ const TemplateForm = () => {
   const [mediaType, setMediaType] = useState(TemplateMediaType.NONE)
   const [mediaUrl, setMediaUrl] = useState('')
   const [mediaFileName, setMediaFileName] = useState('')
-  const [componentsLoaded, setComponentsLoaded] = useState(false)
+  // const [componentsLoaded, setComponentsLoaded] = useState(false) // No utilizado actualmente
   
   // Controla la inicialización segura de componentes
   useEffect(() => {
     // Permite que todos los componentes se inicialicen correctamente
     // antes de intentar manipulaciones del DOM que pueden causar el error insertRule
-    const timer = setTimeout(() => {
+    /*const timer = setTimeout(() => {
       setComponentsLoaded(true);
     }, 100);
     
-    return () => clearTimeout(timer);
+    return () => clearTimeout(timer);*/
+    // Comentado por no usarse actualmente
   }, []);
   
   // Tipos de multimedia disponibles
@@ -315,7 +316,7 @@ const onFileUpload = async (event: FileUploadHandlerEvent) => {
                         {multimediaErrors.name && <Message severity="error" text={multimediaErrors.name.message} />}
                       </div>
                     </div>
-                    
+
                     <div className="col-12 md:col-6">
                       <div className="field mb-4">
                         <label htmlFor="mediaType" className="font-medium text-900 block mb-2">
@@ -327,80 +328,80 @@ const onFileUpload = async (event: FileUploadHandlerEvent) => {
                           defaultValue={TemplateMediaType.NONE}
                           rules={{ required: "El tipo de medio es obligatorio" }}
                           render={({ field }) => (
-                            <Dropdown
-                              id={field.name}
-                              value={field.value}
-                              onChange={(e) => {
-                                field.onChange(e.value);
-                                onMediaTypeChange(e);
-                              }}
-                              options={mediaTypes}
-                              placeholder="Seleccione el tipo de medio"
-                              className="w-full"
-                            />
+<Dropdown
+  id={field.name}
+  value={field.value}
+  onChange={(e) => {
+    field.onChange(e.value);
+    onMediaTypeChange(e);
+  }}
+  options={mediaTypes}
+  placeholder="Seleccione el tipo de medio"
+  className="w-full"
+/>
                           )}
                         />
                         {multimediaErrors.mediaType && <Message severity="error" text={multimediaErrors.mediaType.message} />}
                       </div>
                     </div>
-                    
+
                     {/* Mostrar cargador de archivos solo si se ha seleccionado un tipo diferente a "none" */}
                     {mediaType !== TemplateMediaType.NONE && (
                       <div className="col-12">
                         <Card title="Subir Archivo Multimedia" className="mb-4">
                           <p className="text-sm text-gray-600 mb-4">
-                            Suba el archivo multimedia que se usará en la plantilla. 
-                            En un ambiente de producción, este archivo se subiría a un servidor de almacenamiento.
+Suba el archivo multimedia que se usará en la plantilla. 
+En un ambiente de producción, este archivo se subiría a un servidor de almacenamiento.
                           </p>
                           <FileUpload
-                            ref={fileUploadRef}
-                            name="mediaFile"
-                            url="/api/upload" // Esto es simulado, no se realiza ninguna carga real
-                            accept={mediaType === TemplateMediaType.IMAGE ? "image/*" : 
-                                  mediaType === TemplateMediaType.VIDEO ? "video/*" :
-                                  mediaType === TemplateMediaType.DOCUMENT ? ".pdf,.doc,.docx" :
-                                  mediaType === TemplateMediaType.AUDIO ? "audio/*" : "*"}
-                            maxFileSize={10000000}
-                            emptyTemplate={<p className="m-0">Arrastre y suelte su archivo aquí o haga clic para seleccionarlo.</p>}
-                            chooseLabel="Seleccionar"
-                            uploadLabel="Subir"
-                            cancelLabel="Cancelar"
-                            customUpload={true}
-                            uploadHandler={onFileUpload}
+ref={fileUploadRef}
+name="mediaFile"
+url="/api/upload" // Esto es simulado, no se realiza ninguna carga real
+accept={mediaType === TemplateMediaType.IMAGE ? "image/*" : 
+      mediaType === TemplateMediaType.VIDEO ? "video/*" :
+      mediaType === TemplateMediaType.DOCUMENT ? ".pdf,.doc,.docx" :
+      mediaType === TemplateMediaType.AUDIO ? "audio/*" : "*"}
+maxFileSize={10000000}
+emptyTemplate={<p className="m-0">Arrastre y suelte su archivo aquí o haga clic para seleccionarlo.</p>}
+chooseLabel="Seleccionar"
+uploadLabel="Subir"
+cancelLabel="Cancelar"
+customUpload={true}
+uploadHandler={onFileUpload}
                           />
-                          
+      
                           {/* Campos ocultos para almacenar la URL y el nombre del archivo */}
                           <input type="hidden" {...registerMultimedia("mediaUrl")} />
                           <input type="hidden" {...registerMultimedia("mediaFilename")} />
-                          
+      
                           {/* Mostrar información del archivo cargado */}
                           {mediaUrl && (
-                            <div className="mt-4 p-3 border-1 border-round surface-100">
-                              <h4 className="mt-0 mb-2">Archivo cargado:</h4>
-                              <p><strong>Nombre:</strong> {mediaFileName}</p>
-                              <p><strong>URL:</strong> {mediaUrl}</p>
-                            </div>
+<div className="mt-4 p-3 border-1 border-round surface-100">
+  <h4 className="mt-0 mb-2">Archivo cargado:</h4>
+  <p><strong>Nombre:</strong> {mediaFileName}</p>
+  <p><strong>URL:</strong> {mediaUrl}</p>
+</div>
                           )}
                         </Card>
                       </div>
                     )}
-                    
+
                     {mediaType === TemplateMediaType.IMAGE && (
                       <div className="col-12">
                         <div className="field mb-4">
                           <label htmlFor="mediaCaption" className="font-medium text-900 block mb-2">
-                            Descripción de la Imagen (opcional)
+Descripción de la Imagen (opcional)
                           </label>
                           <InputText
-                            id="mediaCaption"
-                            {...registerMultimedia("mediaCaption")}
-                            placeholder="Descripción breve de la imagen"
-                            className="w-full"
+id="mediaCaption"
+{...registerMultimedia("mediaCaption")}
+placeholder="Descripción breve de la imagen"
+className="w-full"
                           />
                         </div>
                       </div>
                     )}
-                    
+
                     <div className="col-12">
                       <div className="field mb-4">
                         <label htmlFor="text" className="font-medium text-900 block mb-2">
@@ -417,7 +418,7 @@ const onFileUpload = async (event: FileUploadHandlerEvent) => {
                         {multimediaErrors.text && <Message severity="error" text={multimediaErrors.text.message} />}
                       </div>
                     </div>
-                    
+
                     {/* Campos de categoría e idioma */}
                     <div className="col-12 md:col-6">
                       <div className="field mb-4">
@@ -429,21 +430,21 @@ const onFileUpload = async (event: FileUploadHandlerEvent) => {
                           control={control}
                           defaultValue="MARKETING"
                           render={({ field }) => (
-                            <SelectButton 
-                              id={field.name}
-                              value={field.value} 
-                              onChange={(e) => field.onChange(e.value)} 
-                              options={[
-                                {label: 'Marketing', value: 'MARKETING'},
-                                {label: 'Utilidad', value: 'UTILITY'},
-                                {label: 'Autenticación', value: 'AUTHENTICATION'}
-                              ]} 
-                            />
+<SelectButton 
+  id={field.name}
+  value={field.value} 
+  onChange={(e) => field.onChange(e.value)} 
+  options={[
+    {label: 'Marketing', value: 'MARKETING'},
+    {label: 'Utilidad', value: 'UTILITY'},
+    {label: 'Autenticación', value: 'AUTHENTICATION'}
+  ]} 
+/>
                           )}
                         />
                       </div>
                     </div>
-                    
+
                     <div className="col-12 md:col-6">
                       <div className="field mb-4">
                         <label htmlFor="language" className="font-medium text-900 block mb-2">
@@ -454,15 +455,15 @@ const onFileUpload = async (event: FileUploadHandlerEvent) => {
                           control={control}
                           defaultValue="es"
                           render={({ field }) => (
-                            <SelectButton 
-                              id={field.name}
-                              value={field.value} 
-                              onChange={(e) => field.onChange(e.value)} 
-                              options={[
-                                {label: 'Español', value: 'es'},
-                                {label: 'Inglés', value: 'en'}
-                              ]} 
-                            />
+<SelectButton 
+  id={field.name}
+  value={field.value} 
+  onChange={(e) => field.onChange(e.value)} 
+  options={[
+    {label: 'Español', value: 'es'},
+    {label: 'Inglés', value: 'en'}
+  ]} 
+/>
                           )}
                         />
                       </div>

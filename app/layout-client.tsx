@@ -8,11 +8,11 @@ import Layout from '@/layout/layout';
  */
 export default function LayoutClient({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
-  
+
   useEffect(() => {
     setMounted(true);
   }, []);
-  
+
   // Durante el renderizado del servidor, mostrar un contenedor simple
   // para evitar cualquier problema de hidratación
   if (!mounted) {
@@ -25,7 +25,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
       </div>
     );
   }
-  
+
   // Una vez en el cliente, renderizar el layout completo
   return <Layout>{children}</Layout>;
 }

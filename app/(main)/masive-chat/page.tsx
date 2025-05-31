@@ -440,9 +440,18 @@ const MasiveChat: React.FC = () => {
                   <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>TELEFONO_ORIGEN</li>
                   <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>TELEFONO_DESTINO</li>
                   <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>INDICATIVO_TELEFONO</li>
-                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>TIPO_MULTIMEDIA (image, video, document, audio)</li>
-                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>URL_MULTIMEDIA</li>
-                  <li className="mb-2"><i className="pi pi-check-circle text-green-500 mr-2"></i>DESCRIPCION_MULTIMEDIA (opcional)</li>
+                  <li className="mb-2">
+                    <i className="pi pi-check-circle text-green-500 mr-2"></i>
+                    TIPO_MULTIMEDIA (image, video, document, audio)
+                  </li>
+                  <li className="mb-2">
+                    <i className="pi pi-check-circle text-green-500 mr-2"></i>
+                    URL_MULTIMEDIA
+                  </li>
+                  <li className="mb-2">
+                    <i className="pi pi-check-circle text-green-500 mr-2"></i>
+                    DESCRIPCION_MULTIMEDIA (opcional)
+                  </li>
                 </ul>
               </div>
               <FileUpload
@@ -463,7 +472,11 @@ const MasiveChat: React.FC = () => {
         </TabView>
 
         {/* Modal con tabla para mostrar datos cargados de plantillas normales */}
-        <Dialog header="Detalle XLSX - Plantillas Normales" visible={showModal} style={{ width: "70vw" }} onHide={() => setShowModal(false)}>
+        <Dialog 
+          header="Detalle XLSX - Plantillas Normales" 
+          visible={showModal} 
+          style={{ width: "70vw" }} 
+          onHide={() => setShowModal(false)}>
           {csvData && (
             <>
               <DataTable
@@ -492,7 +505,11 @@ const MasiveChat: React.FC = () => {
         </Dialog>
         
         {/* Modal con tabla para mostrar datos cargados de plantillas multimedia */}
-        <Dialog header="Detalle XLSX - Plantillas Multimedia" visible={showMultimediaModal} style={{ width: "80vw" }} onHide={() => setShowMultimediaModal(false)}>
+        <Dialog 
+          header="Detalle XLSX - Plantillas Multimedia" 
+          visible={showMultimediaModal} 
+          style={{ width: "80vw" }} 
+          onHide={() => setShowMultimediaModal(false)}>
           {multimediaCsvData && (
             <>
               <DataTable

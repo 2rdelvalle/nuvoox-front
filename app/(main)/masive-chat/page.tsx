@@ -17,10 +17,9 @@ import * as XLSX from "xlsx"
 import { sendTemplateMessage } from "../chat/whatsapp/service/chatServices"
 import { Button } from "primereact/button"
 import { TabView, TabPanel } from 'primereact/tabview'
-import { Dropdown } from 'primereact/dropdown'
 import { TemplateMediaType } from "@/shared/models/template/multimedia-template.model"
 
-// Actualizar definición del tipo para las filas del XLSX
+// Actualizar definición del tipo para las filas del XLSXS
 type CsvRow = {
   templateName: string;
   originPhone: string;
@@ -74,31 +73,24 @@ const MasiveChat: React.FC = () => {
     if (csvData) {
       setCsvData([...csvData])
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [numbersOfMaintance, dataTemplates])
 
   // Función auxiliar para validar cada registro
-  const isRowValid = React.useCallback((row: CsvRow) => {
-    const originValid = (numbersOfMaintance || []).some(
-      (item) => Number(item.number) === Number(row.originPhone)
-    )
-    const templateValid = (dataTemplates || []).some(
-      (template: any) => template.name === row.templateName
-    )
+  const isRowValid = (row: CsvRow) => {
+    const originValid = (numbersOfMaintance || []).some((item) => Number(item.number) === Number(row.originPhone))
+    const templateValid = (dataTemplates || []).some((template: any) => template.name === row.templateName)
     return originValid && templateValid
-  }, [numbersOfMaintance, dataTemplates])
+  }
 
   // Función para renderizar el contenido de la columna de validación
-  const validationBodyTemplate = React.useCallback((rowData: CsvRow | MultimediaCsvRow) => {
+  const validationBodyTemplate = (rowData: CsvRow | MultimediaCsvRow) => {
     return <span>{isRowValid(rowData) ? "✔" : "✘"}</span>
-  }, [numbersOfMaintance, dataTemplates])
+  }
   
   // Función para validar una plantilla multimedia
-  const isMultimediaRowValid = React.useCallback((row: MultimediaCsvRow) => {
+  const isMultimediaRowValid = (row: MultimediaCsvRow) => {
     // Validar que el teléfono de origen exista en la empresa
-    const originValid = (numbersOfMaintance || []).some(
-      (item) => Number(item.number) === Number(row.originPhone)
-    )
+    const originValid = (numbersOfMaintance || []).some((item) => Number(item.number) === Number(row.originPhone))
     
     // Validar que la plantilla exista (para multimedia es menos restrictivo porque puede ser una plantilla genérica)
     const templateValid = true // Se asume válido para multimedia
@@ -107,7 +99,7 @@ const MasiveChat: React.FC = () => {
     const mediaTypeValid = Object.values(TemplateMediaType).includes(row.mediaType)
     
     return originValid && templateValid && mediaTypeValid
-  }, [numbersOfMaintance])
+  }
 
   // Manejar la carga del archivo XLSX
   const handleFileUpload = React.useCallback((event: { files: File[] }) => {

@@ -6,7 +6,9 @@ import Layout from '@/layout/layout';
  * Componente cliente envoltorio para el layout
  * Solución para problemas de hidratación - renderiza el layout exclusivamente en el cliente
  */
+// Usamos ReactNode importado directamente para evitar problemas de definición
 export default function LayoutClient({ children }: { children: React.ReactNode }) {
+  // eslint-disable-next-line no-undef
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

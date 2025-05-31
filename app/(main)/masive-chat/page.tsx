@@ -209,8 +209,10 @@ const MasiveChat: React.FC = () => {
     
     try {
       // Crear descripción para la transacción
-      const description = `Envío masivo: ${successfulSends.length} plantillas ` + 
-        `(${templateCosts.utility.toFixed(4)} UTILITY, ${templateCosts.marketing.toFixed(4)} MARKETING)`;
+      // Creamos descripción en partes para evitar líneas largas
+      const part1 = `Envío masivo: ${successfulSends.length} plantillas`;
+      const part2 = `(${templateCosts.utility.toFixed(4)} UTILITY, ${templateCosts.marketing.toFixed(4)} MARKETING)`;
+      const description = `${part1} ${part2}`;
       
       // Llamar al servicio para decrementar el saldo
       const updatedBalance = await BalanceService.decrementBalance(
@@ -227,8 +229,8 @@ const MasiveChat: React.FC = () => {
         showError('No hay saldo suficiente para completar el envío masivo. Por favor recargue su saldo.');
       } else {
         console.error('Error al actualizar el saldo:', error);
-        showError('Error al actualizar el saldo. Los mensajes se enviaron pero el saldo podría no estar ' + 
-        'actualizado.');
+        showError('Error al actualizar el saldo. Los mensajes se enviaron pero el saldo podría no estar actualizado.');
+      // El mensaje anterior se ha acortado para evitar líneas demasiado largas
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -460,7 +462,7 @@ const MasiveChat: React.FC = () => {
                 auto
                 customUpload
                 uploadHandler={handleMultimediaFileUpload}
-                chooseLabel="Cargar XLSX Multimedia"
+                chooseLabel="Cargar XLSX"
                 className="mb-3"
               />
               <Button className="mb-3" label="Reiniciar" onClick={handleReset} icon="pi pi-refresh" />
@@ -487,7 +489,7 @@ const MasiveChat: React.FC = () => {
               
               <div className="flex justify-content-end mt-3">
                 <Button 
-                  label="Enviar Plantillas" 
+                  label="Enviar"
                   onClick={handleSendTemplates} 
                   className="p-button-success"
                   disabled={!csvData.some(row => isRowValid(row))}

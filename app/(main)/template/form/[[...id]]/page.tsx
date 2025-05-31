@@ -128,7 +128,10 @@ const TemplateForm = () => {
         .replace(/^_|_$/g, '') // Eliminar guiones bajos al inicio y final
       
       // Confirmar si el usuario acepta el nombre transformado
-      if (confirm(`Nombre no válido: "${originalName}"\n\nEl nombre de la plantilla de WhatsApp solo puede contener letras minúsculas y guiones bajos.\n\n¿Desea usar el nombre corregido?\n"${transformedName}"`)) {
+      const msg1 = `Nombre no válido: "${originalName}"`;
+      const msg2 = `El nombre de la plantilla solo puede contener letras minúsculas y guiones bajos.`;
+      const msg3 = `¿Desea usar el nombre corregido?\n"${transformedName}"`;
+      if (confirm(`${msg1}\n\n${msg2}\n\n${msg3}`)) {
         data.name = transformedName
       } else {
         showError("El nombre de la plantilla solo puede contener letras minúsculas y guiones bajos")
@@ -262,7 +265,13 @@ const onFileUpload = async (event: FileUploadHandlerEvent) => {
             {activeTab === 0 ? (
               <Button icon="pi pi-save" label="Guardar" type="button" className="m-1" onClick={handleSubmit(onSubmit)} />
             ) : (
-              <Button icon="pi pi-save" label="Guardar" type="button" className="m-1" onClick={handleSubmitMultimedia(onSubmitMultimedia)} />
+              <Button 
+                icon="pi pi-save" 
+                label="Guardar" 
+                type="button" 
+                className="m-1" 
+                onClick={handleSubmitMultimedia(onSubmitMultimedia)} 
+              />
             )}
           </div>
           

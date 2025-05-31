@@ -209,7 +209,8 @@ const MasiveChat: React.FC = () => {
     
     try {
       // Crear descripción para la transacción
-      const description = `Envío masivo: ${successfulSends.length} plantillas (${templateCosts.utility.toFixed(4)} UTILITY, ${templateCosts.marketing.toFixed(4)} MARKETING)`;
+      const description = `Envío masivo: ${successfulSends.length} plantillas ` + 
+        `(${templateCosts.utility.toFixed(4)} UTILITY, ${templateCosts.marketing.toFixed(4)} MARKETING)`;
       
       // Llamar al servicio para decrementar el saldo
       const updatedBalance = await BalanceService.decrementBalance(
@@ -226,7 +227,8 @@ const MasiveChat: React.FC = () => {
         showError('No hay saldo suficiente para completar el envío masivo. Por favor recargue su saldo.');
       } else {
         console.error('Error al actualizar el saldo:', error);
-        showError('Error al actualizar el saldo. Los mensajes se enviaron pero el saldo podría no estar actualizado.');
+        showError('Error al actualizar el saldo. Los mensajes se enviaron pero el saldo podría no estar ' + 
+        'actualizado.');
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -30,7 +30,11 @@ import { Controller, SubmitHandler, useForm } from "react-hook-form"
  */
 const TemplateForm = () => {
   const { onClickAction } = usePush(ADMIN_ROUTES.TEMPLATE.LIST)
-  const { register, handleSubmit, formState: { errors: basicErrors, isValid: basicIsValid, isDirty: basicIsDirty } } = useForm<TemplateModel>()
+  const { 
+    register, 
+    handleSubmit, 
+    formState: { errors: basicErrors, isValid: basicIsValid, isDirty: basicIsDirty } 
+  } = useForm<TemplateModel>()
 
   // Formulario para plantillas multimedia
   const { 
@@ -328,17 +332,17 @@ const onFileUpload = async (event: FileUploadHandlerEvent) => {
                           defaultValue={TemplateMediaType.NONE}
                           rules={{ required: "El tipo de medio es obligatorio" }}
                           render={({ field }) => (
-<Dropdown
-  id={field.name}
-  value={field.value}
-  onChange={(e) => {
-    field.onChange(e.value);
-    onMediaTypeChange(e);
-  }}
-  options={mediaTypes}
-  placeholder="Seleccione el tipo de medio"
-  className="w-full"
-/>
+                            <Dropdown
+                              id={field.name}
+                              value={field.value}
+                              onChange={(e) => {
+                                field.onChange(e.value);
+                                onMediaTypeChange(e);
+                              }}
+                              options={mediaTypes}
+                              placeholder="Seleccione el tipo de medio"
+                              className="w-full"
+                            />
                           )}
                         />
                         {multimediaErrors.mediaType && <Message severity="error" text={multimediaErrors.mediaType.message} />}
@@ -350,24 +354,26 @@ const onFileUpload = async (event: FileUploadHandlerEvent) => {
                       <div className="col-12">
                         <Card title="Subir Archivo Multimedia" className="mb-4">
                           <p className="text-sm text-gray-600 mb-4">
-Suba el archivo multimedia que se usará en la plantilla. 
-En un ambiente de producción, este archivo se subiría a un servidor de almacenamiento.
+                            Suba el archivo multimedia que se usará en la plantilla. 
+                            En un ambiente de producción, este archivo se subiría a un servidor de almacenamiento.
                           </p>
                           <FileUpload
-ref={fileUploadRef}
-name="mediaFile"
-url="/api/upload" // Esto es simulado, no se realiza ninguna carga real
-accept={mediaType === TemplateMediaType.IMAGE ? "image/*" : 
-      mediaType === TemplateMediaType.VIDEO ? "video/*" :
-      mediaType === TemplateMediaType.DOCUMENT ? ".pdf,.doc,.docx" :
-      mediaType === TemplateMediaType.AUDIO ? "audio/*" : "*"}
-maxFileSize={10000000}
-emptyTemplate={<p className="m-0">Arrastre y suelte su archivo aquí o haga clic para seleccionarlo.</p>}
-chooseLabel="Seleccionar"
-uploadLabel="Subir"
-cancelLabel="Cancelar"
-customUpload={true}
-uploadHandler={onFileUpload}
+                            ref={fileUploadRef}
+                            name="mediaFile"
+                            url="/api/upload" // Esto es simulado, no se realiza ninguna carga real
+                            accept={
+                              mediaType === TemplateMediaType.IMAGE ? "image/*" : 
+                              mediaType === TemplateMediaType.VIDEO ? "video/*" :
+                              mediaType === TemplateMediaType.DOCUMENT ? ".pdf,.doc,.docx" :
+                              mediaType === TemplateMediaType.AUDIO ? "audio/*" : "*"
+                            }
+                            maxFileSize={10000000}
+                            emptyTemplate={<p className="m-0">Arrastre y suelte su archivo aquí o haga clic para seleccionarlo.</p>}
+                            chooseLabel="Seleccionar"
+                            uploadLabel="Subir"
+                            cancelLabel="Cancelar"
+                            customUpload={true}
+                            uploadHandler={onFileUpload}
                           />
       
                           {/* Campos ocultos para almacenar la URL y el nombre del archivo */}

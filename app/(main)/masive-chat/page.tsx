@@ -74,24 +74,31 @@ const MasiveChat: React.FC = () => {
     if (csvData) {
       setCsvData([...csvData])
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [numbersOfMaintance, dataTemplates])
 
   // Función auxiliar para validar cada registro
-  const isRowValid = (row: CsvRow) => {
-    const originValid = (numbersOfMaintance || []).some((item) => Number(item.number) === Number(row.originPhone))
-    const templateValid = (dataTemplates || []).some((template: any) => template.name === row.templateName)
+  const isRowValid = React.useCallback((row: CsvRow) => {
+    const originValid = (numbersOfMaintance || []).some(
+      (item) => Number(item.number) === Number(row.originPhone)
+    )
+    const templateValid = (dataTemplates || []).some(
+      (template: any) => template.name === row.templateName
+    )
     return originValid && templateValid
-  }
+  }, [numbersOfMaintance, dataTemplates])
 
   // Función para renderizar el contenido de la columna de validación
-  const validationBodyTemplate = (rowData: CsvRow | MultimediaCsvRow) => {
+  const validationBodyTemplate = React.useCallback((rowData: CsvRow | MultimediaCsvRow) => {
     return <span>{isRowValid(rowData) ? "✔" : "✘"}</span>
-  }
+  }, [numbersOfMaintance, dataTemplates])
   
   // Función para validar una plantilla multimedia
-  const isMultimediaRowValid = (row: MultimediaCsvRow) => {
+  const isMultimediaRowValid = React.useCallback((row: MultimediaCsvRow) => {
     // Validar que el teléfono de origen exista en la empresa
-    const originValid = (numbersOfMaintance || []).some((item) => Number(item.number) === Number(row.originPhone))
+    const originValid = (numbersOfMaintance || []).some(
+      (item) => Number(item.number) === Number(row.originPhone)
+    )
     
     // Validar que la plantilla exista (para multimedia es menos restrictivo porque puede ser una plantilla genérica)
     const templateValid = true // Se asume válido para multimedia
@@ -100,10 +107,10 @@ const MasiveChat: React.FC = () => {
     const mediaTypeValid = Object.values(TemplateMediaType).includes(row.mediaType)
     
     return originValid && templateValid && mediaTypeValid
-  }
+  }, [numbersOfMaintance])
 
   // Manejar la carga del archivo XLSX
-  const handleFileUpload = (event: { files: File[] }) => {
+  const handleFileUpload = React.useCallback((event: { files: File[] }) => {
     const file = event.files[0]
     if (file) {
       const reader = new FileReader()
@@ -128,10 +135,10 @@ const MasiveChat: React.FC = () => {
       }
       reader.readAsArrayBuffer(file)
     }
-  }
+  }, [])
 
   // Función para cargar y procesar archivos Excel para plantillas multimedia
-  const handleMultimediaFileUpload = (event: { files: File[] }) => {
+  const handleMultimediaFileUpload = React.useCallback((event: { files: File[] }) => {
     const file = event.files[0]
     if (file) {
       const reader = new FileReader()
@@ -162,10 +169,10 @@ const MasiveChat: React.FC = () => {
       }
       reader.readAsArrayBuffer(file)
     }
-  }
+  }, [])
 
   // Agregar función para reiniciar el estado del archivo excel
-  const handleReset = () => {
+  const handleReset = React.useCallback(() => {
     setCsvData(null)
     setMultimediaCsvData(null)
     setSendResults([])
@@ -175,14 +182,14 @@ const MasiveChat: React.FC = () => {
     // Reiniciar los componentes FileUpload
     fileUploadRef.current?.clear()
     multimediaFileUploadRef.current?.clear()
-  }
+  }, [])
 
   /**
    * Actualiza el saldo después de enviar plantillas
    * @param successfulSends - Arreglo de envíos exitosos
    * @param templateCosts - Objeto con costos acumulados por tipo de plantilla
    */
-  const updateBalanceAfterSendingTemplates = async (
+  const updateBalanceAfterSendingTemplates = React.useCallback(async (
     successfulSends: (CsvRow | MultimediaCsvRow)[],
     templateCosts: { utility: number; marketing: number }
   ) => {
@@ -222,10 +229,11 @@ const MasiveChat: React.FC = () => {
         showError('Error al actualizar el saldo. Los mensajes se enviaron pero el saldo podría no estar actualizado.');
       }
     }
-  };
-  
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, showSuccess, showError]);
+
   // Función para enviar plantillas aprobadas
-  const handleSendTemplates = async () => {
+  const handleSendTemplates = React.useCallback(async () => {
     const results: { row: CsvRow | MultimediaCsvRow; success: boolean; error?: any }[] = []
     const successfulSends: CsvRow[] = [];
     const templateCosts = { utility: 0, marketing: 0 };
@@ -281,10 +289,10 @@ const MasiveChat: React.FC = () => {
       setSendResults(results)
       setShowSendModal(true)
     }
-  }
-  
+  }, [csvData, numbersOfMaintance, dataTemplates, updateBalanceAfterSendingTemplates, setSendResults, setShowSendModal]);
+
   // Función para enviar plantillas multimedia aprobadas
-  const handleSendMultimediaTemplates = async () => {
+  const handleSendMultimediaTemplates = React.useCallback(async () => {
     const results: { row: CsvRow | MultimediaCsvRow; success: boolean; error?: any }[] = []
     const successfulSends: MultimediaCsvRow[] = [];
     const templateCosts = { utility: 0, marketing: 0 };
@@ -389,7 +397,8 @@ const MasiveChat: React.FC = () => {
       setSendResults(results)
       setShowSendModal(true)
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [multimediaCsvData, numbersOfMaintance, dataTemplates, updateBalanceAfterSendingTemplates])
 
   return (
     <EmptyPage>
@@ -503,7 +512,14 @@ const MasiveChat: React.FC = () => {
                 <Column field="mediaType" header="Tipo Multimedia" />
                 <Column field="mediaUrl" header="URL Multimedia" />
                 <Column field="mediaCaption" header="Descripción" />
-                <Column header="Validación" body={(rowData) => <span>{isMultimediaRowValid(rowData) ? "✔" : "✘"}</span>} />
+                <Column 
+  header="Validación" 
+  body={(rowData) => (
+    <span>
+      {isMultimediaRowValid(rowData) ? "✔" : "✘"}
+    </span>
+  )} 
+/>
               </DataTable>
               
               <div className="flex justify-content-end mt-3">
@@ -564,7 +580,13 @@ const MasiveChat: React.FC = () => {
               <ul>
                 {sendResults.filter(r => !r.success).map((res, idx) => (
                   <li key={idx}>
-                    {res.row.templateName} a {res.row.destinationPhone} - Error: {JSON.stringify(res.error)}
+                    {res.row.templateName} a {res.row.destinationPhone} - 
+                    Error: {
+                      typeof res.error === 'object' 
+                        ? JSON.stringify(res.error).substring(0, 100) + 
+                          (JSON.stringify(res.error).length > 100 ? '...' : '')
+                        : String(res.error)
+                    }
                   </li>
                 ))}
               </ul>

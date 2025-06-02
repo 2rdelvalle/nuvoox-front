@@ -2,7 +2,11 @@ import axios from 'axios';
 import { TariffConfig } from '@/shared/components/tariffs/CompanyTariffModal';
 
 // URL base de la API
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/nuvoox/api';
+// Configuramos para usar la API mock de Next.js en lugar del backend
+const API_BASE_URL = '/api';
+
+// Nota: Cuando el endpoint del backend esté disponible, usar esta línea en su lugar:
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/nuvoox/api';
 
 /**
  * Servicio para gestionar tarifas personalizadas por empresa

@@ -32,12 +32,10 @@ const TemplateService = {
    */
   saveMultimedia: async (multimediaTemplate: MultimediaTemplateModel) => {
     try {
-      console.log('Enviando petición para crear plantilla multimedia:', multimediaTemplate);
       const response = await axios.post<TemplateModel>(
         `${templateEndpoint}/multimedia`, 
         multimediaTemplate
       );
-      console.log('Plantilla multimedia creada:', response.data);
       return response;
     } catch (error) {
       console.error('Error al crear plantilla multimedia:', error);

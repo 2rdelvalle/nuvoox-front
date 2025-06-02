@@ -19,7 +19,7 @@ import { Dropdown } from "primereact/dropdown"
 import { InputText } from "primereact/inputtext"
 import { Message } from "primereact/message"
 import { OverlayPanel } from "primereact/overlaypanel"
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { sendPlainMessage, sendTemplateMessage, getAgents, getGroups } from "../service/chatServices"
 import { useChatStore } from "../store/chat-store"
 import { useMessageStore } from "../store/message-store"
@@ -61,13 +61,53 @@ export const ChatBox = () => {
   // Obtener las plantillas filtradas por compañía
   const companyId = dataToken?.user.company.companyId
 
-  // Usamos useMemo para que la función de fetch sea estable entre renders
-  const fetchTemplates = useMemo(() => {
-    // Aseguramos que siempre devuelva una función válida para evitar errores de tipo
-    return () => _template.getAllByCompany(companyId || 0);
+  // Usamos useCallback para que la función de fetch sea estable entre renders
+  const fetchTemplates = useCallback(async () => {
+    // Solo hacemos el fetch si hay un ID de compañía válido
+    if (companyId) {
+      try {
+        const response = await _template.getAllByCompany(companyId);
+        return response.data;
+      } catch (error) {
+        console.error('Error al cargar plantillas:', error);
+        return [];
+      }
+    }
+    return [];
   }, [companyId]);
 
-  const { responseData: dataTemplates } = useFetch(fetchTemplates)
+  // Usamos useFetchCallback en lugar de useFetch para tener mejor control
+  const [loading, setLoading] = useState(false);
+  const [dataTemplates, setDataTemplates] = useState<any[]>([]);
+  
+  // Efecto para cargar plantillas solo una vez al montar el componente o cuando cambie companyId
+  useEffect(() => {
+    let mounted = true;
+    
+    const loadTemplates = async () => {
+      if (!companyId) return;
+      
+      try {
+        setLoading(true);
+        const data = await fetchTemplates();
+        if (mounted) {
+          setDataTemplates(data || []);
+        }
+      } catch (error) {
+        console.error('Error cargando plantillas:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    loadTemplates();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [companyId, fetchTemplates]);
 
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null)
 

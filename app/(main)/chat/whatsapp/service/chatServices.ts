@@ -24,22 +24,20 @@ export async function sendPlainMessage (to: string, message: string, token: stri
     Promise<WhatsAppResponseSendMessage> {
   // Validación de parámetros
   if (!to || !to.trim()) {
-    console.error("Error: Número de teléfono de destino vacío o inválido")
+    // Validation failed: Empty or invalid recipient phone number
     throw new Error("El número de teléfono de destino es requerido")
   }
   
   if (!message || !message.trim()) {
-    console.error("Error: Mensaje vacío")
+    // Validation failed: Empty message
     throw new Error("El contenido del mensaje es requerido")
   }
   
   if (!token || !token.trim()) {
-    console.error("Error: Token de acceso vacío")
     throw new Error("El token de acceso es requerido")
   }
   
   if (!senderId || !senderId.trim()) {
-    console.error("Error: ID del remitente vacío")
     throw new Error("El ID del remitente es requerido")
   }
   
@@ -47,12 +45,6 @@ export async function sendPlainMessage (to: string, message: string, token: stri
   // El número debe empezar con '+' y contener solo dígitos después
   const formattedTo = to.startsWith('+') ? to : `+${to}`
   
-  // Log de depuración
-  console.log("Enviando mensaje con los siguientes parámetros:")
-  console.log("URL API:", `https://graph.facebook.com/v22.0/${senderId}/messages`)
-  console.log("Destinatario:", formattedTo)
-  console.log("Remitente ID:", senderId)
-  console.log("Longitud del token:", token.length)
   
   const apiUrl = `https://graph.facebook.com/v22.0/${senderId}/messages`
   const messageData = {
@@ -62,7 +54,6 @@ export async function sendPlainMessage (to: string, message: string, token: stri
     text: { body: message }
   }
   
-  console.log("Datos del mensaje:", JSON.stringify(messageData, null, 2))
   
   try {
     const response = await fetch(apiUrl, {
@@ -74,30 +65,20 @@ export async function sendPlainMessage (to: string, message: string, token: stri
       body: JSON.stringify(messageData)
     })
     
-    // Log de la respuesta HTTP
-    console.log("Código de estado HTTP:", response.status)
-    // Log headers de forma compatible con todos los entornos
-    const headerObj: Record<string, string> = {}
-    response.headers.forEach((value, key) => {
-      headerObj[key] = value
-    })
-    console.log("Headers:", headerObj)
-    
     const responseText = await response.text()
-    console.log("Respuesta completa:", responseText)
     
     // Parsear la respuesta solo si hay contenido
     const responseData = responseText ? JSON.parse(responseText) : {}
     
     if (!response.ok) {
-      console.error("Error del servidor:", responseData)
+      // Server error occurred
       throw responseData
     }
     
-    console.log(`Mensaje enviado exitosamente a ${formattedTo}`)
+
     return responseData
   } catch (error) {
-    console.error("Error detallado al enviar el mensaje:", error)
+    // Error occurred while sending message
     throw error
   }
 }
@@ -136,7 +117,7 @@ export async function sendTemplateMessage (recipientPhone: string,
     }
     return true
   } catch (error) {
-    console.error("Error en el envío de plantilla:", error)
+    // Error occurred while sending template
     throw error
   }
 }
@@ -154,16 +135,11 @@ const API_ENDPOINTS = {
  */
 export async function getAgents(companyId: string): Promise<Agent[]> {
   try {
-    console.log(`Fetching agents from: ${process.env.NEXT_PUBLIC_URL_SIRA_BACK}${API_ENDPOINTS.AGENTS}`);
     const response = await axiosInstance.get(`${API_ENDPOINTS.AGENTS}?companyId=${companyId}`);
     // Si la API ya filtra por tipo, podemos omitir esto
     // return response.data.filter((user: any) => user.type === 'AGENT');
     return response.data;
   } catch (error) {
-    console.error('Error fetching agents:', {
-      url: `${process.env.NEXT_PUBLIC_URL_SIRA_BACK}${API_ENDPOINTS.AGENTS}`,
-      error
-    });
     // En caso de error, devolver un array vacío para evitar errores en la UI
     return [];
   }
@@ -176,14 +152,9 @@ export async function getAgents(companyId: string): Promise<Agent[]> {
  */
 export async function getGroups(companyId: string): Promise<Group[]> {
   try {
-    console.log(`Fetching groups from: ${process.env.NEXT_PUBLIC_URL_SIRA_BACK}${API_ENDPOINTS.GROUPS}`);
     const response = await axiosInstance.get(`${API_ENDPOINTS.GROUPS}?companyId=${companyId}`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching groups:', {
-      url: `${process.env.NEXT_PUBLIC_URL_SIRA_BACK}${API_ENDPOINTS.GROUPS}`,
-      error
-    });
     // En caso de error, devolver un array vacío para evitar errores en la UI
     return [];
   }
@@ -207,22 +178,22 @@ export async function sendMediaMessage(
 ): Promise<WhatsAppResponseSendMessage> {
   // Validaciones
   if (!recipientPhone || !recipientPhone.trim()) {
-    console.error("Error: Número de teléfono destino vacío o inválido");
+    // Validation failed: Empty or invalid recipient phone number
     throw new Error("El número de teléfono de destino es requerido");
   }
   
   if (!file) {
-    console.error("Error: Archivo vacío o inválido");
+    // Validation failed: Empty or invalid file
     throw new Error("El archivo a enviar es requerido");
   }
   
   if (!accessToken || !accessToken.trim()) {
-    console.error("Error: Token de acceso vacío");
+    // Validation failed: Empty access token
     throw new Error("El token de acceso es requerido");
   }
   
   if (!senderId || !senderId.trim()) {
-    console.error("Error: ID del remitente vacío");
+    // Validation failed: Empty sender ID
     throw new Error("El ID del remitente es requerido");
   }
   
@@ -267,14 +238,13 @@ export async function sendMediaMessage(
     const responseData = responseText ? JSON.parse(responseText) : {};
     
     if (!response.ok) {
-      console.error("Error del servidor al enviar media:", responseData);
+  
       throw responseData;
     }
     
-    console.log(`Archivo enviado exitosamente a ${formattedTo}`);
     return responseData;
   } catch (error) {
-    console.error("Error detallado al enviar archivo:", error);
+
     throw error;
   }
 }
@@ -319,7 +289,7 @@ async function uploadMedia(
     const responseData = await response.json();
     return responseData.id; // Devuelve el media_id
   } catch (error) {
-    console.error('Error al cargar media:', error);
+
     throw error;
   }
 }

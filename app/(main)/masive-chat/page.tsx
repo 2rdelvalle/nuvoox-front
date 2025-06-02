@@ -122,7 +122,6 @@ const MasiveChat: React.FC = () => {
           }
         })
         setCsvData(result)
-        console.log("Parsed XLSX Data:", result)
         setShowModal(true)
       }
       reader.readAsArrayBuffer(file)
@@ -156,7 +155,6 @@ const MasiveChat: React.FC = () => {
         })
         
         setMultimediaCsvData(result)
-        console.log("Parsed Multimedia XLSX Data:", result)
         setShowMultimediaModal(true)
       }
       reader.readAsArrayBuffer(file)
@@ -195,7 +193,6 @@ const MasiveChat: React.FC = () => {
     const totalCost = templateCosts.utility + templateCosts.marketing;
     
     if (totalCost <= 0) {
-      console.log('No hay costo que descontar del saldo');
       return;
     }
     
@@ -214,7 +211,6 @@ const MasiveChat: React.FC = () => {
         description
       );
       
-      console.log(`Saldo actualizado después de envío masivo: ${updatedBalance.balanceUSD} USD`);
       showSuccess(`Saldo actualizado correctamente: ${updatedBalance.balanceUSD.toFixed(2)} USD`);
     } catch (error) {
       if (error instanceof Error && error.message.includes('Saldo insuficiente')) {

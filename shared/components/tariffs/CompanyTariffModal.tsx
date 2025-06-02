@@ -67,10 +67,36 @@ const CompanyTariffModal = ({
 
   // Cargar las tarifas existentes al abrir el modal
   useEffect(() => {
-    if (isOpen && companyId) {
-      loadTariffs();
-    }
-  }, [isOpen, companyId]);
+    let mounted = true;
+    
+    const fetchTariffs = async () => {
+      if (isOpen && companyId && mounted) {
+        try {
+          setLoading(true);
+          const data = await TariffService.getCompanyTariffs(companyId);
+          if (mounted) {
+            setTariffs(data || []);
+          }
+        } catch (error) {
+          console.error('Error al cargar tarifas:', error);
+          if (mounted) {
+            showError('No se pudieron cargar las tarifas configuradas');
+          }
+        } finally {
+          if (mounted) {
+            setLoading(false);
+          }
+        }
+      }
+    };
+    
+    fetchTariffs();
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen, companyId, showError]);
 
   // Cargar tarifas desde el servicio
   const loadTariffs = async () => {
@@ -78,9 +104,11 @@ const CompanyTariffModal = ({
       setLoading(true);
       const data = await TariffService.getCompanyTariffs(companyId);
       setTariffs(data || []);
+      return data;
     } catch (error) {
       console.error('Error al cargar tarifas:', error);
       showError('No se pudieron cargar las tarifas configuradas');
+      return [];
     } finally {
       setLoading(false);
     }

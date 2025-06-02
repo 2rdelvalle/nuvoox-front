@@ -60,18 +60,11 @@ export class TemplateCostService {
       // 3. Calcular costo total
       const totalCost = baseCost + additionalCost;
       
-      // Registrar para debugging
-      console.log(`[TemplateCostService] Cálculo de costo para empresa ${companyId}:`, {
-        templateType: normalizedType,
-        country: normalizedCountry,
-        baseCost,
-        additionalCost,
-        totalCost
-      });
+      
       
       return totalCost;
     } catch (error) {
-      console.error('Error al calcular costo total:', error);
+      // Error should be logged to a proper error tracking service in production
       // En caso de error, devolver solo el costo base
       return this.getBaseCost(
         (templateType || 'marketing').toLowerCase(),

@@ -13,12 +13,12 @@ import EmptyPage from "@/shared/small-components/EmptyPage/emptyPage"
 import InfoMessage from "@/shared/small-components/InfoMessage/infoMessage"
 import TableFilter from "@/shared/small-components/TableFilter/tableFilter"
 import { downloadExcel } from "@/shared/utilities/excel/exportExcel"
-import { useEffect, useCallback } from "react" // useState se eliminó porque no se usa actualmente
+import { useState, useEffect, useCallback, useRef } from "react" 
 import { useChatStore } from "../../chat/whatsapp/store/chat-store"
 import { useInitializeUserFromToken } from "@/shared/customHooks/useInitializeUserFromToken"
 
 const TemplatesPage = () => {
-  const { showError } = useToast()
+  const { showError, showSuccess } = useToast()
 
   const { user } = useChatStore()
   // Variable no utilizada actualmente, se mantiene para futuras implementaciones
@@ -37,22 +37,72 @@ const TemplatesPage = () => {
     }
   }, [user])*/
 
+  // Variable para controlar si ya se hizo una solicitud inicial
+  const didInitialFetchRef = useRef(false);
+  
+  // Control de tiempo entre actualizaciones por eventos realtime
+  const lastFetchTimeRef = useRef(Date.now());
+  const THROTTLE_TIME = 5000; // 5 segundos entre actualizaciones para evitar sobrecarga
+  
   // Usamos useCallback para memorizar la función fetchData y evitar re-renders innecesarios
   const fetchTemplates = useCallback(() => {
-    if (user?.company?.companyId) {
-      fetchData(user?.company?.companyId)
+    // Solo hacer fetch si hay un ID de compañía válido
+    if (!user?.company?.companyId) {
+      return;
     }
+    
+    fetchData(user.company.companyId);
   }, [fetchData, user?.company?.companyId])
 
-  // Efecto para cargar los datos cuando cambia el data de tiempo real o el usuario
-  useEffect(() => {
-    fetchTemplates()
-  }, [data, fetchTemplates])
+  // Estado para mostrar notificaciones de actualizaciones
+  const [lastEventType, setLastEventType] = useState<string | null>(null);
 
-  // Efecto para cargar los datos iniciales cuando se monta el componente
+  // Un solo efecto unificado para manejar la carga de datos
   useEffect(() => {
-    fetchTemplates()
-  }, [fetchTemplates])
+    // Para la carga inicial (solo una vez)
+    if (!didInitialFetchRef.current && user?.company?.companyId) {
+      fetchTemplates();
+      didInitialFetchRef.current = true;
+      return;
+    }
+    
+    // Para actualizaciones por cambios en data de tiempo real
+    if (data && didInitialFetchRef.current) {
+      const now = Date.now();
+      const eventType = data.eventType;
+      
+      // Mostrar un mensaje informativo sobre el tipo de evento
+      setLastEventType(eventType);
+      
+      // Log detallado del evento
+      console.log(`Evento de plantilla detectado: ${eventType}`, data);
+      
+      // Limitar frecuencia de actualizaciones
+      if (now - lastFetchTimeRef.current > THROTTLE_TIME) {
+        // Procesar inmediatamente cambios de aprobación/rechazo
+        if (eventType === 'approval' || eventType === 'rejection') {
+          console.log('Actualizando inmediatamente por cambio de estado en Meta');
+          fetchTemplates();
+          lastFetchTimeRef.current = now;
+          
+          // Mostrar mensaje de éxito
+          if (eventType === 'approval') {
+            showSuccess(`¡Plantilla ${data.data.templateName} ha sido aprobada por Meta!`);
+          } else if (eventType === 'rejection') {
+            showError(`La plantilla ${data.data.templateName} ha sido rechazada por Meta.`);
+          }
+        } 
+        // Para otros eventos usar el throttle normal
+        else {
+          console.log('Actualizando plantillas por evento realtime');
+          fetchTemplates();
+          lastFetchTimeRef.current = now;
+        }
+      } else {
+        console.log(`Evento recibido pero throttled (${THROTTLE_TIME - (now - lastFetchTimeRef.current)}ms restantes)`);
+      }
+    }
+  }, [data, fetchTemplates, user?.company?.companyId, showSuccess, showError])
 
   return (
       <EmptyPage>

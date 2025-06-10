@@ -123,12 +123,34 @@ export function WhatsappMessageNotification() {
     // Depurar información de las conversaciones actuales
     console.log('Estado inicial de conversaciones:', conversations);
     
-    // Intentar conectarse a diferentes sockets para mayor robustez
+    // Determinar la URL base del socket según el entorno
+    let socketBaseUrl = '';
+    
+    // Verificar si estamos en un entorno de producción (app.nuvoox.com)
+    const isProd = typeof window !== 'undefined' && 
+      (window.location.hostname === 'app.nuvoox.com' || 
+       window.location.hostname === 'www.app.nuvoox.com');
+    
+    if (isProd) {
+      // En producción, usar el dominio principal de la aplicación
+      socketBaseUrl = 'https://app.nuvoox.com';
+      console.log('✅ Entorno de producción detectado, usando:', socketBaseUrl);
+    } else {
+      // En desarrollo local, usar localhost
+      socketBaseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4001';
+      console.log('🔧 Entorno de desarrollo detectado, usando:', socketBaseUrl);
+    }
+    
+    // Asegurarse de que la URL base no termine con una barra
+    if (socketBaseUrl.endsWith('/')) {
+      socketBaseUrl = socketBaseUrl.slice(0, -1);
+    }
+    
+    // Crear URLs de socket correctas
     const socketUrls = [
-      `${process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4001'}/local`,
-      `${process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4001'}`,
-      'http://localhost:4001/local',
-      'http://localhost:4001'
+      socketBaseUrl, // Namespace raíz
+      `${socketBaseUrl}/prod`, // Namespace de producción
+      isProd ? `${socketBaseUrl}/prod` : `${socketBaseUrl}/local` // Namespace específico del entorno
     ];
     
     console.log('Intentando conectar a los siguientes sockets:', socketUrls);

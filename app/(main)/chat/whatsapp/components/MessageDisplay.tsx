@@ -78,9 +78,29 @@ export default function MessageDisplay() {
   
   // Efecto para conectarse directamente al socket global de la aplicación
   useEffect(() => {
-    // Crear una nueva conexión directa al socket
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4001';
-    // IMPORTANTE: No usamos namespace /local, conectamos a la raíz
+    // Determinar la URL base del socket según el entorno
+    let socketUrl = '';
+    
+    // Verificar si estamos en un entorno de producción (app.nuvoox.com)
+    const isProd = typeof window !== 'undefined' && 
+      (window.location.hostname === 'app.nuvoox.com' || 
+       window.location.hostname === 'www.app.nuvoox.com');
+    
+    if (isProd) {
+      // En producción, usar el dominio principal de la aplicación
+      socketUrl = 'https://app.nuvoox.com';
+      setDebugInfo(`Entorno de producción detectado, usando: ${socketUrl}`);
+    } else {
+      // En desarrollo local, usar localhost
+      socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4001';
+      setDebugInfo(`Entorno de desarrollo detectado, usando: ${socketUrl}`);
+    }
+    
+    // Asegurarse de que la URL no termine con una barra
+    if (socketUrl.endsWith('/')) {
+      socketUrl = socketUrl.slice(0, -1);
+    }
+    
     setDebugInfo(`Conectándose a socket en: ${socketUrl}`);
     
     const directSocket = io(socketUrl, {

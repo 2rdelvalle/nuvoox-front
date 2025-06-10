@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 import { Avatar } from 'primereact/avatar';
 
 // Tipo para los mensajes entrantes

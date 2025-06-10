@@ -52,14 +52,17 @@ const useRealtimeTemplate = (socketUrl: string) => {
       
       // Escuchar eventos específicos de plantillas
       socketRef.current.on('template', (rawData: any) => {
-        // Template event received
+        console.log('🔔 Socket.IO template event recibido:', rawData);
         
         // Determinar el tipo de evento basado en datos
         let eventType: TemplateEventData['eventType'] = 'update';
         
-        if (rawData?.data?.templateStatus === 'APPROVED') {
+        // Procesar eventos de actualización de estado de Meta
+        if (rawData?.templateStatus === 'APPROVED') {
+          console.log('✅ Detectado evento de APROBACIÓN de plantilla');
           eventType = 'approval';
-        } else if (rawData?.data?.templateStatus === 'REJECTED') {
+        } else if (rawData?.templateStatus === 'REJECTED') {
+          console.log('❌ Detectado evento de RECHAZO de plantilla');
           eventType = 'rejection';
         } else if (rawData?.action === 'create') {
           eventType = 'creation';
@@ -69,11 +72,12 @@ const useRealtimeTemplate = (socketUrl: string) => {
         
         // Construir objeto de evento enriquecido
         const enhancedData: TemplateEventData = {
-          data: rawData.data || {},
+          data: rawData || {}, // Usamos todo el objeto raw como data
           timestamp: Date.now(),
           eventType
         };
         
+        console.log('📤 Emitiendo evento al componente:', enhancedData);
         setData(enhancedData);
       });
       

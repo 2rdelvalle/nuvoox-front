@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 import { useChatStore } from '../store/chat-store';
 
 // Definir la interfaz Message directamente para evitar problemas de importación
@@ -113,11 +113,15 @@ const closeButtonStyle = {
 
 // Componente principal
 export function WhatsappMessageNotification() {
+  // Estados para mensajes y visibilidad
   const [notification, setNotification] = useState<Message | null>(null);
   const [visible, setVisible] = useState(false);
   
   // Acceder al store para obtener funciones y datos de las conversaciones
   const { incrementUnreadCount, conversations, activeConversation } = useChatStore();
+  
+  // Estado para mantener una referencia al socket
+  const [socketRef, setSocketRef] = useState<Socket | null>(null);
 
   useEffect(() => {
     // Depurar información de las conversaciones actuales
@@ -146,14 +150,10 @@ export function WhatsappMessageNotification() {
       socketBaseUrl = socketBaseUrl.slice(0, -1);
     }
     
-    // Crear URLs de socket correctas
-    const socketUrls = [
-      socketBaseUrl, // Namespace raíz
-      `${socketBaseUrl}/prod`, // Namespace de producción
-      isProd ? `${socketBaseUrl}/prod` : `${socketBaseUrl}/local` // Namespace específico del entorno
-    ];
+    // Usar solo la conexión raíz que ya funciona correctamente
+    const socketUrl = socketBaseUrl;
     
-    console.log('Intentando conectar a los siguientes sockets:', socketUrls);
+    console.log('Conectando al socket principal:', socketUrl);
     
     // Configuración mejorada para los sockets
     const socketOptions = {
@@ -164,42 +164,31 @@ export function WhatsappMessageNotification() {
       transports: ['websocket', 'polling']
     };
     
-    const sockets = socketUrls.map(url => {
-      try {
-        console.log(`Intentando conexión al socket: ${url}`);
-        return io(url, socketOptions);
-      } catch (error) {
-        console.error(`Error al conectar a ${url}:`, error);
-        return null;
-      }
-    }).filter(Boolean); // Eliminar conexiones fallidas
-    
-    // Manejar mensajes entrantes en todos los sockets
-    sockets.forEach((socket, index) => {
-      if (!socket) return;
-      
-      // Almacenar las URLs que intentamos para referencia
-      const socketUrl = socketUrls[index] || 'desconocido';
+    // Crear una única conexión de socket
+    try {
+      console.log(`Intentando conexión al socket: ${socketUrl}`);
+      const newSocket = io(socketUrl, socketOptions);
+      setSocketRef(newSocket);
       
       // Eventos de estado del socket
-      socket.on('connect', () => {
-        console.log(`✅ CONECTADO a socket de notificación: ${socketUrl} (ID: ${socket.id})`);
+      newSocket.on('connect', () => {
+        console.log(`✅ CONECTADO a socket de notificación: ${socketUrl} (ID: ${newSocket.id})`);
       });
       
-      socket.on('connect_error', (error) => {
+      newSocket.on('connect_error', (error: Error) => {
         console.error(`❌ ERROR DE CONEXIÓN a socket ${socketUrl}:`, error);
       });
       
-      socket.on('disconnect', (reason) => {
+      newSocket.on('disconnect', (reason: string) => {
         console.log(`🔌 DESCONECTADO de socket ${socketUrl}:`, reason);
       });
       
-      socket.on('reconnect', (attemptNumber) => {
+      newSocket.on('reconnect', (attemptNumber: number) => {
         console.log(`🔄 RECONECTADO a socket ${socketUrl} (intento #${attemptNumber})`);
       });
       
       // Manejar eventos de mensajes
-      socket.on('message', (message: Message) => {
+      newSocket.on('message', (message: Message) => {
         console.log(`📩 SOCKET ${socketUrl} recibió mensaje:`, message);
         
         // Solo procesar mensajes de clientes
@@ -271,7 +260,9 @@ export function WhatsappMessageNotification() {
           }, 8000); // 8 segundos
         }
       });
-    });
+    } catch (error: any) {
+      console.error(`Error al conectar al socket ${socketUrl}:`, error?.message || error);
+    }
     
     // Registrar eventos del sistema para depuración
     console.log('Componente WhatsappMessageNotification montado');
@@ -280,13 +271,11 @@ export function WhatsappMessageNotification() {
     
     // Limpiar al desmontar
     return () => {
-      console.log('Componente WhatsappMessageNotification desmontando, desconectando sockets...');
-      sockets.forEach(socket => {
-        if (socket && socket.connected) {
-          console.log(`Desconectando socket ID: ${socket.id}`);
-          socket.disconnect();
-        }
-      });
+      console.log('Componente WhatsappMessageNotification desmontando, desconectando socket...');
+      if (socketRef && socketRef.connected) {
+        console.log(`Desconectando socket ID: ${socketRef.id}`);
+        socketRef.disconnect();
+      }
       
       window.removeEventListener('online', () => console.log('🌐 Navegador ONLINE'));
       window.removeEventListener('offline', () => console.log('❌ Navegador OFFLINE'));

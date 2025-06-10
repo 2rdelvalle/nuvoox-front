@@ -65,44 +65,45 @@ const TemplatesPage = () => {
       didInitialFetchRef.current = true;
       return;
     }
-    
+  }, [fetchTemplates, user?.company?.companyId]);
+  
+  // Efecto separado para manejar eventos en tiempo real
+  useEffect(() => {
     // Para actualizaciones por cambios en data de tiempo real
-    if (data && didInitialFetchRef.current) {
-      const now = Date.now();
-      const eventType = data.eventType;
+    if (!data || !didInitialFetchRef.current) return;
+    
+    const now = Date.now();
+    const eventType = data.eventType;
+    
+    // Mostrar un mensaje informativo sobre el tipo de evento
+    setLastEventType(eventType);
+    
+    // Log detallado del evento para depuración
+    console.log(`🔄 Evento de plantilla detectado: ${eventType}`, data);
+    console.log('Datos del evento completo:', JSON.stringify(data));
+    
+    // Siempre procesar inmediatamente cambios de aprobación/rechazo
+    if (eventType === 'approval' || eventType === 'rejection') {
+      console.log('⚡ Actualizando inmediatamente por cambio de estado importante');
+      fetchTemplates();
+      lastFetchTimeRef.current = now;
       
-      // Mostrar un mensaje informativo sobre el tipo de evento
-      setLastEventType(eventType);
-      
-      // Log detallado del evento
-      console.log(`Evento de plantilla detectado: ${eventType}`, data);
-      
-      // Limitar frecuencia de actualizaciones
-      if (now - lastFetchTimeRef.current > THROTTLE_TIME) {
-        // Procesar inmediatamente cambios de aprobación/rechazo
-        if (eventType === 'approval' || eventType === 'rejection') {
-          console.log('Actualizando inmediatamente por cambio de estado en Meta');
-          fetchTemplates();
-          lastFetchTimeRef.current = now;
-          
-          // Mostrar mensaje de éxito
-          if (eventType === 'approval') {
-            showSuccess(`¡Plantilla ${data.data.templateName} ha sido aprobada por Meta!`);
-          } else if (eventType === 'rejection') {
-            showError(`La plantilla ${data.data.templateName} ha sido rechazada por Meta.`);
-          }
-        } 
-        // Para otros eventos usar el throttle normal
-        else {
-          console.log('Actualizando plantillas por evento realtime');
-          fetchTemplates();
-          lastFetchTimeRef.current = now;
-        }
-      } else {
-        console.log(`Evento recibido pero throttled (${THROTTLE_TIME - (now - lastFetchTimeRef.current)}ms restantes)`);
+      // Mostrar mensaje de éxito
+      if (eventType === 'approval') {
+        showSuccess(`¡Plantilla ${data.data.templateName} ha sido aprobada por Meta!`);
+      } else if (eventType === 'rejection') {
+        showError(`La plantilla ${data.data.templateName} ha sido rechazada por Meta.`);
       }
     }
-  }, [data, fetchTemplates, user?.company?.companyId, showSuccess, showError])
+    // Para otros eventos usar el throttle
+    else if (now - lastFetchTimeRef.current > THROTTLE_TIME) {
+      console.log('🔄 Actualizando plantillas por evento realtime');
+      fetchTemplates();
+      lastFetchTimeRef.current = now;
+    } else {
+      console.log(`⏱️ Evento recibido pero throttled (${THROTTLE_TIME - (now - lastFetchTimeRef.current)}ms restantes)`);
+    }
+  }, [data, fetchTemplates, showSuccess, showError])
 
   return (
       <EmptyPage>

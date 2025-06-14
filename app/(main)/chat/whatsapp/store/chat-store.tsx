@@ -50,11 +50,25 @@ export const useChatStore = create<useChatStoreForm>((set, get) => ({
   setActiveConversation: (cnv) => {
     const state = get();
     
+    // Handle null case safely
+    if (!cnv) {
+      set({ activeConversation: null });
+      return;
+    }
+    
     // Only update if it's a different conversation
     if (state.activeConversation?.conversationid !== cnv.conversationid) {
       // Reset unread count when selecting a conversation
       if (cnv.conversationid) {
-        state.resetUnreadCount(cnv.conversationid);
+        // Directly use the resetUnreadCount logic instead of calling the function
+        // to avoid potential circular references
+        set((state) => ({
+          conversations: state.conversations.map((c) => (
+            c.conversationid === cnv.conversationid 
+              ? { ...c, unreadCount: 0 } 
+              : c
+          ))
+        }));
       }
       
       // Set the active conversation
@@ -74,13 +88,19 @@ export const useChatStore = create<useChatStoreForm>((set, get) => ({
         : c
     ))
   })),
-  resetUnreadCount: (conversationId: number) => set((state) => ({
-    conversations: state.conversations.map((c) => (
-      c.conversationid === conversationId 
-        ? { ...c, unreadCount: 0 } 
-        : c
-    ))
-  })),
+  resetUnreadCount: (conversationId: number) => {
+    // Validate conversationId to avoid issues
+    if (!conversationId) return;
+    
+    // Update the conversations state directly without causing circular references
+    set((state) => ({
+      conversations: state.conversations.map((c) => (
+        c.conversationid === conversationId 
+          ? { ...c, unreadCount: 0 } 
+          : c
+      ))
+    }));
+  },
   deleteConversation: (cnv) => set((state) => ({ conversations: state.conversations.filter((c) => c.id !== cnv.id) })),
   actualNumberOfMaintanceSelected: null,
   setActualNumberOfMaintanceSelected: (number) => set((state) => ({ actualNumberOfMaintanceSelected: number })),

@@ -50,18 +50,16 @@ const useRealtimeTemplate = (socketUrl: string) => {
         connectionAttempts.current++;
       });
       
-      // Escuchar eventos específicos de plantillas
-      socketRef.current.on('template', (rawData: any) => {
-        console.log('🔔 Socket.IO template event recibido:', rawData);
-        
+      // Función auxiliar para procesar eventos de plantillas
+      const processTemplateEvent = (rawData: any) => {
         // Determinar el tipo de evento basado en datos
         let eventType: TemplateEventData['eventType'] = 'update';
         
         // Procesar eventos de actualización de estado de Meta
-        if (rawData?.templateStatus === 'APPROVED') {
+        if (rawData?.templateStatus === 'APPROVED' || rawData?.event === 'APPROVED') {
           console.log('✅ Detectado evento de APROBACIÓN de plantilla');
           eventType = 'approval';
-        } else if (rawData?.templateStatus === 'REJECTED') {
+        } else if (rawData?.templateStatus === 'REJECTED' || rawData?.event === 'REJECTED') {
           console.log('❌ Detectado evento de RECHAZO de plantilla');
           eventType = 'rejection';
         } else if (rawData?.action === 'create') {
@@ -79,6 +77,29 @@ const useRealtimeTemplate = (socketUrl: string) => {
         
         console.log('📤 Emitiendo evento al componente:', enhancedData);
         setData(enhancedData);
+      };
+      
+      // Escuchar eventos específicos de plantillas
+      // 1. Evento original 'template'
+      socketRef.current.on('template', (rawData: any) => {
+        console.log('🔔 Socket.IO template event recibido:', rawData);
+        processTemplateEvent(rawData);
+      });
+      
+      // 2. Nuevo evento 'template_status_update' desde el webhook
+      socketRef.current.on('template_status_update', (rawData: any) => {
+        console.log('🔔 Socket.IO template_status_update event recibido:', rawData);
+        
+        // Transformar el formato del evento del webhook al formato esperado
+        const transformedData = {
+          templateStatus: rawData.event,              // 'APPROVED', 'REJECTED', etc.
+          templateName: rawData.templateName,         // Nombre de la plantilla 
+          templateLanguage: rawData.language || 'es',  // Idioma, por defecto 'es'
+          templateId: rawData.templateId              // ID de la plantilla
+        };
+        
+        // Procesar con la misma lógica que el evento template
+        processTemplateEvent(transformedData);
       });
       
       // Función de limpieza

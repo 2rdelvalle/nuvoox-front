@@ -9,7 +9,7 @@ type useChatStoreForm = {
     setDialogNewNumber: () => void
     activeConversation: ConversationCaratule | null
     // Enhanced to prevent duplicate API calls
-    setActiveConversation: (cnv : ConversationCaratule) => void
+    setActiveConversation: (cnv : ConversationCaratule | null) => void
     conversations: Conversation[]
     setConversations: (cnv : Conversation[]) => void
     conversationsNotAssigned: Conversation[]
@@ -101,7 +101,12 @@ export const useChatStore = create<useChatStoreForm>((set, get) => ({
       ))
     }));
   },
-  deleteConversation: (cnv) => set((state) => ({ conversations: state.conversations.filter((c) => c.id !== cnv.id) })),
+  deleteConversation: (cnv) => set((state) => {
+    if (!cnv?.conversationid) return state;
+    return { 
+      conversations: state.conversations.filter((c) => c.conversationid !== cnv.conversationid) 
+    };
+  }),
   actualNumberOfMaintanceSelected: null,
   setActualNumberOfMaintanceSelected: (number) => set((state) => ({ actualNumberOfMaintanceSelected: number })),
   dialogTransfer: false,

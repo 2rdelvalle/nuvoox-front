@@ -7,6 +7,9 @@ import { usePush } from "@/shared/hooks/usePush"
 import useRealtimeMessages from "@/shared/hooks/useRealtimeMessages"
 import { confirmDialog } from "primereact/confirmdialog"
 import { MESSAGE_OWNER, MESSAGE_TYPE, MessageModel } from "@/shared/models/conversation/messages.model"
+import { ConversationCaratule, Conversation } from "@/shared/models/conversation/conversation.model"
+import { UserCaratule } from "@/shared/models/user"
+import { NumbersOfMaintanceCaratule } from "@/shared/models/company"
 import FileAttachment from "../components/FileAttachment"
 import MediaMessage from "../components/MediaMessage"
 import {
@@ -813,42 +816,49 @@ useEffect(() => {
    * Finaliza la conversación actual
    * @description Cierra la conversación activa y la elimina de la lista de conversaciones activas
    */
-  const finishConversation = async () => {
-    try {
-      if (!activeConversation) {
-        showError("No hay una conversación activa para finalizar")
-        return
-      }
-      
-      // Mostrar diálogo de confirmación antes de finalizar
-      confirmDialog({
-        message: '¿Estás seguro de que deseas finalizar esta conversación?',
-        header: 'Confirmación',
-        icon: 'pi pi-exclamation-triangle',
-        acceptLabel: 'Sí, finalizar',
-        rejectLabel: 'No, cancelar',
-        accept: async () => {
-          try {
-            // Aquí implementar la llamada al endpoint para finalizar conversación
-            // Ejemplo: await postData('/conversation/finish', { conversationId: activeConversation.conversationid })
-            
-            // Por ahora, simulamos el proceso eliminando la conversación del store
-            deleteConversation(activeConversation as any)
-            
-            // Resetear la conversación activa
-            setActiveConversation(null as any)
-            
-            showSuccess("Conversación finalizada correctamente")
-          } catch (error) {
-            console.error('Error al finalizar la conversación:', error)
-            showError("Error al finalizar la conversación")
-          }
-        },
-      })
-    } catch (error) {
-      console.error('Error al intentar finalizar la conversación:', error)
-      showError("Ocurrió un error al intentar finalizar la conversación")
+  const finishConversation = () => {
+    // Verificar que hay una conversación activa con un ID válido
+    if (!activeConversation?.conversationid) {
+      showError('No hay una conversación activa para finalizar');
+      return;
     }
+    
+    // Mostrar diálogo de confirmación
+    confirmDialog({
+      message: '¿Está seguro que desea finalizar esta conversación?',
+      header: 'Finalizar conversación',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Sí, finalizar',
+      rejectLabel: 'Cancelar',
+      accept: async () => {
+        try {
+          // En lugar de crear un Conversation completo, usamos type assertion
+          // ya que deleteConversation solo necesita el conversationid
+          const conversationToDelete = {
+            conversationid: activeConversation.conversationid
+          } as Conversation;
+          
+          // 1. Eliminar la conversación del store
+          deleteConversation(conversationToDelete);
+          
+          // 2. Limpiar la conversación activa
+          setActiveConversation(null);
+          
+          // 3. Limpiar los mensajes
+          setMessages([]);
+          
+          // 4. Mostrar mensaje de éxito
+          showSuccess('Conversación finalizada correctamente');
+          
+        } catch (error) {
+          console.error('Error al finalizar la conversación:', error);
+          showError('No se pudo finalizar la conversación. Por favor, intente nuevamente.');
+        }
+      },
+      reject: () => {
+        // No hacer nada si el usuario cancela
+      }
+    });
   }
 
   // Mensajes a mostrar con filtro de búsqueda si es necesario

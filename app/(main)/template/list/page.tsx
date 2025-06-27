@@ -27,7 +27,8 @@ const TemplatesPage = () => {
   useInitializeUserFromToken()
   const { onClickAction } = usePush(ADMIN_ROUTES.TEMPLATE.CREATE)
   const { fetchData, responseData: templates, isLoading } = useFetchWithParams(_template.getAllByCompany)
-  const { columns } = COLUMNS_TEMPLATE()
+  // Extraemos las funciones y componentes del servicio de columnas
+  const { columns, PreviewTemplate, previewTemplate, previewVisible, hidePreview } = COLUMNS_TEMPLATE()
   const { data } = useRealtimeTemplate(`${process.env.NEXT_PUBLIC_SOCKET_URL}`)
 
   // Verificar si el usuario tiene rol de empresa - comentado por no usarse actualmente
@@ -132,6 +133,15 @@ const TemplatesPage = () => {
           loading={isLoading}
           headerCardName={"Listado de Plantillas"}
           />
+          
+        {/* Componente de previsualización de plantilla */}
+        {previewTemplate && (
+          <PreviewTemplate 
+            template={previewTemplate} 
+            visible={previewVisible} 
+            onHide={hidePreview} 
+          />
+        )}
       </EmptyPage>
   )
 }

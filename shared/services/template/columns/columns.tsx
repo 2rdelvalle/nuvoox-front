@@ -36,12 +36,52 @@ interface PreviewTemplateProps {
   onHide: () => void;
 }
 
+/**
+ * Componente para mostrar una previsualización detallada de una plantilla
+ * @param template - Datos de la plantilla a mostrar
+ * @param visible - Estado de visibilidad del diálogo
+ * @param onHide - Función para cerrar el diálogo
+ */
 const PreviewTemplate: React.FC<PreviewTemplateProps> = ({ template, visible, onHide }) => {
   if (!template) return null;
   
+  // Variables seguras con valores por defecto
+  let templateName = '(Sin nombre)';
+  let templateId = '(ID no disponible)';
+  let companyId = '(ID de empresa no disponible)';
+  let templateContent = '(Sin contenido)';
+  
+  try {
+    // Intenta obtener el nombre de la plantilla
+    if (template.name) {
+      templateName = template.name;
+    }
+    
+    // Intenta obtener el ID de la plantilla
+    if (template.id) {
+      templateId = String(template.id);
+    }
+    
+    // Intenta obtener el ID de empresa (con múltiples rutas posibles)
+    if (template.companyID) {
+      companyId = String(template.companyID);
+    } else if (template.company && template.company.id) {
+      companyId = String(template.company.id);
+    } else if (template.company && template.company.companyId) {
+      companyId = String(template.company.companyId);
+    }
+    
+    // Intenta obtener el contenido de la plantilla
+    if (template.textTemplate) {
+      templateContent = template.textTemplate;
+    }
+  } catch (error) {
+    console.error('Error al extraer datos de la plantilla:', error);
+  }
+  
   const headerTitle = (
     <div className="flex align-items-center justify-content-between">
-      <span>Vista previa de plantilla: {template.name}</span>
+      <span>Vista previa de plantilla: {templateName}</span>
     </div>
   );
   
@@ -70,7 +110,7 @@ const PreviewTemplate: React.FC<PreviewTemplateProps> = ({ template, visible, on
               <div className="col-12 md:col-6">
                 <div className="mb-3">
                   <label className="font-bold block mb-1">Nombre:</label>
-                  <span>{template.name}</span>
+                  <span>{templateName}</span>
                 </div>
                 
                 <div className="mb-3">
@@ -87,12 +127,12 @@ const PreviewTemplate: React.FC<PreviewTemplateProps> = ({ template, visible, on
               <div className="col-12 md:col-6">
                 <div className="mb-3">
                   <label className="font-bold block mb-1">ID de plantilla:</label>
-                  <span>{template.id || 'No disponible'}</span>
+                  <span>{templateId}</span>
                 </div>
                 
                 <div className="mb-3">
                   <label className="font-bold block mb-1">ID de empresa:</label>
-                  <span>{template.companyID || 'No disponible'}</span>
+                  <span>{companyId}</span>
                 </div>
               </div>
             </div>
@@ -108,7 +148,9 @@ const PreviewTemplate: React.FC<PreviewTemplateProps> = ({ template, visible, on
             <Divider />
             <div className="whatsapp-preview p-3 border-round" style={{ backgroundColor: '#e5ddd5' }}>
               <div className="message-bubble p-3 border-round" style={{ backgroundColor: '#ffffff', maxWidth: '80%', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
-                <div className="font-medium">{template.textTemplate || 'Sin contenido'}</div>
+                <div className="font-medium">
+                  {templateContent}
+                </div>
                 
                 {template.mediaUrl && (
                   <div className="mt-3">

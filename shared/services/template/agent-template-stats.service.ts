@@ -29,7 +29,17 @@ export interface DateFilter {
 }
 
 // URL base de la API
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/nuvoox/api';
+// Determinar si estamos en producción o desarrollo
+const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+
+// En producción, usamos una URL relativa (mismo dominio)
+// En desarrollo, usamos localhost con el puerto específico del backend
+const API_BASE_URL = isProduction
+  ? '/web/nuvoox/api'  // URL relativa para producción
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/nuvoox/api'); // URL absoluta para desarrollo
+
+console.log(`[Config] Modo: ${isProduction ? 'Producción' : 'Desarrollo'}, API URL: ${API_BASE_URL}`);
+
 
 /**
  * Servicio para obtener estadísticas de plantillas por agente

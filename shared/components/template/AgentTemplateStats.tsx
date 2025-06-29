@@ -55,6 +55,19 @@ export default function AgentTemplateStats({ companyId, showDateFilter = true }:
     const fetchAgentStats = async () => {
       if (!companyId) return;
       
+      // Validar que el rango de fechas sea válido
+      if (!dateRange.startDate || !dateRange.endDate) {
+        console.warn('Rango de fechas incompleto:', dateRange);
+        return;
+      }
+      
+      // Validar que la fecha de inicio no sea posterior a la fecha de fin
+      if (dateRange.startDate > dateRange.endDate) {
+        console.warn('Fecha de inicio posterior a fecha de fin:', dateRange);
+        setError('El rango de fechas seleccionado no es válido');
+        return;
+      }
+      
       setLoading(true);
       setError(null);
       
@@ -62,6 +75,8 @@ export default function AgentTemplateStats({ companyId, showDateFilter = true }:
         // Formatear fechas para la API
         const startDate = dateRange.startDate.toISOString().split('T')[0];
         const endDate = dateRange.endDate.toISOString().split('T')[0];
+        
+        console.log(`Consultando estadísticas con fechas: startDate=${startDate}, endDate=${endDate}`);
         
         // Definir el filtro de fechas
         const dateFilter: DateFilter = { startDate, endDate };
@@ -94,6 +109,17 @@ export default function AgentTemplateStats({ companyId, showDateFilter = true }:
   
   // Manejar cambio en el rango de fechas
   const handleDateRangeChange = (range: DateRange) => {
+    console.log('Nuevo rango de fechas seleccionado:', {
+      startDate: range.startDate.toISOString().split('T')[0], 
+      endDate: range.endDate.toISOString().split('T')[0]
+    });
+    
+    // Asegurarse de que ambas fechas sean instancias de Date válidas
+    if (!(range.startDate instanceof Date) || !(range.endDate instanceof Date)) {
+      console.error('Fechas inválidas recibidas:', range);
+      return;
+    }
+    
     setDateRange(range);
   };
   
@@ -180,11 +206,16 @@ export default function AgentTemplateStats({ companyId, showDateFilter = true }:
         </div>
         
         {showDateFilter && (
-          <DateRangeFilter 
-            onChange={handleDateRangeChange} 
-            className="ml-auto" 
-            showApplyButton={false}
-          />
+          <div className="ml-auto">
+            <DateRangeFilter 
+              onChange={handleDateRangeChange} 
+              className="" 
+              showApplyButton={true}
+            />
+            {error && error.includes('rango de fechas') && (
+              <div className="p-error text-sm mt-1">{error}</div>
+            )}
+          </div>
         )}
       </div>
       <div className="mb-4">

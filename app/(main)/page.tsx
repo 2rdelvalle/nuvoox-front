@@ -33,7 +33,7 @@ export default function Home () {
   const { fetchData, data: dashboard, loading } = useSWRRequest<DashBoardResponse>()
 
   async function getDashBoard () {
-    fetchData(`/dashBoard/getDashboard/${user?.company?.companyId}`)
+    fetchData(`/dashboard/getDashboard/${user?.company?.companyId}`)
   }
 
   useEffect(() => {

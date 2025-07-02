@@ -84,58 +84,58 @@ const GroupAgentList = () => {
         return (
           <div>
             {agents.length > 0 ? (
-              <div className="flex flex-column">
-                <div className="flex align-items-center gap-2 mb-2">
-                  {/* Grupo de avatares con iniciales */}
-                  <AvatarGroup className="mb-1">
-                    {agents.slice(0, maxDisplayed).map((agent, idx) => (
-                      <Avatar key={idx} 
-                        label={agent.initials}
-                        size="large" 
-                        shape="circle"
-                        style={{ backgroundColor: '#2196F3', color: '#ffffff' }}
-                      />
-                    ))}
-                    {agents.length > maxDisplayed && (
-                      <Avatar 
-                        label={`+${agents.length - maxDisplayed}`} 
-                        size="large" 
-                        shape="circle" 
-                        style={{ backgroundColor: '#9c27b0', color: '#ffffff' }} 
-                      />
-                    )}
-                  </AvatarGroup>
-                  
-                  {/* Etiqueta con contador de agentes */}
-                  <Tag 
-                    value={`${agents.length} agente${agents.length !== 1 ? 's' : ''}`} 
-                    severity="info" 
-                    className="ml-2"
-                    onClick={(e) => {
-                      // Al hacer clic, guardamos los datos en los estados
-                      setSelectedAgents(agents);
-                      setSelectedGroupName(rowData.name);
-                      
-                      // Mostramos el panel en la posición del evento
-                      op.current?.toggle(e);
-                    }} 
-                    style={{cursor: 'pointer'}} 
-                  />
-                </div>
+              <div className="flex align-items-center gap-3">
+                {/* Grupo de avatares con iniciales */}
+                <AvatarGroup>
+                  {agents.slice(0, maxDisplayed).map((agent, idx) => (
+                    <Avatar key={idx} 
+                      label={agent.initials}
+                      size="large" 
+                      shape="circle"
+                      style={{ backgroundColor: '#2196F3', color: '#ffffff' }}
+                    />
+                  ))}
+                  {agents.length > maxDisplayed && (
+                    <Avatar 
+                      label={`+${agents.length - maxDisplayed}`} 
+                      size="large" 
+                      shape="circle" 
+                      style={{ backgroundColor: '#9c27b0', color: '#ffffff' }} 
+                    />
+                  )}
+                </AvatarGroup>
+                
+                {/* Etiqueta con contador de agentes */}
+                <Tag 
+                  value={`${agents.length} agente${agents.length !== 1 ? 's' : ''}`} 
+                  severity="info"
+                  onClick={(e) => {
+                    // Al hacer clic, guardamos los datos en los estados
+                    setSelectedAgents(agents);
+                    setSelectedGroupName(rowData.name);
+                    
+                    // Mostramos el panel en la posición del evento
+                    op.current?.toggle(e);
+                  }} 
+                  style={{cursor: 'pointer'}} 
+                />
+                
+                {/* Título de agentes asignados */}
+                <div className="text-primary font-medium">Agentes asignados:</div>
                 
                 {/* Lista de nombres de agentes */}
-                <div className="agent-names pl-2">
-                  <div className="text-base text-primary font-medium mb-1">Agentes asignados:</div>
+                <div className="flex align-items-center flex-wrap gap-2">
                   {agents.slice(0, 2).map((agent, idx) => (
-                    <div key={idx} className="text-sm text-600 py-1 flex align-items-center gap-2">
+                    <div key={idx} className="flex align-items-center gap-1">
                       <i className="pi pi-user text-primary" />
-                      <span>{agent.name || `Usuario ${agent.id}`}</span>
+                      <span className="text-600">{agent.name || `Usuario ${agent.id}`}</span>
+                      {idx < Math.min(agents.length - 1, 1) && <span className="text-500">,</span>}
                     </div>
                   ))}
                   {agents.length > 2 && (
-                    <div className="text-sm text-500 font-italic">
+                    <span className="text-500 font-italic">
                       ... y {agents.length - 2} más
-                    </div>
+                    </span>
                   )}
                 </div>
               </div>

@@ -17,7 +17,7 @@ import { Avatar } from "primereact/avatar"
 import { AvatarGroup } from "primereact/avatargroup"
 import { Tag } from "primereact/tag"
 import { OverlayPanel } from "primereact/overlaypanel"
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/sessionUtils"
 
 /**
@@ -28,6 +28,10 @@ const GroupAgentList = () => {
   // Referencias para componentes UI
   const tableFilterRef: any = useRef()
   const op = useRef<OverlayPanel>(null)
+  
+  // Estados para el panel emergente
+  const [selectedAgents, setSelectedAgents] = useState<EnrichedAgent[]>([])
+  const [selectedGroupName, setSelectedGroupName] = useState<string>("")
 
   const { showError } = useToast()
   
@@ -108,17 +112,12 @@ const GroupAgentList = () => {
                     severity="info" 
                     className="ml-2"
                     onClick={(e) => {
-                      // Al hacer clic, mostramos el panel de detalle
-                      if (op.current) {
-                        // Configuramos el elemento activo con la información
-                        if (document.activeElement) {
-                          (document.activeElement as any).dataset = {
-                            users: JSON.stringify(agents),
-                            groupName: JSON.stringify(rowData.name)
-                          };
-                        }
-                        op.current.toggle(e);
-                      }
+                      // Al hacer clic, guardamos los datos en los estados
+                      setSelectedAgents(agents);
+                      setSelectedGroupName(rowData.name);
+                      
+                      // Mostramos el panel en la posición del evento
+                      op.current?.toggle(e);
                     }} 
                     style={{cursor: 'pointer'}} 
                   />
@@ -179,55 +178,53 @@ const GroupAgentList = () => {
         
         {/* Panel emergente para mostrar la lista completa de agentes con datos enriquecidos */}
         <OverlayPanel ref={op} showCloseIcon style={{ width: '400px' }}>
-          {op.current && (
-            <div className="w-full">
-              <h3 className="text-xl font-medium mb-3">
-                Agentes en este grupo
-                {document.activeElement && (document.activeElement as any).dataset?.groupName && (
-                  <div className="text-base text-600 mt-1">
-                    Grupo: {JSON.parse((document.activeElement as any).dataset.groupName || '"Desconocido"')}
-                  </div>
-                )}
-              </h3>
-              <ul className="m-0 p-0 list-none">
-                {document.activeElement && (document.activeElement as any).dataset?.users ? (
-                  JSON.parse((document.activeElement as any).dataset.users).map((agent: EnrichedAgent, idx: number) => (
-                    <li key={idx} className="flex align-items-center gap-3 mb-3 p-2 border-bottom-1 border-300">
-                      {/* Avatar con iniciales del usuario */}
-                      <Avatar 
-                        label={agent.initials}
-                        shape="circle"
-                        style={{ backgroundColor: '#2196F3', color: '#ffffff' }}
-                        size="large"
-                      />
-                      {/* Detalles completos del usuario */}
-                      <div className="flex flex-column">
-                        <span className="font-medium">{agent.name}</span>
-                        {agent.email && (
-                          <span className="text-sm text-600">
-                            <i className="pi pi-envelope mr-1 text-xs"></i>
-                            {agent.email}
-                          </span>
-                        )}
-                        {agent.phone && (
-                          <span className="text-sm text-600">
-                            <i className="pi pi-phone mr-1 text-xs"></i>
-                            {agent.phone}
-                          </span>
-                        )}
-                        <span className="text-xs text-700 mt-1">
-                          <i className="pi pi-id-card mr-1"></i>
-                          ID: {agent.userId}
+          <div className="w-full">
+            <h3 className="text-xl font-medium mb-3">
+              Agentes en este grupo
+              {selectedGroupName && (
+                <div className="text-base text-600 mt-1">
+                  Grupo: {selectedGroupName}
+                </div>
+              )}
+            </h3>
+            <ul className="m-0 p-0 list-none">
+              {selectedAgents.length > 0 ? (
+                selectedAgents.map((agent, idx) => (
+                  <li key={idx} className="flex align-items-center gap-3 mb-3 p-2 border-bottom-1 border-300">
+                    {/* Avatar con iniciales del usuario */}
+                    <Avatar 
+                      label={agent.initials}
+                      shape="circle"
+                      style={{ backgroundColor: '#2196F3', color: '#ffffff' }}
+                      size="large"
+                    />
+                    {/* Detalles completos del usuario */}
+                    <div className="flex flex-column">
+                      <span className="font-medium">{agent.name}</span>
+                      {agent.email && (
+                        <span className="text-sm text-600">
+                          <i className="pi pi-envelope mr-1 text-xs"></i>
+                          {agent.email}
                         </span>
-                      </div>
-                    </li>
-                  ))
-                ) : (
-                  <li className="text-center p-3 text-500">No hay datos de agentes disponibles</li>
-                )}
+                      )}
+                      {agent.phone && (
+                        <span className="text-sm text-600">
+                          <i className="pi pi-phone mr-1 text-xs"></i>
+                          {agent.phone}
+                        </span>
+                      )}
+                      <span className="text-xs text-700 mt-1">
+                        <i className="pi pi-id-card mr-1"></i>
+                        ID: {agent.userId}
+                      </span>
+                    </div>
+                  </li>
+                ))
+              ) : (
+                <li className="text-center p-3 text-500">No hay datos de agentes disponibles</li>
+              )}
               </ul>
             </div>
-          )}
         </OverlayPanel>
     </EmptyPage>
   )

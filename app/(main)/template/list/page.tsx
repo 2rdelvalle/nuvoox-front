@@ -83,26 +83,34 @@ const TemplatesPage = () => {
     console.log(`🔄 Evento de plantilla detectado: ${eventType}`, data);
     console.log('Datos del evento completo:', JSON.stringify(data));
     
-    // Siempre procesar inmediatamente cambios de aprobación/rechazo
-    if (eventType === 'approval' || eventType === 'rejection') {
-      console.log('⚡ Actualizando inmediatamente por cambio de estado importante');
-      fetchTemplates();
-      lastFetchTimeRef.current = now;
-      
-      // Mostrar mensaje de éxito
-      if (eventType === 'approval') {
-        showSuccess(`¡Plantilla ${data.data.templateName} ha sido aprobada por Meta!`);
-      } else if (eventType === 'rejection') {
-        showError(`La plantilla ${data.data.templateName} ha sido rechazada por Meta.`);
+    // Actualización forzada para todos los eventos de plantilla
+    // Esta solución garantiza que tanto plantillas de texto como multimedia se actualicen
+    console.log('⚡ Actualizando estado de plantillas...');
+    fetchTemplates();
+    lastFetchTimeRef.current = now;
+    
+    // Mostrar mensaje informativo según el tipo de evento
+    if (eventType === 'approval') {
+      // Extraer el nombre de la plantilla de forma segura de cualquier estructura posible
+      let templateName = 'La plantilla';
+      if (typeof data.data === 'object' && data.data !== null) {
+        if ('templateName' in data.data && typeof data.data.templateName === 'string') {
+          templateName = data.data.templateName;
+        }
       }
-    }
-    // Para otros eventos usar el throttle
-    else if (now - lastFetchTimeRef.current > THROTTLE_TIME) {
-      console.log('🔄 Actualizando plantillas por evento realtime');
-      fetchTemplates();
-      lastFetchTimeRef.current = now;
-    } else {
-      console.log(`⏱️ Evento recibido pero throttled (${THROTTLE_TIME - (now - lastFetchTimeRef.current)}ms restantes)`);
+      showSuccess(`¡${templateName} ha sido aprobada por Meta!`);
+    } else if (eventType === 'rejection') {
+      // Extraer el nombre de la plantilla de forma segura de cualquier estructura posible
+      let templateName = 'La plantilla';
+      if (typeof data.data === 'object' && data.data !== null) {
+        if ('templateName' in data.data && typeof data.data.templateName === 'string') {
+          templateName = data.data.templateName;
+        }
+      }
+      showError(`${templateName} ha sido rechazada por Meta.`);
+    } else if (eventType === 'update' || eventType === 'creation') {
+      // Opcional: mostrar mensaje para otros tipos de eventos
+      console.log(`Evento de tipo ${eventType} procesado exitosamente`);
     }
   }, [data, fetchTemplates, showSuccess, showError])
 

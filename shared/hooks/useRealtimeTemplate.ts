@@ -57,24 +57,43 @@ const useRealtimeTemplate = (socketUrl: string) => {
         
         // Log completo para depuración
         console.log('📝 Datos completos del evento recibido:', JSON.stringify(rawData));
+
+        // Función auxiliar para buscar texto en cualquier campo del objeto
+        const findValueInObject = (obj: any, searchValue: string): boolean => {
+          if (!obj || typeof obj !== 'object') return false;
+          
+          return Object.values(obj).some(value => {
+            if (typeof value === 'string') {
+              return value.toUpperCase() === searchValue.toUpperCase();
+            }
+            if (typeof value === 'object' && value !== null) {
+              return findValueInObject(value, searchValue);
+            }
+            return false;
+          });
+        };
         
-        // Procesar eventos de actualización de estado de Meta - Mejorado para detectar todos los formatos
-        if (
+        // Búsqueda exhaustiva de estado de aprobación en cualquier parte del objeto
+        const isApproved = 
           rawData?.templateStatus === 'APPROVED' || 
           rawData?.event === 'APPROVED' || 
           rawData?.status === 'APPROVED' || 
           (rawData?.status && typeof rawData.status === 'string' && rawData.status.toUpperCase() === 'APPROVED') ||
-          (rawData?.state && typeof rawData.state === 'string' && rawData.state.toUpperCase() === 'APPROVED')
-        ) {
-          console.log('✅ Detectado evento de APROBACIÓN de plantilla');
-          eventType = 'approval';
-        } else if (
+          (rawData?.state && typeof rawData.state === 'string' && rawData.state.toUpperCase() === 'APPROVED') ||
+          findValueInObject(rawData, 'APPROVED');
+
+        const isRejected = 
           rawData?.templateStatus === 'REJECTED' || 
           rawData?.event === 'REJECTED' || 
           rawData?.status === 'REJECTED' ||
           (rawData?.status && typeof rawData.status === 'string' && rawData.status.toUpperCase() === 'REJECTED') ||
-          (rawData?.state && typeof rawData.state === 'string' && rawData.state.toUpperCase() === 'REJECTED')
-        ) {
+          (rawData?.state && typeof rawData.state === 'string' && rawData.state.toUpperCase() === 'REJECTED') ||
+          findValueInObject(rawData, 'REJECTED');
+        
+        if (isApproved) {
+          console.log('✅ Detectado evento de APROBACIÓN de plantilla');
+          eventType = 'approval';
+        } else if (isRejected) {
           console.log('❌ Detectado evento de RECHAZO de plantilla');
           eventType = 'rejection';
         } else if (rawData?.action === 'create') {

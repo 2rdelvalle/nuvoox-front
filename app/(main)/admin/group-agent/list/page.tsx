@@ -6,6 +6,7 @@ import { GroupAgent } from "@/shared/models"
 import { ADMIN_ROUTES } from "@/shared/routes/admin.routes"
 import { COLUMNS_GROUP_GA } from "@/shared/services/group-agent/columns/columns"
 import { GroupAgentService as _gas } from "@/shared/services/index"
+import { EnrichedGroupAgent, EnrichedAgent } from "@/shared/services/group-agent/group.service"
 import CustomToolbar from "@/shared/small-components/CustomToolbar/customToolbar"
 import EmptyPage from "@/shared/small-components/EmptyPage/emptyPage"
 import InfoMessage from "@/shared/small-components/InfoMessage/infoMessage"
@@ -36,56 +37,64 @@ const GroupAgentList = () => {
   const tokenData = getDataFromToken(getCookieToken() || "")
   const companyId = tokenData?.user?.company?.companyId
 
-  // Usamos getGroupAgentsWithUsers para obtener los grupos con sus usuarios
+  // Usamos el nuevo endpoint para obtener datos completos de agentes
   const { responseData: groups, isLoading, callback } = useFetch(() => 
-    companyId ? _gas.getGroupAgentsWithUsers(companyId) : Promise.resolve({ data: [] }))
+    companyId ? _gas.getGroupAgentsWithFullDetails(companyId) : Promise.resolve({ data: [] }))
 
   // Registramos datos para diagnóstico
   if (groups && groups.length > 0) {
     console.log(`[Info] Se cargaron ${groups.length} grupos de agentes`);
     
-    // Verificamos si hay datos de usuarios en los grupos
+    // Verificamos si hay datos de usuarios enriquecidos en los grupos
     let totalUsers = 0;
     groups.forEach(group => {
-      const usersCount = (group.userCompanyGroup || []).length;
-      totalUsers += usersCount;
-      console.log(`[Info] Grupo '${group.name}' tiene ${usersCount} usuario(s)`);
+      const agents = (group as EnrichedGroupAgent).agents || [];
+      totalUsers += agents.length;
+      console.log(`[Info] Grupo '${group.name}' tiene ${agents.length} agente(s)`);
+      
+      // Log detallado de los primeros 3 agentes como muestra
+      if (agents.length > 0) {
+        console.log(`[Debug] Muestra de datos de agentes para '${group.name}':`, 
+          agents.slice(0, 3).map(a => ({ id: a.id, name: a.name, initials: a.initials })));
+      }
     });
-    console.log(`[Info] Total de relaciones usuario-grupo: ${totalUsers}`);
+    console.log(`[Info] Total de agentes: ${totalUsers}`);
   }
 
   // Definimos nuestras propias columnas para incluir los agentes
   const baseColumns = COLUMNS_GROUP_GA({ update: callback })
   
-  // Añadimos una nueva columna para mostrar los agentes
+  // Añadimos una nueva columna para mostrar los agentes con datos completos
   const columns: ColumnsType[] = [
     ...baseColumns.columns.filter(col => col.field !== ""), // Mantenemos todas las columnas excepto la de acciones
     {
-      field: "userCompanyGroup",
+      field: "agents", // Nuevo campo con datos enriquecidos
       header: "Agentes",
       style: { width: "40%" },
       body: (rowData: GroupAgent) => {
-        const users = rowData.userCompanyGroup || [];
+        // Usamos la nueva estructura enriched con agentes completos
+        const enriched = rowData as EnrichedGroupAgent;
+        const agents = enriched.agents || [];
         const maxDisplayed = 3;
         
         return (
           <div>
-            {users.length > 0 ? (
+            {agents.length > 0 ? (
               <div className="flex flex-column">
                 <div className="flex align-items-center gap-2 mb-2">
-                  {/* Grupo de avatares */}
+                  {/* Grupo de avatares con iniciales */}
                   <AvatarGroup className="mb-1">
-                    {users.slice(0, maxDisplayed).map((user, idx) => (
+                    {agents.slice(0, maxDisplayed).map((agent, idx) => (
                       <Avatar key={idx} 
-                        label={`${user.userId}`}
+                        label={agent.initials}
                         size="large" 
                         shape="circle"
                         style={{ backgroundColor: '#2196F3', color: '#ffffff' }}
                       />
                     ))}
-                    {users.length > maxDisplayed && (
+                    {agents.length > maxDisplayed && (
                       <Avatar 
-                        label={`+${users.length - maxDisplayed}`} 
+                        label={`+${agents.length - maxDisplayed}`} 
                         size="large" 
                         shape="circle" 
                         style={{ backgroundColor: '#9c27b0', color: '#ffffff' }} 
@@ -93,32 +102,40 @@ const GroupAgentList = () => {
                     )}
                   </AvatarGroup>
                   
-                  {/* Etiqueta con contador y botón para mostrar detalles */}
+                  {/* Etiqueta con contador de agentes */}
                   <Tag 
-                    value={`${users.length} agente${users.length !== 1 ? 's' : ''}`} 
+                    value={`${agents.length} agente${agents.length !== 1 ? 's' : ''}`} 
                     severity="info" 
+                    className="ml-2"
                     onClick={(e) => {
-                      op.current?.toggle(e);
-                      // Almacenamos datos básicos en el elemento para el panel emergente
-                      (e.currentTarget as any).dataset.users = JSON.stringify(users);
-                      (e.currentTarget as any).dataset.groupName = JSON.stringify(rowData.name || 'Grupo');
+                      // Al hacer clic, mostramos el panel de detalle
+                      if (op.current) {
+                        // Configuramos el elemento activo con la información
+                        if (document.activeElement) {
+                          (document.activeElement as any).dataset = {
+                            users: JSON.stringify(agents),
+                            groupName: JSON.stringify(rowData.name)
+                          };
+                        }
+                        op.current.toggle(e);
+                      }
                     }} 
                     style={{cursor: 'pointer'}} 
                   />
                 </div>
                 
-                {/* Lista de IDs de agentes */}
+                {/* Lista de nombres de agentes */}
                 <div className="agent-names pl-2">
                   <div className="text-base text-primary font-medium mb-1">Agentes asignados:</div>
-                  {users.slice(0, 2).map((user, idx) => (
+                  {agents.slice(0, 2).map((agent, idx) => (
                     <div key={idx} className="text-sm text-600 py-1 flex align-items-center gap-2">
                       <i className="pi pi-user text-primary" />
-                      <span>ID: {user.userId}</span>
+                      <span>{agent.name || `Usuario ${agent.id}`}</span>
                     </div>
                   ))}
-                  {users.length > 2 && (
+                  {agents.length > 2 && (
                     <div className="text-sm text-500 font-italic">
-                      ... y {users.length - 2} más
+                      ... y {agents.length - 2} más
                     </div>
                   )}
                 </div>
@@ -160,8 +177,8 @@ const GroupAgentList = () => {
           headerCardName={"Listado de grupos de agentes"}
         />
         
-        {/* Panel emergente para mostrar la lista completa de agentes */}
-        <OverlayPanel ref={op} showCloseIcon style={{ width: '350px' }}>
+        {/* Panel emergente para mostrar la lista completa de agentes con datos enriquecidos */}
+        <OverlayPanel ref={op} showCloseIcon style={{ width: '400px' }}>
           {op.current && (
             <div className="w-full">
               <h3 className="text-xl font-medium mb-3">
@@ -174,18 +191,34 @@ const GroupAgentList = () => {
               </h3>
               <ul className="m-0 p-0 list-none">
                 {document.activeElement && (document.activeElement as any).dataset?.users ? (
-                  JSON.parse((document.activeElement as any).dataset.users).map((user: any, idx: number) => (
+                  JSON.parse((document.activeElement as any).dataset.users).map((agent: EnrichedAgent, idx: number) => (
                     <li key={idx} className="flex align-items-center gap-3 mb-3 p-2 border-bottom-1 border-300">
-                      {/* Avatar con ID del usuario */}
+                      {/* Avatar con iniciales del usuario */}
                       <Avatar 
-                        label={`${user.userId}`}
+                        label={agent.initials}
                         shape="circle"
                         style={{ backgroundColor: '#2196F3', color: '#ffffff' }}
+                        size="large"
                       />
-                      {/* Detalles del usuario */}
+                      {/* Detalles completos del usuario */}
                       <div className="flex flex-column">
-                        <span className="font-medium">ID de Agente: {user.userId}</span>
-                        <span className="text-xs text-700">Fecha asignación: {new Date().toLocaleDateString()}</span>
+                        <span className="font-medium">{agent.name}</span>
+                        {agent.email && (
+                          <span className="text-sm text-600">
+                            <i className="pi pi-envelope mr-1 text-xs"></i>
+                            {agent.email}
+                          </span>
+                        )}
+                        {agent.phone && (
+                          <span className="text-sm text-600">
+                            <i className="pi pi-phone mr-1 text-xs"></i>
+                            {agent.phone}
+                          </span>
+                        )}
+                        <span className="text-xs text-700 mt-1">
+                          <i className="pi pi-id-card mr-1"></i>
+                          ID: {agent.userId}
+                        </span>
                       </div>
                     </li>
                   ))

@@ -55,11 +55,26 @@ const useRealtimeTemplate = (socketUrl: string) => {
         // Determinar el tipo de evento basado en datos
         let eventType: TemplateEventData['eventType'] = 'update';
         
-        // Procesar eventos de actualización de estado de Meta
-        if (rawData?.templateStatus === 'APPROVED' || rawData?.event === 'APPROVED') {
+        // Log completo para depuración
+        console.log('📝 Datos completos del evento recibido:', JSON.stringify(rawData));
+        
+        // Procesar eventos de actualización de estado de Meta - Mejorado para detectar todos los formatos
+        if (
+          rawData?.templateStatus === 'APPROVED' || 
+          rawData?.event === 'APPROVED' || 
+          rawData?.status === 'APPROVED' || 
+          (rawData?.status && typeof rawData.status === 'string' && rawData.status.toUpperCase() === 'APPROVED') ||
+          (rawData?.state && typeof rawData.state === 'string' && rawData.state.toUpperCase() === 'APPROVED')
+        ) {
           console.log('✅ Detectado evento de APROBACIÓN de plantilla');
           eventType = 'approval';
-        } else if (rawData?.templateStatus === 'REJECTED' || rawData?.event === 'REJECTED') {
+        } else if (
+          rawData?.templateStatus === 'REJECTED' || 
+          rawData?.event === 'REJECTED' || 
+          rawData?.status === 'REJECTED' ||
+          (rawData?.status && typeof rawData.status === 'string' && rawData.status.toUpperCase() === 'REJECTED') ||
+          (rawData?.state && typeof rawData.state === 'string' && rawData.state.toUpperCase() === 'REJECTED')
+        ) {
           console.log('❌ Detectado evento de RECHAZO de plantilla');
           eventType = 'rejection';
         } else if (rawData?.action === 'create') {

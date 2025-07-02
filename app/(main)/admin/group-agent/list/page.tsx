@@ -4,6 +4,7 @@ import { useFetch } from "@/shared/hooks/useFetch"
 import { usePush } from "@/shared/hooks/usePush"
 import { GroupAgent } from "@/shared/models"
 import { ADMIN_ROUTES } from "@/shared/routes/admin.routes"
+import { useRouter } from "next/navigation"
 import { COLUMNS_GROUP_GA } from "@/shared/services/group-agent/columns/columns"
 import { GroupAgentService as _gas } from "@/shared/services/index"
 import { EnrichedGroupAgent, EnrichedAgent } from "@/shared/services/group-agent/group.service"
@@ -25,9 +26,10 @@ import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/s
  * Versión optimizada para producción
  */
 const GroupAgentList = () => {
-  // Referencias para componentes UI
+  // Referencias para componentes UI y router
   const tableFilterRef: any = useRef()
   const op = useRef<OverlayPanel>(null)
+  const router = useRouter()
   
   // Estados para el panel emergente
   const [selectedAgents, setSelectedAgents] = useState<EnrichedAgent[]>([])
@@ -36,6 +38,14 @@ const GroupAgentList = () => {
   const { showError } = useToast()
   
   const { onClickAction } = usePush(ADMIN_ROUTES.GROUP_AGENT.CREATE)
+  
+  /**
+   * Navegar al formulario en modo edición con el ID del grupo
+   * @param groupId ID del grupo a editar
+   */
+  const handleEditGroup = (groupId: number) => {
+    router.push(`${ADMIN_ROUTES.GROUP_AGENT.CREATE}?id=${groupId}`)
+  }
 
   // Obtenemos el token para conseguir la compañía actual
   const tokenData = getDataFromToken(getCookieToken() || "")
@@ -66,7 +76,18 @@ const GroupAgentList = () => {
   }
 
   // Definimos nuestras propias columnas para incluir los agentes
-  const baseColumns = COLUMNS_GROUP_GA({ update: callback })
+  const baseColumns = COLUMNS_GROUP_GA({ 
+    update: callback,
+    // Extendemos la configuración para agregar el manejador de edición
+    actions: {
+      edit: (rowData: any) => {
+        // Acceder a companyGroupUserid que es el ID correcto del grupo
+        // Usar el tipo 'any' ya que puede ser o GroupAgent o EnrichedGroupAgent
+        const groupId = rowData.companyGroupUserid || 0
+        handleEditGroup(groupId)
+      }
+    }
+  })
   
   // Añadimos una nueva columna para mostrar los agentes con datos completos
   const columns: ColumnsType[] = [

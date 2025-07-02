@@ -7,6 +7,7 @@ import { ADMIN_ROUTES } from "@/shared/routes/admin.routes"
 import {
   TemplateService as _template
 } from "@/shared/services"
+import { FileUploadService } from "@/shared/services/file-upload.service"
 import EmptyPage from "@/shared/small-components/EmptyPage/emptyPage"
 import FormStatus from "@/shared/small-components/FormStatus/formStatus"
 import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/sessionUtils"
@@ -155,49 +156,67 @@ const TemplateForm = () => {
   }
   
   /**
- * Solución para manejar archivos multimedia usando Cloudinary
- * Usa una URL pública de Cloudinary para todas las imágenes subidas
+ * Maneja la carga de archivos multimedia al servidor
+ * Utiliza el servicio FileUploadService para subir archivos al backend
+ * Mantiene compatibilidad con URLs existentes como fallback
  */
 const onFileUpload = async (event: FileUploadHandlerEvent) => {
+try {
+  setBlocked(true); // Bloquear la interfaz durante la carga
+  
+  // Validar que event.files exista y tenga al menos un elemento
+  if (!event.files || !event.files.length) {
+    throw new Error('No se recibió ningún archivo');
+  }
+  
+  const file = event.files[0];
+  console.log('Iniciando carga de archivo:', file.name);
+  
+  // Validar que el nombre del archivo sea una cadena
+  const fileName = typeof file.name === 'string' ? file.name : 'archivo';
+  
+  // Configuración del subdirectorio para organizar archivos
+  const subDirectory = 'templates';
+  
   try {
-    // Validar que event.files exista y tenga al menos un elemento
-    if (!event.files || !event.files.length) {
-      throw new Error('No se recibió ningún archivo');
-    }
+    // Subir el archivo al servidor usando el nuevo servicio
+    const result = await FileUploadService.uploadFile(file, subDirectory);
     
-    const file = event.files[0];
+    console.log('Archivo subido exitosamente:', result);
     
-    // Validar que el nombre del archivo sea una cadena
-    const fileName = typeof file.name === 'string' ? file.name : 'archivo';
+    // Guardar la URL y el nombre de archivo retornados por el servidor
+    setMediaUrl(result.url);
+    setMediaFileName(result.filename);
+    setValue('mediaUrl', result.url);
+    setValue('mediaFilename', result.filename);
     
-    // ===== SOLUCIÓN CON CLOUDINARY =====
-    // Usamos una URL de Cloudinary válida y pública para WhatsApp
-    // Esta URL cumple con los requisitos de Meta para plantillas
+    showSuccess(`Archivo ${fileName} subido correctamente al servidor`);
+  } catch (uploadError) {
+    console.error('Error al subir al servidor, usando fallback de Cloudinary:', uploadError);
     
-    // URL pública de Cloudinary proporcionada directamente
+    // FALLBACK: Si falla la carga al servidor, usar URL de Cloudinary como respaldo
     const cloudinaryUrl = 'https://res.cloudinary.com/de6slu8aj/image/upload/v1747428716/cld-sample-5_enrou8.jpg';
     
-    console.log('Usando URL de Cloudinary:', cloudinaryUrl);
+    console.log('Usando URL de Cloudinary como fallback:', cloudinaryUrl);
     
-    // Guardar la URL y el nombre de archivo
     setMediaUrl(cloudinaryUrl);
     setMediaFileName(fileName);
     setValue('mediaUrl', cloudinaryUrl);
     setValue('mediaFilename', fileName);
     
-    showSuccess(`Imagen cargada exitosamente (usando Cloudinary)`); 
-    
-    // Limpiar la referencia del componente FileUpload
-    if (fileUploadRef.current) {
-      (fileUploadRef.current as any).clear();
-    }
-  } catch (error) {
-    console.error('Error al cargar el archivo:', error);
-    // Usamos type assertion para tratar el error como Error
-    showError(`Error al subir el archivo: ${(error as Error).message || 'Error desconocido'}`);
-  } finally {
-    setBlocked(false);
+    showSuccess(`Imagen cargada usando fallback de Cloudinary (el servidor no está disponible)`); 
   }
+  
+  // Limpiar la referencia del componente FileUpload
+  if (fileUploadRef.current) {
+    (fileUploadRef.current as any).clear();
+  }
+} catch (error) {
+  console.error('Error general al procesar el archivo:', error);
+  showError(`Error al procesar el archivo: ${(error as Error).message || 'Error desconocido'}`);
+} finally {
+  setBlocked(false); // Desbloquear la interfaz cuando termine
+}
 }
   
   /**

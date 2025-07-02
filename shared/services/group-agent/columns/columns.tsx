@@ -5,9 +5,12 @@ import { useToast } from "@/shared/context/toast/toastContext"
 
 interface props {
     update: () => void
+    actions?: {
+      edit?: (rowData: any) => void
+    }
 }
 
-export const COLUMNS_GROUP_GA = ({ update } : props) => {
+export const COLUMNS_GROUP_GA = ({ update, actions } : props) => {
   const { showError, showSuccess } = useToast()
 
   async function deleteF (rowData : number) {
@@ -34,11 +37,21 @@ export const COLUMNS_GROUP_GA = ({ update } : props) => {
       field: "",
       header: "Acciones",
       style: { width: "17%" },
-      body: (rowData: any) => (
-        <ActionButton
-            actionDelete={() => deleteF(rowData.id)}
-        />
-      )
+      body: (rowData: any) => {
+        // Crear una función de edición segura
+        const handleEdit = () => {
+          if (actions && typeof actions.edit === 'function') {
+            actions.edit(rowData);
+          }
+        };
+        
+        return (
+          <ActionButton
+            actionDelete={() => deleteF(rowData.companyGroupUserid)}
+            actionPencil={actions?.edit ? handleEdit : undefined}
+          />
+        );
+      }
     }
   ]
 

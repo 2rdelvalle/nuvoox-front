@@ -28,6 +28,14 @@ const GroupAgentService = {
   create: (ga: GroupAgent) => axios.post<GroupAgent>(`${groupAgentEndpoint}/save`, ga),
   getGroupAgentsWithUsers: (companyId: number) => axios.get<GroupAgent[]>(`${groupAgentEndpoint}/getGroupAgentsWithUsers/${companyId}`),
   deleteGroupAgentWithID: (groupId: number) => axios.delete(`${groupAgentEndpoint}/${groupId}`),
+  /**
+   * Actualiza un grupo de agentes existente
+   * @param groupId ID del grupo a actualizar
+   * @param groupData Datos actualizados del grupo
+   * @returns Promesa con la respuesta del servidor
+   */
+  update: (groupId: number, groupData: GroupAgent) => 
+    axios.put<GroupAgent>(`${groupAgentEndpoint}/${groupId}`, groupData),
   
   /**
    * Obtiene grupos de agentes con datos completos de usuario

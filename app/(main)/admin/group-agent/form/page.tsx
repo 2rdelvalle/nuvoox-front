@@ -117,23 +117,88 @@ const GroupAgentForm = ({ searchParams }: { searchParams: { id?: string } }) => 
             
             // Obtener datos del grupo a editar
             const groupsResponse = await _GAS.getGroupAgentsWithFullDetails(dataToken.company.companyId)
-            // Buscar el grupo usando cualquier propiedad de ID disponible
-            const selectedGroup = groupsResponse.data.find((g: any) => 
-              g.companyGroupUserid === groupId || g.id === groupId
-            )
+            console.log('Respuesta completa del backend:', groupsResponse.data)
+            
+            // Convertir groupId a número si es necesario (algunos endpoints pueden manejar strings)
+            const groupIdNumber = typeof groupId === 'number' ? groupId : Number(groupId)
+            
+            // Buscar el grupo usando múltiples propiedades posibles de ID
+            const selectedGroup = groupsResponse.data.find((g: any) => {
+              // Intentar buscar por cualquier propiedad que podría ser un ID
+              return (
+                g.companyGroupUserid === groupId || 
+                g.id === groupId || 
+                g.companyGroupUserid === groupIdNumber || 
+                g.id === groupIdNumber
+              )
+            })
             
             // Log para depuración
-            console.log('Grupo seleccionado para edición:', selectedGroup)
+            console.log('Grupo encontrado para ID', groupId, ':', selectedGroup)
             
             if (selectedGroup) {
               setGroupData(selectedGroup)
               
-              // Asegurar que tenemos un nombre y establecerlo en el formulario
-              if (selectedGroup.name) {
-                console.log('Nombre del grupo encontrado:', selectedGroup.name)
-                setValue('name', selectedGroup.name)
+              // Inspeccionar estructura completa del objeto para localizar el nombre
+              console.log('Estructura completa del grupo:', JSON.stringify(selectedGroup, null, 2))
+              
+              // Tratar selectedGroup como any para evitar errores de tipado durante la exploración de datos
+              const group: any = selectedGroup;
+              
+              // Intentar extraer el nombre de forma segura explorando diferentes propiedades posibles
+              let groupName = '';
+              
+              // Opciones comunes donde podría estar almacenado el nombre
+              if (typeof group.name === 'string') {
+                groupName = group.name;
+              } else if (typeof group.groupName === 'string') {
+                groupName = group.groupName;
+              } else if (group.group && typeof group.group.name === 'string') {
+                groupName = group.group.name;
+              }
+              
+              if (groupName) {
+                console.log('Nombre del grupo encontrado:', groupName)
+                setValue('name', groupName)
               } else {
-                console.error('Error: No se encontró el nombre del grupo en la respuesta')
+                console.error('Error: No se encontró el nombre del grupo en las propiedades esperadas')
+                
+                // Exploración profunda para encontrar cualquier propiedad de nombre
+                const deepSearch = (obj: any, path = ''): string[] => {
+                  if (!obj || typeof obj !== 'object') return [];
+                  
+                  return Object.entries(obj).flatMap(([key, value]) => {
+                    const currentPath = path ? `${path}.${key}` : key;
+                    
+                    // Si encontramos una propiedad que podría ser un nombre
+                    if (
+                      key.toLowerCase().includes('name') && 
+                      typeof value === 'string' && 
+                      value.length > 0
+                    ) {
+                      return [`${currentPath}: ${value}`];
+                    }
+                    
+                    // Explorar más profundo si es un objeto
+                    if (value && typeof value === 'object' && !Array.isArray(value)) {
+                      return deepSearch(value, currentPath);
+                    }
+                    
+                    return [];
+                  });
+                };
+                
+                const nameProperties = deepSearch(group);
+                if (nameProperties.length > 0) {
+                  console.log('Propiedades encontradas que podrían contener el nombre:', nameProperties);
+                  
+                  // Intentar usar la primera propiedad encontrada como nombre
+                  const firstNameValue = nameProperties[0].split(': ')[1];
+                  if (firstNameValue) {
+                    console.log('Usando como nombre:', firstNameValue);
+                    setValue('name', firstNameValue);
+                  }
+                }
               }
               
               // Si hay datos de usuarios enriquecidos, convertirlos a formato UserCaratule para usarlos en el formulario

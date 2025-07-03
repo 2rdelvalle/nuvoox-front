@@ -23,25 +23,20 @@ import { Message } from "primereact/message"
 import { Panel } from "primereact/panel"
 import { useEffect, useState } from "react"
 import { SubmitHandler, useForm } from "react-hook-form"
+import { useSearchParams } from "next/navigation"
 
-// Utilidad para logs controlados
+// Flag para habilitar/deshabilitar logs detallados
 const DEBUG_LOGS = true;
 
-const logInfo = (message: string, data?: any) => {
-  if (DEBUG_LOGS) console.log(`[Info] ${message}`, data !== undefined ? data : '');
-}
-
-const logError = (message: string, data?: any) => {
-  if (DEBUG_LOGS) console.error(`[Error] ${message}`, data !== undefined ? data : '');
-}
-
-const logWarning = (message: string, data?: any) => {
-  if (DEBUG_LOGS) console.warn(`[Warning] ${message}`, data !== undefined ? data : '');
-}
-
-const logDebug = (message: string, data?: any) => {
-  if (DEBUG_LOGS) console.debug(`[Debug] ${message}`, data !== undefined ? data : '');
-}
+// Funciones de log controladas por constante para facilitar activación/desactivación
+const logInfo = (message: string, ...data: any[]) => 
+  DEBUG_LOGS && console.log(`[Info] ${message}`, ...(data.length ? data : []));
+const logError = (message: string, ...data: any[]) => 
+  DEBUG_LOGS && console.error(`[Error] ${message}`, ...(data.length ? data : []));
+const logWarning = (message: string, ...data: any[]) => 
+  DEBUG_LOGS && console.warn(`[Warning] ${message}`, ...(data.length ? data : []));
+const logDebug = (message: string, ...data: any[]) => 
+  DEBUG_LOGS && console.debug(`[Debug] ${message}`, ...(data.length ? data : []));
 
 /**
  * Componente de formulario para crear o editar grupos de agentes
@@ -50,10 +45,24 @@ const logDebug = (message: string, data?: any) => {
  * 2. Edición: Cuando se proporciona un ID en la URL, carga los datos del grupo existente
  */
 const GroupAgentForm = ({ searchParams }: { searchParams: { id?: string } }) => {
-  // Determinar si estamos en modo edición
-  const isEditMode = !!searchParams.id
-  // Convertir el id a número solo si existe, con manejo seguro de tipos
-  const groupId = typeof searchParams.id === 'string' ? parseInt(searchParams.id) : undefined
+  // Obtenemos los parámetros directamente con useSearchParams para asegurar que tenemos la última versión
+  // Esta es la forma más segura de obtener parámetros en Next.js
+  const queryParams = useSearchParams();
+  const idFromQuery = queryParams.get('id');
+  
+  // Mostramos información detallada sobre los parámetros recibidos para debugging
+  logInfo('Parámetros de la URL:', { id: idFromQuery, otherParams: Array.from(queryParams.entries()) });
+  logInfo('Parámetros desde props:', searchParams);
+  
+  // Determinar si estamos en modo edición usando ambas fuentes de datos
+  const isEditMode = !!(idFromQuery || searchParams?.id);
+  
+  // Convertir el id a número, con preferencia al de URL directa que es más confiable
+  const groupId = idFromQuery ? parseInt(idFromQuery) : 
+                searchParams?.id ? parseInt(searchParams.id) : undefined;
+  
+  // Registro detallado del estado de inicialización
+  logInfo(`Modo de operación detectado: ${isEditMode ? 'EDICIÓN' : 'CREACIÓN'}, ID: ${groupId || 'nuevo'}`)
   const { showError, showSuccess } = useToast()
 
   const { onClickAction } = usePush(ADMIN_ROUTES.GROUP_AGENT.LIST)

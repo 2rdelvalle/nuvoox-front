@@ -160,123 +160,87 @@ const GroupAgentForm = ({ searchParams }: { searchParams: { id?: string } }) => 
     const fetchDataAsync = async () => {
       try {
         if (dataToken) {
+          // Log para confirmar que estamos iniciando la carga de datos
+          logInfo(`Iniciando carga de datos. Modo: ${isEditMode ? 'Edición' : 'Creación'}, GroupID: ${groupId || 'nuevo'}`);
+          
           // Cargar listado de usuarios disponibles
           await fetchData(dataToken)
           
           // Si estamos en modo edición, cargar datos del grupo
           if (isEditMode && groupId && dataToken.company.companyId) {
+            logInfo(`[CARGA-DATOS] Cargando datos para grupo con ID: ${groupId}`);
             setIsLoading(true)
             
-            // Obtener datos del grupo a editar
-            const groupsResponse = await _GAS.getGroupAgentsWithFullDetails(dataToken.company.companyId)
-            console.log('Respuesta completa del backend:', groupsResponse.data)
-            
-            // Convertir groupId a número si es necesario (algunos endpoints pueden manejar strings)
-            const groupIdNumber = typeof groupId === 'number' ? groupId : Number(groupId)
-            
-            // Buscar el grupo usando múltiples propiedades posibles de ID
-            const selectedGroup = groupsResponse.data.find((g: any) => {
-              // Intentar buscar por cualquier propiedad que podría ser un ID
-              return (
-                g.companyGroupUserid === groupId || 
-                g.id === groupId || 
-                g.companyGroupUserid === groupIdNumber || 
-                g.id === groupIdNumber
-              )
-            })
-            
-            // Log para depuración
-            console.log('Grupo encontrado para ID', groupId, ':', selectedGroup)
-            
-            if (selectedGroup) {
-              setGroupData(selectedGroup)
+            try {
+              // Obtener datos del grupo a editar con el endpoint específico para datos enriquecidos
+              const groupsResponse = await _GAS.getGroupAgentsWithFullDetails(dataToken.company.companyId)
+              logInfo(`[DATOS-RECIBIDOS] Datos de grupos recibidos del endpoint full-agents-data:`, groupsResponse.data?.length || 0);
+              logDebug('Respuesta completa del backend:', groupsResponse.data)
               
-              // Inspeccionar estructura completa del objeto para localizar el nombre
-              console.log('Estructura completa del grupo:', JSON.stringify(selectedGroup, null, 2))
+              // Convertir groupId a número si es necesario (algunos endpoints pueden manejar strings)
+              const groupIdNumber = typeof groupId === 'number' ? groupId : Number(groupId)
               
-              // Tratar selectedGroup como any para evitar errores de tipado durante la exploración de datos
-              const group: any = selectedGroup;
-              
-              // Intentar extraer el nombre de forma segura explorando diferentes propiedades posibles
-              let groupName = '';
-              
-              // Opciones comunes donde podría estar almacenado el nombre
-              if (typeof group.name === 'string') {
-                groupName = group.name;
-              } else if (typeof group.groupName === 'string') {
-                groupName = group.groupName;
-              } else if (group.group && typeof group.group.name === 'string') {
-                groupName = group.group.name;
-              }
-              
-              if (groupName) {
-                console.log('Nombre del grupo encontrado:', groupName)
-                setValue('name', groupName)
-              } else {
-                console.error('Error: No se encontró el nombre del grupo en las propiedades esperadas')
+              // Si el ID proporcionado existe en la lista de grupos, cargar sus datos
+              const foundGroup = groupsResponse.data?.find(g => g.id === groupIdNumber)
+
+              if (foundGroup) {
+                logInfo(`[GRUPO-ENCONTRADO] Grupo encontrado con ID: ${groupIdNumber}`, foundGroup);
+                setGroupData(foundGroup);
                 
-                // Exploración profunda para encontrar cualquier propiedad de nombre
-                const deepSearch = (obj: any, path = ''): string[] => {
-                  if (!obj || typeof obj !== 'object') return [];
-                  
-                  return Object.entries(obj).flatMap(([key, value]) => {
-                    const currentPath = path ? `${path}.${key}` : key;
-                    
-                    // Si encontramos una propiedad que podría ser un nombre
-                    if (
-                      key.toLowerCase().includes('name') && 
-                      typeof value === 'string' && 
-                      value.length > 0
-                    ) {
-                      return [`${currentPath}: ${value}`];
-                    }
-                    
-                    // Explorar más profundo si es un objeto
-                    if (value && typeof value === 'object' && !Array.isArray(value)) {
-                      return deepSearch(value, currentPath);
-                    }
-                    
-                    return [];
-                  });
-                };
-                
-                const nameProperties = deepSearch(group);
-                if (nameProperties.length > 0) {
-                  console.log('Propiedades encontradas que podrían contener el nombre:', nameProperties);
-                  
-                  // Intentar usar la primera propiedad encontrada como nombre
-                  const firstNameValue = nameProperties[0].split(': ')[1];
-                  if (firstNameValue) {
-                    console.log('Usando como nombre:', firstNameValue);
-                    setValue('name', firstNameValue);
-                  }
+                // Cargar nombre del grupo si existe
+                if (foundGroup.name) {
+                  logInfo(`[NOMBRE-GRUPO] Nombre del grupo encontrado: ${foundGroup.name}`);
+                  setValue('name', foundGroup.name);
                 }
-              }
-              
-              // Si hay datos de usuarios enriquecidos, convertirlos a formato UserCaratule para usarlos en el formulario
-              if (selectedGroup.agents && selectedGroup.agents.length > 0) {
-                // Crear objetos de usuario seleccionados 
-                // Usamos una estructura simplificada que sea compatible con lo que espera el componente
-                const selectedUsers = selectedGroup.agents.map(agent => ({
-                  userId: agent.userId,
-                  name: agent.name || `Usuario ${agent.userId}`,
-                  // Agregamos campos requeridos con valores predeterminados
-                  mail: agent.email || '',
-                  phone: agent.phone || '',
-                  document: agent.document || '',
-                  company: { companyId: dataToken.company.companyId },
-                  role: { id: 0, name: '', roleId: 0 }
-                })) as unknown as UserCaratule[] // Cast para satisfacer la interfaz
                 
-                setUsersSelected(selectedUsers)
+                // Procesar selección de usuarios si el grupo tiene agents
+                if (foundGroup.agents && Array.isArray(foundGroup.agents)) {
+                  logInfo(`[AGENTES-ENCONTRADOS] Se encontraron ${foundGroup.agents.length} agentes en el grupo`);
+                  
+                  // Mapear los agentes al formato UserCaratule completo para evitar errores de tipo
+                  const processedUsers: UserCaratule[] = foundGroup.agents
+                    .filter(agent => agent.userId)
+                    .map(agent => {
+                      return {
+                        userId: agent.userId,
+                        name: agent.name || '',
+                        mail: agent.email || '', // Usar mail en lugar de email para cumplir con UserCaratule
+                        company: {
+                          companyId: dataToken?.company?.companyId || 0,
+                          name: dataToken?.company?.name || ''
+                        },
+                        role: {
+                          roleId: 0, // Valor predeterminado ya que no tenemos esta información
+                          id: 0,
+                          name: ''
+                        },
+                        // Propiedades adicionales que podrían ser útiles pero no son parte de UserCaratule
+                        // se pueden agregar como comentarios
+                        // initials: agent.initials || ''
+                      };
+                    });
+                  
+                  if (processedUsers.length > 0) {
+                    logInfo(`[AGENTES-PROCESADOS] ${processedUsers.length} agentes válidos procesados`);
+                    setValue('userCompanyGroup', processedUsers);
+                    setUsersSelected(processedUsers);
+                  } else {
+                    logWarning('[AGENTES-VACIOS] No se encontraron agentes válidos en el grupo');
+                  }
+                } else {
+                  logWarning('[ESTRUCTURA-DESCONOCIDA] No se encontró una estructura de agentes reconocible');
+                }
+              } else {
+                logError(`[GRUPO-NO-ENCONTRADO] El grupo con ID ${groupId} no existe en el sistema`);
+                showError(`El grupo con ID ${groupId} no se encontró en el sistema.`);
+                onClickAction();
               }
-            } else {
-              showError(`No se encontró el grupo con ID ${groupId}`)
-              // Redirigir al listado si no existe el grupo
-              onClickAction()
+            } catch (loadError: any) {
+              logError('[ERROR-CARGA] Error al cargar datos del grupo:', loadError);
+              showError(`Error al cargar datos del grupo: ${loadError?.message || 'Error desconocido'}`);
+            } finally {
+              setIsLoading(false);
             }
-            
-            setIsLoading(false)
           }
         }
       } catch (error: any) {

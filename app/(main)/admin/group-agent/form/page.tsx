@@ -113,8 +113,8 @@ const GroupAgentForm = ({ searchParams }: { searchParams: { id?: string } }) => 
             
             // Obtener datos del grupo a editar
             const groupsResponse = await _GAS.getGroupAgentsWithFullDetails(dataToken.company.companyId)
-            // Buscar el grupo por ID
-            const selectedGroup = groupsResponse.data.find((g: any) => g.id === groupId)
+            // Buscar el grupo por ID correcto (companyGroupUserid)
+            const selectedGroup = groupsResponse.data.find((g: any) => g.companyGroupUserid === groupId)
             
             if (selectedGroup) {
               setGroupData(selectedGroup)

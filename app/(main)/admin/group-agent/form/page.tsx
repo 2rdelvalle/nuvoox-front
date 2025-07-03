@@ -68,6 +68,10 @@ const GroupAgentForm = ({ searchParams }: { searchParams: { id?: string } }) => 
       userCompanyGroup: usersSelected.map(user => ({ userId: user.userId }))
     }
     
+    // Log para depuración
+    console.log(`Modo: ${isEditMode ? 'Edición' : 'Creación'}, GroupID: ${groupId || 'nuevo'}`)
+    console.log('Datos a guardar:', dataToSave)
+    
     try {
       // Determinar si estamos creando o actualizando
       if (isEditMode && groupId) {
@@ -113,14 +117,24 @@ const GroupAgentForm = ({ searchParams }: { searchParams: { id?: string } }) => 
             
             // Obtener datos del grupo a editar
             const groupsResponse = await _GAS.getGroupAgentsWithFullDetails(dataToken.company.companyId)
-            // Buscar el grupo por ID correcto (companyGroupUserid)
-            const selectedGroup = groupsResponse.data.find((g: any) => g.companyGroupUserid === groupId)
+            // Buscar el grupo usando cualquier propiedad de ID disponible
+            const selectedGroup = groupsResponse.data.find((g: any) => 
+              g.companyGroupUserid === groupId || g.id === groupId
+            )
+            
+            // Log para depuración
+            console.log('Grupo seleccionado para edición:', selectedGroup)
             
             if (selectedGroup) {
               setGroupData(selectedGroup)
               
-              // Establecer el nombre en el formulario
-              setValue('name', selectedGroup.name)
+              // Asegurar que tenemos un nombre y establecerlo en el formulario
+              if (selectedGroup.name) {
+                console.log('Nombre del grupo encontrado:', selectedGroup.name)
+                setValue('name', selectedGroup.name)
+              } else {
+                console.error('Error: No se encontró el nombre del grupo en la respuesta')
+              }
               
               // Si hay datos de usuarios enriquecidos, convertirlos a formato UserCaratule para usarlos en el formulario
               if (selectedGroup.agents && selectedGroup.agents.length > 0) {

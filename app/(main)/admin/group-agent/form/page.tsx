@@ -24,6 +24,25 @@ import { Panel } from "primereact/panel"
 import { useEffect, useState } from "react"
 import { SubmitHandler, useForm } from "react-hook-form"
 
+// Utilidad para logs controlados
+const DEBUG_LOGS = true;
+
+const logInfo = (message: string, data?: any) => {
+  if (DEBUG_LOGS) console.log(`[Info] ${message}`, data !== undefined ? data : '');
+}
+
+const logError = (message: string, data?: any) => {
+  if (DEBUG_LOGS) console.error(`[Error] ${message}`, data !== undefined ? data : '');
+}
+
+const logWarning = (message: string, data?: any) => {
+  if (DEBUG_LOGS) console.warn(`[Warning] ${message}`, data !== undefined ? data : '');
+}
+
+const logDebug = (message: string, data?: any) => {
+  if (DEBUG_LOGS) console.debug(`[Debug] ${message}`, data !== undefined ? data : '');
+}
+
 /**
  * Componente de formulario para crear o editar grupos de agentes
  * Soporta dos modos de operación:
@@ -68,36 +87,69 @@ const GroupAgentForm = ({ searchParams }: { searchParams: { id?: string } }) => 
       userCompanyGroup: usersSelected.map(user => ({ userId: user.userId }))
     }
     
-    // Log para depuración
-    console.log(`Modo: ${isEditMode ? 'Edición' : 'Creación'}, GroupID: ${groupId || 'nuevo'}`)
-    console.log('Datos a guardar:', dataToSave)
+    // Logs de depuración con formato estándar
+    logInfo(`Modo de operación: ${isEditMode ? 'Edición' : 'Creación'}, GroupID: ${groupId || 'nuevo'}`);
+    logInfo(`Nombre del grupo a guardar: "${data.name}"`);
+    logInfo(`Total de agentes seleccionados: ${usersSelected.length}`);
+    logInfo('Detalle completo de datos a enviar:', JSON.stringify(dataToSave, null, 2));
     
     try {
       // Determinar si estamos creando o actualizando
       if (isEditMode && groupId) {
         // Modo edición - llamar al método update
-        await _GAS.update(groupId, dataToSave)
-          .then(() => {
-            showSuccess("Grupo de Agentes actualizado correctamente")
-            onClickAction()
-          }).catch((err) => {
-            console.error("Error al actualizar el grupo:", err.response?.data?.error || err.message)
-            showError("Error al actualizar el Grupo de Agentes: " + (err.response?.data?.error || err.message))
-          })
+        logInfo(`[ENDPOINT-CALL] Llamando a endpoint de actualización con ID: ${groupId}`);
+        
+        try {
+          // Capturamos y mostramos la respuesta completa para facilitar depuración
+          const startTime = Date.now();
+          const response = await _GAS.update(groupId, dataToSave);
+          const elapsed = Date.now() - startTime;
+          
+          logInfo(`[ENDPOINT-RESPONSE] Actualización completada en ${elapsed}ms`, response);
+          logDebug('Headers de respuesta:', response?.headers);
+          logDebug('Status de respuesta:', response?.status);
+          logDebug('Datos de respuesta:', response?.data);
+          
+          showSuccess("Grupo de Agentes actualizado correctamente");
+          onClickAction();
+        } catch (updateError: any) {
+          logError(`[ENDPOINT-ERROR] Error al actualizar grupo: ${updateError?.message}`, {
+            status: updateError?.response?.status,
+            statusText: updateError?.response?.statusText,
+            data: updateError?.response?.data,
+            message: updateError?.response?.data?.message || updateError?.message
+          });
+          showError(`Error al actualizar el Grupo de Agentes: ${updateError?.response?.data?.message || updateError?.message || 'Contacte al administrador'}`);
+        }
       } else {
         // Modo creación - llamar al método create
-        await _GAS.create(dataToSave)
-          .then(() => {
-            showSuccess("Grupo de Agentes creado correctamente")
-            onClickAction()
-          }).catch((err) => {
-            console.error("Error al crear el grupo:", err.response?.data?.error || err.message)
-            showError("Error al crear el Grupo de Agentes: " + (err.response?.data?.error || err.message))
-          })
+        logInfo('[ENDPOINT-CALL] Llamando a endpoint de creación');
+        
+        try {
+          const startTime = Date.now();
+          const response = await _GAS.create(dataToSave);
+          const elapsed = Date.now() - startTime;
+          
+          logInfo(`[ENDPOINT-RESPONSE] Creación completada en ${elapsed}ms`, response);
+          logDebug('Headers de respuesta:', response?.headers);
+          logDebug('Status de respuesta:', response?.status);
+          logDebug('Datos de respuesta:', response?.data);
+          
+          showSuccess("Grupo de Agentes creado correctamente");
+          onClickAction();
+        } catch (createError: any) {
+          logError(`[ENDPOINT-ERROR] Error al crear grupo: ${createError?.message}`, {
+            status: createError?.response?.status,
+            statusText: createError?.response?.statusText,
+            data: createError?.response?.data,
+            message: createError?.response?.data?.message || createError?.message
+          });
+          showError(`Error al crear el Grupo de Agentes: ${createError?.response?.data?.message || createError?.message || 'Contacte al administrador'}`);
+        }
       }
     } catch (error: any) {
-      console.error("Error inesperado:", error)
-      showError("Error inesperado: " + (error?.message || "Contacte al administrador"))
+      logError("[ERROR-GENERAL] Error inesperado guardando datos:", error);
+      showError(`Error inesperado: ${error?.message || "Contacte al administrador"}`);
     }
   }
 

@@ -54,15 +54,26 @@ const GroupAgentForm = ({ searchParams }: { searchParams: { id?: string } }) => 
   logInfo('Parámetros de la URL:', { id: idFromQuery, otherParams: Array.from(queryParams.entries()) });
   logInfo('Parámetros desde props:', searchParams);
   
-  // Determinar si estamos en modo edición usando ambas fuentes de datos
-  const isEditMode = !!(idFromQuery || searchParams?.id);
-  
   // Convertir el id a número, con preferencia al de URL directa que es más confiable
-  const groupId = idFromQuery ? parseInt(idFromQuery) : 
-                searchParams?.id ? parseInt(searchParams.id) : undefined;
+  let parsedId: number | undefined;
+  if (idFromQuery) {
+    parsedId = parseInt(idFromQuery);
+  } else if (searchParams?.id) {
+    parsedId = parseInt(searchParams.id);
+  }
+  
+  // Un ID es válido solo si es un número y mayor que 0
+  // ID = 0 no debe activar el modo edición ya que no es un ID válido en la base de datos
+  const isValidId = !isNaN(Number(parsedId)) && Number(parsedId) > 0;
+  
+  // Determinar si estamos en modo edición - solo si hay ID válido (>0)
+  const isEditMode = isValidId;
+  
+  // ID del grupo solo se asigna si es válido
+  const groupId = isValidId ? parsedId : undefined;
   
   // Registro detallado del estado de inicialización
-  logInfo(`Modo de operación detectado: ${isEditMode ? 'EDICIÓN' : 'CREACIÓN'}, ID: ${groupId || 'nuevo'}`)
+  logInfo(`Modo de operación detectado: ${isEditMode ? 'EDICIÓN' : 'CREACIÓN'}, ID: ${groupId || 'nuevo'}, ID de URL: ${idFromQuery}`)
   const { showError, showSuccess } = useToast()
 
   const { onClickAction } = usePush(ADMIN_ROUTES.GROUP_AGENT.LIST)

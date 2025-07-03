@@ -81,10 +81,31 @@ const GroupAgentList = () => {
     // Extendemos la configuración para agregar el manejador de edición
     actions: {
       edit: (rowData: any) => {
-        // Acceder a companyGroupUserid que es el ID correcto del grupo
-        // Usar el tipo 'any' ya que puede ser o GroupAgent o EnrichedGroupAgent
-        const groupId = rowData.companyGroupUserid || 0
-        handleEditGroup(groupId)
+        // Acceder al ID correcto del grupo, que puede estar en diferentes propiedades
+        // Según la estructura de datos retornada por el API
+        let groupId;
+        
+        // Intentamos encontrar un ID válido en orden de prioridad
+        if (rowData.companyGroupUserid && rowData.companyGroupUserid > 0) {
+          // Primera opción: companyGroupUserid (ID primario en API)
+          groupId = rowData.companyGroupUserid;
+          console.log(`[Debug] Usando companyGroupUserid: ${groupId}`);
+        } else if (rowData.id && rowData.id > 0) {
+          // Segunda opción: id regular
+          groupId = rowData.id;
+          console.log(`[Debug] Usando id: ${groupId}`);
+        } else if (rowData.groupId && rowData.groupId > 0) {
+          // Tercera opción: groupId explícito
+          groupId = rowData.groupId;
+          console.log(`[Debug] Usando groupId: ${groupId}`);
+        } else {
+          // No se encontró un ID válido - mostramos error y debugging
+          console.error('[Error] No se encontró un ID válido para el grupo:', rowData);
+          return; // No navegamos si no hay ID
+        }
+        
+        // Solo navegamos si encontramos un ID válido
+        handleEditGroup(groupId);
       }
     }
   })

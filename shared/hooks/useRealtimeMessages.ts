@@ -25,43 +25,65 @@ const useRealtimeMessages = (socketUrl: string) => {
   useEffect(() => {
     if (!socketUrl) return;
 
-    const newSocket = io(socketUrl, {
+    // Configuración mejorada para el socket
+    const socketOptions = {
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 5,
-      reconnectionDelay: 1000
-    });
+      reconnectionDelay: 1000,
+      transports: ['websocket', 'polling']
+    };
+
+    const newSocket = io(socketUrl, socketOptions);
 
     newSocket.on('connect', () => {
-      console.log('Socket connected');
+      console.log('✅ [Realtime] CONECTADO al socket:', socketUrl);
       setIsConnected(true);
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+      console.error('❌ [Realtime] ERROR DE CONEXIÓN:', error);
       setIsConnected(false);
     });
 
-    newSocket.on('disconnect', () => {
-      console.log('Socket disconnected');
+    newSocket.on('disconnect', (reason) => {
+      console.log('🔌 [Realtime] DESCONECTADO:', reason);
       setIsConnected(false);
     });
 
-    // Escucha mensajes entrantes
-    newSocket.on("message", (message: Message) => {
-      console.log('📥 [Realtime] Mensaje recibido:', message);
-      
-      // Verificar si es mensaje del cliente
-      if (message.owner === 'CUSTOMER' || message.from) {
-        console.log('✅ [Realtime] Mensaje del cliente detectado:', {
+    // Evento de mensaje que usa el backend
+    newSocket.on('message', (data: any) => {
+      console.log('📥 [Realtime] Mensaje de WhatsApp recibido:', {
+        id: data.id,
+        from: data.from,
+        text: data.text?.body,
+        timestamp: data.timestamp,
+        owner: data.from ? 'CUSTOMER' : 'AGENT'
+      });
+
+      // Transformar el mensaje del formato del webhook a nuestro formato
+      const message: Message = {
+        from: data.from,
+        text: data.text?.body || '',
+        content: data.text?.body || '',
+        timestamp: data.timestamp,
+        sentAt: parseInt(data.timestamp) * 1000,
+        owner: data.from ? 'CUSTOMER' : 'AGENT',
+        idWhatsapp: data.id,
+        conversationId: Number(data.from) // Usar el número de teléfono como ID de conversación
+      };
+
+      // Solo agregar si es un mensaje del cliente
+      if (message.owner === 'CUSTOMER') {
+        console.log('✅ [Realtime] Mensaje del cliente transformado:', {
+          id: message.idWhatsapp,
           from: message.from,
           text: message.text,
-          idWhatsapp: message.idWhatsapp,
-          timestamp: message.timestamp
+          timestamp: message.timestamp,
+          sentAt: message.sentAt
         });
+        setMessages((prev) => [...prev, message]);
       }
-
-      setMessages((prev) => [...prev, message]);
     });
 
     setSocket(newSocket);
@@ -71,7 +93,7 @@ const useRealtimeMessages = (socketUrl: string) => {
         newSocket.off('connect');
         newSocket.off('connect_error');
         newSocket.off('disconnect');
-        newSocket.off('message');
+        newSocket.off('whatsapp:message');
         newSocket.disconnect();
       }
     };

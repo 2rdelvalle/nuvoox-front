@@ -220,13 +220,28 @@ export const ChatBox = () => {
 
   // Manejo de mensajes entrantes - versión optimizada
   useEffect(() => {
-    // Evitar procesamiento si no hay mensajes
+    // Log de estado inicial
+    console.debug('[ChatBox] Estado inicial:', {
+      mensajesSocket: messagesSocket.length,
+      mensajesAlmacenados: storedMessages.length,
+      conversacionActiva: activeConversation?.conversationid
+    });
+
     if (!messagesSocket.length) return;
     
     // Procesar todos los mensajes a la vez para evitar múltiples renders
     const newMessages: MessageModel[] = [];
     
     messagesSocket.forEach(msg => {
+      // Log de mensaje recibido
+      console.debug('[ChatBox] Mensaje recibido:', {
+        id: msg.idWhatsapp,
+        tipo: msg.type,
+        propietario: msg.owner,
+        tieneContenido: !!msg.content,
+        tieneTexto: !!msg.text,
+        timestamp: msg.timestamp
+      });
       // 1. Transformar mensaje a formato MessageModel
       const transformedMsg: MessageModel = {
         content: msg.content || '',
@@ -261,6 +276,14 @@ export const ChatBox = () => {
       if (!isDuplicate) {
         newMessages.push(transformedMsg);
         
+        // Log de mensaje transformado
+        console.debug('[ChatBox] Mensaje transformado:', {
+          id: transformedMsg.id,
+          conversationId: transformedMsg.conversationId,
+          owner: transformedMsg.owner,
+          hasContent: !!transformedMsg.content
+        });
+
         // Gestionar contador de mensajes no leídos para mensajes del cliente
         // que no pertenecen a la conversación activa
         if (transformedMsg.owner === MESSAGE_OWNER.CLIENT && 
@@ -877,6 +900,11 @@ useEffect(() => {
 
   // Mensajes a mostrar con filtro de búsqueda si es necesario
   const displayedMessages = useMemo(() => {
+    // Log de mensajes filtrados
+    console.debug('[ChatBox] Filtrando mensajes:', {
+      totalMensajes: storedMessages.length,
+      conversacionActiva: activeConversation?.conversationid
+    });
     // Removed console logs to prevent infinite loop
     
     if (storedMessages.length === 0) {
@@ -950,6 +978,13 @@ useEffect(() => {
           {/* Filtramos los mensajes si hay un término de búsqueda */}
           {displayedMessages
             .map((message : MessageModel, i : number) => {
+              // Log de mensaje renderizado
+              console.debug('[ChatBox] Renderizando mensaje:', {
+                id: message.id,
+                owner: message.owner,
+                conversationId: message.conversationId,
+                hasContent: !!message.content
+              });
             return (
               <div key={i}>
                 {message.owner !== MESSAGE_OWNER.CLIENT

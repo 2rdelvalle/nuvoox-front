@@ -62,12 +62,16 @@ const MasiveChat: React.FC = () => {
   // trae los numeros de la empresa que maneja el ajente
   const { data: numbersOfMaintance } =
     useSWRFetch<NumbersOfMaintanceCaratule[]>(`/companies/getNumbersOfMaintance/${dataFromToken?.user?.company?.companyId}`)
-  // DEBUG: Verificar números de mantenimiento
-  // console.log('Números de mantenimiento:', numbersOfMaintance)
+  console.log('Números de mantenimiento:', numbersOfMaintance?.map(n => ({
+    number: n.number,
+    idNumberPhone: n.idNumberPhone
+  })))
 
   const { responseData: dataTemplates } = useFetch(_template.getAll)
-  // DEBUG: Verificar plantillas disponibles
-  // console.log('Plantillas disponibles:', dataTemplates)
+  console.log('Plantillas disponibles:', dataTemplates?.map(t => ({
+    name: t.name,
+    categoryTemplateWhatsapp: t.categoryTemplateWhatsapp
+  })))
 
   const fileUploadRef = useRef<any>(null) // Referencia para FileUpload de plantillas normales
   const multimediaFileUploadRef = useRef<any>(null) // Referencia para FileUpload de plantillas multimedia
@@ -81,14 +85,28 @@ const MasiveChat: React.FC = () => {
 
   // Función auxiliar para validar cada registro
   const isRowValid = (row: CsvRow) => {
-    // DEBUG: Logs de validación
-    // console.log('Validando fila:', row)
-    // console.log('Plantillas disponibles:', dataTemplates?.map(t => t.name))
-    // console.log('Plantilla buscada:', row.templateName)
-    // console.log('Validación origen:', (numbersOfMaintance || []).some((item) => Number(item.number) === Number(row.originPhone)))
-    // console.log('Validación plantilla:', (dataTemplates || []).some((template: any) => template.name === row.templateName))
-    const originValid = (numbersOfMaintance || []).some((item) => Number(item.number) === Number(row.originPhone))
-    const templateValid = (dataTemplates || []).some((template: any) => template.name === row.templateName)
+    console.log('Validando fila:', {
+      templateName: row.templateName,
+      originPhone: row.originPhone
+    })
+    
+    console.log('Plantillas disponibles:', dataTemplates?.map(t => t.name))
+    console.log('Plantilla buscada:', row.templateName)
+    
+    // Verificar si el número de origen existe
+    const originMatch = numbersOfMaintance?.find((item: { number?: string | number }) => 
+      item.number?.toString() === row.originPhone.toString()
+    )
+    console.log('Número de origen encontrado:', originMatch)
+    
+    // Verificar si la plantilla existe
+    const templateMatch = dataTemplates?.find(template => 
+      template.name === row.templateName
+    )
+    console.log('Plantilla encontrada:', templateMatch)
+    
+    const originValid = originMatch !== undefined
+    const templateValid = templateMatch !== undefined
     return originValid && templateValid
   }
 

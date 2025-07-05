@@ -99,10 +99,13 @@ const MasiveChat: React.FC = () => {
     )
     console.log('Número de origen encontrado:', originMatch)
     
-    // Verificar si la plantilla existe
-    const templateMatch = dataTemplates?.find(template => 
-      template.name === row.templateName
-    )
+    // Verificar si la plantilla existe (comparación flexible)
+    const templateMatch = dataTemplates?.find(template => {
+      // Convertir ambos nombres a minúsculas y eliminar espacios
+      const templateName = template.name?.toLowerCase().replace(/\s+/g, '')
+      const searchName = row.templateName.toLowerCase().replace(/\s+/g, '')
+      return templateName === searchName
+    })
     console.log('Plantilla encontrada:', templateMatch)
     
     const originValid = originMatch !== undefined

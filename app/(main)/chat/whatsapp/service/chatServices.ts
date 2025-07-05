@@ -91,15 +91,18 @@ export async function sendPlainMessage (to: string, message: string, token: stri
  * @returns true si se envió correctamente.
  */
 export async function sendTemplateMessage (recipientPhone: string,
-  accessToken: string, senderId: string, nameTemplate: string): Promise<boolean> {
+  accessToken: string, senderId: string, nameTemplate: string, companyId: number): Promise<boolean> {
+  // Agregar prefijo del ID de empresa al nombre de la plantilla
+  const templateNameWithPrefix = `${companyId}_${nameTemplate}`;
+  
   const apiUrl = `https://graph.facebook.com/v22.0/${senderId}/messages`
   const messageData = {
     messaging_product: "whatsapp",
     to: recipientPhone,
     type: "template",
     template: {
-      name: nameTemplate,
-      language: { code: "ES" }
+      name: templateNameWithPrefix,
+      language: { code: "es_ES" }
     }
   }
   try {

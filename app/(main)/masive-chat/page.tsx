@@ -302,29 +302,41 @@ const MasiveChat: React.FC = () => {
             continue
           }
           // Construir destinationPhone concatenando "+" con indicativo y teléfono destino
-          const newDestinationPhone = `+${row.indicativePhone}${row.destinationPhone}`
+          const newDestinationPhone = `+${row.indicativePhone}${row.destinationPhone}`;
+
           try {
+            // Validar que el ID y las iniciales de la empresa existan
+            if (!companyId || !dataFromToken?.user?.company?.name) {
+              throw new Error("No se pudo obtener la información de la empresa");
+            }
+
+            // Obtener las dos primeras letras del nombre de la empresa
+            const companyInitials = dataFromToken.user.company.name.substring(0, 2);
+            
+            // Actualizar costos según categoría de la plantilla
+            const template = dataTemplates.find((t: any) => t.name === row.templateName);
+            if (template) {
+              if (template.categoryTemplateWhatsapp === "UTILITY") {
+                templateCosts.utility += 0.0002;
+              } else if (template.categoryTemplateWhatsapp === "MARKETING") {
+                templateCosts.marketing += 0.0125;
+              }
+            }
+
+            // Enviar la plantilla
             await sendTemplateMessage(
               newDestinationPhone,
               maintRecord.IdAccountWB as any, // token de acceso desde numbersOfMaintance
               maintRecord.idNumberPhone as any, // senderId desde numbersOfMaintance
-              row.templateName
-            )
-            
-            results.push({ row, success: true })
-            successfulSends.push(row)
-            
-            // Actualizar costos según categoría de la plantilla
-            const template = dataTemplates.find((t: any) => t.name === row.templateName)
-            if (template) {
-              if (template.categoryTemplateWhatsapp === "UTILITY") {
-                templateCosts.utility += 0.0002
-              } else if (template.categoryTemplateWhatsapp === "MARKETING") {
-                templateCosts.marketing += 0.0125
-              }
-            }
+              row.templateName,
+              companyId,
+              companyInitials
+            );
+
+            results.push({ row, success: true });
+            successfulSends.push(row);
           } catch (err) {
-            results.push({ row, success: false, error: err })
+            results.push({ row, success: false, error: err });
           }
         }
       }
@@ -334,8 +346,8 @@ const MasiveChat: React.FC = () => {
         await updateBalanceAfterSendingTemplates(successfulSends, templateCosts);
       }
       
-      setSendResults(results)
-      setShowSendModal(true)
+      setSendResults(results);
+      setShowSendModal(true);
     }
   }, [csvData, numbersOfMaintance, dataTemplates, updateBalanceAfterSendingTemplates, setSendResults, setShowSendModal]);
 
@@ -409,11 +421,18 @@ const MasiveChat: React.FC = () => {
               }
             } else {
               // Si no es multimedia, enviar como plantilla normal
+              // Validar que el ID y nombre de la empresa existan
+              if (!companyId || !dataFromToken?.user?.company?.name) {
+                throw new Error("No se pudo obtener la información de la empresa")
+              }
+              
               await sendTemplateMessage(
                 newDestinationPhone,
-                maintRecord.IdAccountWB as any,
-                maintRecord.idNumberPhone as any,
-                row.templateName
+                maintRecord.IdAccountWB as any, // token de acceso desde numbersOfMaintance
+                maintRecord.idNumberPhone as any, // senderId desde numbersOfMaintance
+                row.templateName,
+                companyId,
+                dataFromToken.user.company.name.substring(0, 2)
               )
               results.push({ row, success: true })
               successfulSends.push(row)

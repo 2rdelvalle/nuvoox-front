@@ -111,10 +111,10 @@ const NewNumber = ({ updateData } : propsNewNumber) => {
       showError("El número de origen no tiene configuración completa de WhatsApp Business. Verifica que tenga ID y token de acceso.")
       return false;
     }
-
-    // Validar que el ID de la empresa exista
-    if (!user?.company?.companyId) {
-      showError("No se pudo obtener el ID de la empresa del usuario. Por favor, intenta nuevamente.")
+    
+    // Validar que el ID y nombre de la empresa existan
+    if (!user.company.companyId || !user.company.name) {
+      showError("No se pudo obtener la información de la empresa. Por favor, intenta nuevamente.")
       return false;
     }
     
@@ -157,7 +157,8 @@ const NewNumber = ({ updateData } : propsNewNumber) => {
             accessToken,
             senderId,
             selectedTemplate.name,
-            user.company.companyId
+            user.company.companyId,
+            user.company.name.substring(0, 2)
           );
           
           // Solo actualizamos los datos, no reseteamos automáticamente

@@ -88,12 +88,22 @@ export async function sendPlainMessage (to: string, message: string, token: stri
  * @param recipientPhone Número de teléfono del destinatario (con signo +).
  * @param accessToken Token de acceso para la API.
  * @param senderId Identificador del teléfono remitente.
+ * @param nameTemplate Nombre de la plantilla sin prefijo.
+ * @param companyId ID de la empresa.
+ * @param companyInitials Dos primeras letras del nombre de la empresa.
  * @returns true si se envió correctamente.
  */
-export async function sendTemplateMessage (recipientPhone: string,
-  accessToken: string, senderId: string, nameTemplate: string, companyId: number): Promise<boolean> {
-  // Agregar prefijo del ID de empresa al nombre de la plantilla
-  const templateNameWithPrefix = `${companyId}_${nameTemplate}`;
+export async function sendTemplateMessage (
+  recipientPhone: string,
+  accessToken: string, 
+  senderId: string, 
+  nameTemplate: string, 
+  companyId: number,
+  companyInitials: string
+): Promise<boolean> {
+  // Agregar prefijo (ID de empresa + iniciales)
+  const prefix = `${companyId}${companyInitials.toLowerCase()}_`;
+  const templateNameWithPrefix = `${prefix}${nameTemplate}`;
   
   const apiUrl = `https://graph.facebook.com/v22.0/${senderId}/messages`
   const messageData = {

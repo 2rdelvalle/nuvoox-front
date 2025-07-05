@@ -216,20 +216,6 @@ const CompanyTariffModal = ({
     });
   };
 
-  // Footer del modal con botones de acción
-  const renderFooter = () => {
-    return (
-      <div>
-        <Button 
-          label="Cerrar" 
-          icon="pi pi-times" 
-          onClick={onClose} 
-          className="p-button-text" 
-        />
-      </div>
-    );
-  };
-
   return (
     <Dialog
       header={`Configurar Tarifas - ${companyName}`}
@@ -237,7 +223,16 @@ const CompanyTariffModal = ({
       style={{ width: '80vw', maxWidth: '600px' }}
       modal
       onHide={onClose}
-      footer={renderFooter()}
+      footer={
+        <div>
+          <Button 
+            label="Cerrar" 
+            icon="pi pi-times" 
+            onClick={onClose} 
+            className="p-button-text" 
+          />
+        </div>
+      }
     >
       <div className="p-fluid">
         <div className="card mb-4">
@@ -278,7 +273,7 @@ const CompanyTariffModal = ({
               disabled={loading}
             />
             <small className="text-gray-500">
-              Seleccione "Todas las plantillas" para aplicar a todos los tipos
+              Seleccione &quot;Todas las plantillas&quot; para aplicar a todos los tipos
             </small>
           </div>
           
@@ -295,7 +290,7 @@ const CompanyTariffModal = ({
               disabled={loading}
             />
             <small className="text-gray-500">
-              Seleccione "Todos los países" para aplicar a todos los destinos
+              Seleccione &quot;Todos los países&quot; para aplicar a todos los destinos
             </small>
           </div>
           

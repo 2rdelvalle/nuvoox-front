@@ -648,10 +648,23 @@ useEffect(() => {
     const accessToken = `${actualNumberOfMaintanceSelected?.IdAccountWB}`
     const recipientPhone = `+${activeConversation?.phone}`
     const idNumberFromSendMessage = `${actualNumberOfMaintanceSelected?.idNumberPhone}`
+    const companyId = dataToken?.user.company.companyId
+
+    // Validar que el ID de la empresa exista
+    if (!companyId) {
+      showError("No se pudo obtener el ID de la empresa. Por favor, intenta nuevamente.")
+      return
+    }
 
     try {
       // Llama al servicio para enviar el template
-      const ok = await sendTemplateMessage(recipientPhone, accessToken, idNumberFromSendMessage, selectedTemplate.name)
+      const ok = await sendTemplateMessage(
+        recipientPhone,
+        accessToken,
+        idNumberFromSendMessage,
+        selectedTemplate.name,
+        dataToken!.user.company.companyId!
+      )
       if (ok) {
         showSuccess("Mensaje enviado")
         // Actualizar el saldo después de enviar la plantilla

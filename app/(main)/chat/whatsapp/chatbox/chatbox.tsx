@@ -54,7 +54,7 @@ export const ChatBox = () => {
   const dataToken = token ? getDataFromToken(token) : null
   // const defaultUserId = dataToken?.user.userId
   const { messages: messagesSocket } = useRealtimeMessages(`${process.env.NEXT_PUBLIC_SOCKET_URL}`);
-  const { messages: storedMessages, setMessages } = useMessageStore();
+  const { messages: storedMessages, setMessages, pushMessage } = useMessageStore();
   const { onClickAction } = usePush("/auth/login")
 
   // ESTADOS ---
@@ -220,99 +220,62 @@ export const ChatBox = () => {
 
   // Manejo de mensajes entrantes - versión optimizada
   useEffect(() => {
-    // Log de estado inicial
-    console.debug('[ChatBox] Estado inicial:', {
-      mensajesSocket: messagesSocket.length,
-      mensajesAlmacenados: storedMessages.length,
-      conversacionActiva: activeConversation?.conversationid
-    });
-
+    // Limpiar mensajes del socket antes de procesar nuevos
+    const { clearMessages } = useRealtimeMessages(`${process.env.NEXT_PUBLIC_SOCKET_URL}`);
+    clearMessages();
+    
     if (!messagesSocket.length) return;
     
     // Procesar todos los mensajes a la vez para evitar múltiples renders
     const newMessages: MessageModel[] = [];
     
     messagesSocket.forEach(msg => {
-      // Log de mensaje recibido
-      console.debug('[ChatBox] Mensaje recibido:', {
-        id: msg.idWhatsapp,
-        tipo: msg.type,
-        propietario: msg.owner,
-        tieneContenido: !!msg.content,
-        tieneTexto: !!msg.text,
-        timestamp: msg.timestamp
-      });
       // 1. Transformar mensaje a formato MessageModel
       const transformedMsg: MessageModel = {
         content: msg.content || '',
         owner: msg.owner === 'CUSTOMER' ? MESSAGE_OWNER.CLIENT : MESSAGE_OWNER.AGENT,
         sentAt: msg.sentAt || Date.now(),
         type: MESSAGE_TYPE.TEXT,
-        // Asegurarse que tenga el conversationId correcto
         conversationId: activeConversation?.conversationid || 0,
         from: msg.from || '',
-        id: Date.now(), // ID temporal 
+        id: Date.now(),
         idWhatsapp: msg.idWhatsapp || ''
       };
-      
+
       // 2. Verificar si el mensaje ya existe para evitar duplicados
-      const isDuplicate = storedMessages.some(existingMsg => {
-        // Verificación principal por idWhatsapp si está disponible
-        if (existingMsg.idWhatsapp && msg.idWhatsapp) {
-          return existingMsg.idWhatsapp === msg.idWhatsapp;
-        }
-        
-        // Verificación por contenido y remitente y tiempo aproximado
-        const contentAndFromMatch = existingMsg.content === msg.content && existingMsg.from === msg.from;
-        
-        if (contentAndFromMatch && existingMsg.sentAt && msg.sentAt) {
-          return Math.abs(existingMsg.sentAt - msg.sentAt) < 10000; // 10 segundos de tolerancia
-        }
-        
-        return contentAndFromMatch;
-      });
-      
+      const isDuplicate = storedMessages.some(existingMsg => 
+        existingMsg.idWhatsapp === msg.idWhatsapp
+      );
+
       // Solo añadir mensajes no duplicados
       if (!isDuplicate) {
         newMessages.push(transformedMsg);
         
-        // Log de mensaje transformado
-        console.debug('[ChatBox] Mensaje transformado:', {
-          id: transformedMsg.id,
-          conversationId: transformedMsg.conversationId,
-          owner: transformedMsg.owner,
-          hasContent: !!transformedMsg.content
-        });
-
         // Gestionar contador de mensajes no leídos para mensajes del cliente
-        // que no pertenecen a la conversación activa
         if (transformedMsg.owner === MESSAGE_OWNER.CLIENT && 
             transformedMsg.conversationId &&
             (!activeConversation || transformedMsg.conversationId !== activeConversation.conversationid) &&
             typeof transformedMsg.conversationId === 'number') {
-          
           incrementUnreadCount(transformedMsg.conversationId);
           
           // Actualizar contador en localStorage también para persistencia
           try {
-            const conversation = useChatStore.getState().conversations.find(
-              c => c.conversationid === transformedMsg.conversationId
-            );
-            
-            if (conversation) {
-              const currentCount = conversation.unreadCount || 0;
-              localStorage.setItem(`unread_${transformedMsg.conversationId}`, String(currentCount + 1));
-            }
-          } catch (e) {
-            console.error('Error al actualizar contador:', e);
+            const unreadCounts = JSON.parse(localStorage.getItem('unreadCounts') || '{}');
+            unreadCounts[transformedMsg.conversationId] = 
+              (unreadCounts[transformedMsg.conversationId] || 0) + 1;
+            localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
+          } catch (error) {
+            console.error('Error al actualizar contador en localStorage:', error);
           }
         }
       }
     });
-    
-    // Actualizar el store con los nuevos mensajes
+
+    // Añadir mensajes nuevos al store usando pushMessage
     if (newMessages.length > 0) {
-      setMessages([...storedMessages, ...newMessages]);
+      newMessages.forEach(msg => {
+        pushMessage(msg);
+      });
       
       // Auto-scroll al último mensaje
       setTimeout(() => {
@@ -321,7 +284,7 @@ export const ChatBox = () => {
         }
       }, 100);
     }
-  }, [messagesSocket, activeConversation?.conversationid]); // Dependency más específica
+  }, [messagesSocket, storedMessages, activeConversation, pushMessage, chatWindow]);
 
   useEffect(() => {
     if (chatWindow.current) {

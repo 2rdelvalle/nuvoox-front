@@ -53,7 +53,7 @@ export const ChatBox = () => {
   const token = getCookieToken()
   const dataToken = token ? getDataFromToken(token) : null
   // const defaultUserId = dataToken?.user.userId
-  const { messages: messagesSocket } = useRealtimeMessages(`${process.env.NEXT_PUBLIC_SOCKET_URL}`);
+  const { messages: messagesSocket, clearMessages } = useRealtimeMessages(`${process.env.NEXT_PUBLIC_SOCKET_URL}`);
   const { messages: storedMessages, setMessages, pushMessage } = useMessageStore();
   const { onClickAction } = usePush("/auth/login")
 
@@ -221,7 +221,6 @@ export const ChatBox = () => {
   // Manejo de mensajes entrantes - versión optimizada
   useEffect(() => {
     // Limpiar mensajes del socket antes de procesar nuevos
-    const { clearMessages } = useRealtimeMessages(`${process.env.NEXT_PUBLIC_SOCKET_URL}`);
     clearMessages();
     
     if (!messagesSocket.length) return;
@@ -284,7 +283,7 @@ export const ChatBox = () => {
         }
       }, 100);
     }
-  }, [messagesSocket, storedMessages, activeConversation, pushMessage, chatWindow]);
+  }, [messagesSocket, storedMessages, activeConversation, pushMessage, chatWindow, clearMessages]);
 
   useEffect(() => {
     if (chatWindow.current) {

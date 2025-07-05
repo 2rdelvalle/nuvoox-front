@@ -115,6 +115,7 @@ const MasiveChat: React.FC = () => {
   const handleFileUpload = React.useCallback((event: { files: File[] }) => {
     const file = event.files[0]
     if (file) {
+      console.log('Iniciando carga de archivo Excel...')
       const reader = new FileReader()
       reader.onload = (e) => {
         const data = new Uint8Array(e.target?.result as ArrayBuffer)
@@ -123,14 +124,38 @@ const MasiveChat: React.FC = () => {
         const worksheet = workbook.Sheets[sheetName]
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[]
         const headers = jsonData[0] as string[]
-        const result: CsvRow[] = jsonData.slice(1).map((row: any[]) => {
+        console.log('Headers encontrados:', headers)
+        
+        // Verificar que todas las columnas requeridas existan
+        const requiredColumns = ['NOMBRE_PLANTILLA', 'TELEFONO_ORIGEN', 'TELEFONO_DESTINO', 'INDICATIVO_TELEFONO']
+        const missingColumns = requiredColumns.filter(col => headers.indexOf(col) === -1)
+        if (missingColumns.length > 0) {
+          console.error('Columnas faltantes:', missingColumns)
+          return
+        }
+
+        const result: CsvRow[] = jsonData.slice(1).map((row: any[], index) => {
+          const templateName = row[headers.indexOf("NOMBRE_PLANTILLA")]
+          const originPhone = row[headers.indexOf("TELEFONO_ORIGEN")]
+          const destinationPhone = row[headers.indexOf("TELEFONO_DESTINO")]
+          const indicativePhone = row[headers.indexOf("INDICATIVO_TELEFONO")]
+          
+          console.log(`Procesando fila ${index + 1}:`, {
+            templateName,
+            originPhone,
+            destinationPhone,
+            indicativePhone
+          })
+
           return {
-            templateName: row[headers.indexOf("NOMBRE_PLANTILLA")],
-            originPhone: row[headers.indexOf("TELEFONO_ORIGEN")],
-            destinationPhone: row[headers.indexOf("TELEFONO_DESTINO")],
-            indicativePhone: row[headers.indexOf("INDICATIVO_TELEFONO")]
+            templateName,
+            originPhone,
+            destinationPhone,
+            indicativePhone
           }
         })
+        
+        console.log('Datos procesados:', result)
         setCsvData(result)
         setShowModal(true)
       }

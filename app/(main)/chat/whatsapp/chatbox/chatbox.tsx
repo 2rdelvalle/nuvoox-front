@@ -228,9 +228,6 @@ export const ChatBox = () => {
       return;
     }
     
-    // Limpiar mensajes anteriores
-    clearMessages();
-    
     // Verificar si hay mensajes nuevos
     if (!messagesSocket.length) {
       console.log('ℹ️ [ChatBox] No hay mensajes en el socket');
@@ -929,27 +926,31 @@ useEffect(() => {
 
   // Mensajes a mostrar con filtro de búsqueda si es necesario
   const displayedMessages = useMemo(() => {
-    // Log de mensajes filtrados
+    // Filtrar mensajes de la conversación activa
+    const activeConversationMessages = storedMessages.filter(
+      msg => msg.conversationId === activeConversation?.conversationid
+    );
+
     console.debug('[ChatBox] Filtrando mensajes:', {
       totalMensajes: storedMessages.length,
+      mensajesConversacionActiva: activeConversationMessages.length,
       conversacionActiva: activeConversation?.conversationid
     });
-    // Removed console logs to prevent infinite loop
     
-    if (storedMessages.length === 0) {
+    if (activeConversationMessages.length === 0) {
       return [];
     }
     
     // Si hay texto de búsqueda, filtrar los mensajes
     if (searchText.trim()) {
       const searchLower = searchText.toLowerCase();
-      return storedMessages.filter(msg => 
+      return activeConversationMessages.filter(msg => 
         msg.content?.toLowerCase().includes(searchLower)
       );
     }
     
-    // Si no hay búsqueda, mostrar todos los mensajes
-    return storedMessages;
+    // Si no hay búsqueda, mostrar los mensajes de la conversación activa
+    return activeConversationMessages;
   }, [storedMessages, searchText]);
   
   // Removed message logging effect to prevent infinite loop

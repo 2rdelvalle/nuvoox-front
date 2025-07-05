@@ -112,7 +112,7 @@ export async function sendTemplateMessage (
     type: "template",
     template: {
       name: templateNameWithPrefix,
-      language: { code: "es_ES" }
+      language: { code: "es" }
     }
   }
   try {

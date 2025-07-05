@@ -53,7 +53,7 @@ export const ChatBox = () => {
   const token = getCookieToken()
   const dataToken = token ? getDataFromToken(token) : null
   // const defaultUserId = dataToken?.user.userId
-  const { messages: messagesSocket, clearMessages } = useRealtimeMessages(`${process.env.NEXT_PUBLIC_SOCKET_URL}`);
+  const { messages: messagesSocket, clearMessages, isConnected } = useRealtimeMessages(`${process.env.NEXT_PUBLIC_SOCKET_URL}`);
   const { messages: storedMessages, setMessages, pushMessage } = useMessageStore();
   const { onClickAction } = usePush("/auth/login")
 
@@ -220,22 +220,42 @@ export const ChatBox = () => {
 
   // Manejo de mensajes entrantes - versión optimizada
   useEffect(() => {
+    console.log('🔄 [ChatBox] Revisando mensajes en tiempo real...');
+    
+    // Si no hay conexión, no procesar mensajes
+    if (!isConnected) {
+      console.log('❌ [ChatBox] No hay conexión al socket');
+      return;
+    }
+    
     // Limpiar mensajes del socket antes de procesar nuevos
     clearMessages();
     
-    if (!messagesSocket.length) return;
+    if (!messagesSocket.length) {
+      console.log('ℹ️ [ChatBox] No hay mensajes en el socket');
+      return;
+    }
+    
+    console.log('ℹ️ [ChatBox] Procesando mensajes del socket:', messagesSocket.length);
     
     // Procesar todos los mensajes a la vez para evitar múltiples renders
     const newMessages: MessageModel[] = [];
     
     messagesSocket.forEach(msg => {
+      console.log('📥 [ChatBox] Procesando mensaje:', {
+        idWhatsapp: msg.idWhatsapp,
+        from: msg.from,
+        owner: msg.owner,
+        conversationId: msg.conversationId || activeConversation?.conversationid || 0
+      });
+      
       // 1. Transformar mensaje a formato MessageModel
       const transformedMsg: MessageModel = {
         content: msg.content || '',
         owner: msg.owner === 'CUSTOMER' ? MESSAGE_OWNER.CLIENT : MESSAGE_OWNER.AGENT,
         sentAt: msg.sentAt || Date.now(),
         type: MESSAGE_TYPE.TEXT,
-        conversationId: activeConversation?.conversationid || 0,
+        conversationId: msg.conversationId || activeConversation?.conversationid || 0,
         from: msg.from || '',
         id: Date.now(),
         idWhatsapp: msg.idWhatsapp || ''
@@ -250,11 +270,20 @@ export const ChatBox = () => {
       if (!isDuplicate) {
         newMessages.push(transformedMsg);
         
+        if (transformedMsg.owner === MESSAGE_OWNER.CLIENT) {
+          console.log('✅ [ChatBox] Mensaje del cliente añadido:', {
+            idWhatsapp: transformedMsg.idWhatsapp,
+            conversationId: transformedMsg.conversationId,
+            activeConversationId: activeConversation?.conversationid
+          });
+        }
+        
         // Gestionar contador de mensajes no leídos para mensajes del cliente
         if (transformedMsg.owner === MESSAGE_OWNER.CLIENT && 
             transformedMsg.conversationId &&
             (!activeConversation || transformedMsg.conversationId !== activeConversation.conversationid) &&
             typeof transformedMsg.conversationId === 'number') {
+          console.log('🔔 [ChatBox] Incrementando contador de no leídos para:', transformedMsg.conversationId);
           incrementUnreadCount(transformedMsg.conversationId);
           
           // Actualizar contador en localStorage también para persistencia
@@ -267,11 +296,14 @@ export const ChatBox = () => {
             console.error('Error al actualizar contador en localStorage:', error);
           }
         }
+      } else {
+        console.log('❌ [ChatBox] Mensaje duplicado:', msg.idWhatsapp);
       }
     });
 
-    // Añadir mensajes nuevos al store usando pushMessage
+    // Añadir mensajes nuevos al store
     if (newMessages.length > 0) {
+      console.log('✅ [ChatBox] Añadiendo mensajes nuevos al store:', newMessages.length);
       newMessages.forEach(msg => {
         pushMessage(msg);
       });
@@ -279,11 +311,14 @@ export const ChatBox = () => {
       // Auto-scroll al último mensaje
       setTimeout(() => {
         if (chatWindow.current) {
+          console.log(' ↓ [ChatBox] Auto-scroll activado');
           chatWindow.current.scrollTop = chatWindow.current.scrollHeight;
         }
       }, 100);
+    } else {
+      console.log('ℹ️ [ChatBox] No se añadieron mensajes nuevos');
     }
-  }, [messagesSocket, storedMessages, activeConversation, pushMessage, chatWindow, clearMessages]);
+  }, [messagesSocket, storedMessages, activeConversation, pushMessage, chatWindow, clearMessages, isConnected]);
 
   useEffect(() => {
     if (chatWindow.current) {

@@ -222,15 +222,16 @@ export const ChatBox = () => {
   useEffect(() => {
     console.log('🔄 [ChatBox] Revisando mensajes en tiempo real...');
     
-    // Si no hay conexión, no procesar mensajes
+    // Verificar conexión
     if (!isConnected) {
       console.log('❌ [ChatBox] No hay conexión al socket');
       return;
     }
     
-    // Limpiar mensajes del socket antes de procesar nuevos
+    // Limpiar mensajes anteriores
     clearMessages();
     
+    // Verificar si hay mensajes nuevos
     if (!messagesSocket.length) {
       console.log('ℹ️ [ChatBox] No hay mensajes en el socket');
       return;
@@ -242,58 +243,89 @@ export const ChatBox = () => {
     const newMessages: MessageModel[] = [];
     
     messagesSocket.forEach(msg => {
-      console.log('📥 [ChatBox] Procesando mensaje:', {
-        idWhatsapp: msg.idWhatsapp,
+      // Log detallado del mensaje recibido
+      console.log('📥 [ChatBox] Mensaje recibido:', {
+        id: msg.idWhatsapp,
         from: msg.from,
         owner: msg.owner,
-        conversationId: msg.conversationId || activeConversation?.conversationid || 0
+        text: msg.text,
+        content: msg.content,
+        conversationId: msg.conversationId,
+        timestamp: msg.timestamp,
+        sentAt: msg.sentAt
       });
       
-      // 1. Transformar mensaje a formato MessageModel
+      // Transformar mensaje a formato MessageModel
       const transformedMsg: MessageModel = {
-        content: msg.content || '',
+        content: msg.content || msg.text || '',
         owner: msg.owner === 'CUSTOMER' ? MESSAGE_OWNER.CLIENT : MESSAGE_OWNER.AGENT,
-        sentAt: msg.sentAt || Date.now(),
+        sentAt: msg.sentAt || (msg.timestamp ? parseInt(msg.timestamp) * 1000 : Date.now()),
         type: MESSAGE_TYPE.TEXT,
-        conversationId: msg.conversationId || activeConversation?.conversationid || 0,
+        conversationId: msg.conversationId ? Number(msg.conversationId) : activeConversation?.conversationid ? Number(activeConversation.conversationid) : undefined,
         from: msg.from || '',
-        id: Date.now(),
+        id: Number(msg.idWhatsapp) || Date.now(),
         idWhatsapp: msg.idWhatsapp || ''
       };
 
+      // Log del mensaje transformado
+      console.log('🔄 [ChatBox] Mensaje transformado:', {
+        id: transformedMsg.id,
+        from: transformedMsg.from,
+        owner: transformedMsg.owner,
+        content: transformedMsg.content,
+        conversationId: transformedMsg.conversationId
+      });
+      
+
+
       // 2. Verificar si el mensaje ya existe para evitar duplicados
       const isDuplicate = storedMessages.some(existingMsg => 
-        existingMsg.idWhatsapp === msg.idWhatsapp
+        existingMsg.idWhatsapp === transformedMsg.idWhatsapp
       );
+
+      // Log de verificación de duplicados
+      console.log('🔍 [ChatBox] Verificando duplicado:', {
+        isDuplicate,
+        idWhatsapp: transformedMsg.idWhatsapp
+      });
 
       // Solo añadir mensajes no duplicados
       if (!isDuplicate) {
         newMessages.push(transformedMsg);
         
+        // Log de mensaje añadido
+        console.log('✅ [ChatBox] Mensaje añadido al store:', {
+          id: transformedMsg.id,
+          from: transformedMsg.from,
+          content: transformedMsg.content,
+          conversationId: transformedMsg.conversationId
+        });
+
+        // Manejar mensajes del cliente
         if (transformedMsg.owner === MESSAGE_OWNER.CLIENT) {
           console.log('✅ [ChatBox] Mensaje del cliente añadido:', {
             idWhatsapp: transformedMsg.idWhatsapp,
             conversationId: transformedMsg.conversationId,
             activeConversationId: activeConversation?.conversationid
           });
-        }
-        
-        // Gestionar contador de mensajes no leídos para mensajes del cliente
-        if (transformedMsg.owner === MESSAGE_OWNER.CLIENT && 
-            transformedMsg.conversationId &&
-            (!activeConversation || transformedMsg.conversationId !== activeConversation.conversationid) &&
-            typeof transformedMsg.conversationId === 'number') {
-          console.log('🔔 [ChatBox] Incrementando contador de no leídos para:', transformedMsg.conversationId);
-          incrementUnreadCount(transformedMsg.conversationId);
-          
-          // Actualizar contador en localStorage también para persistencia
-          try {
-            const unreadCounts = JSON.parse(localStorage.getItem('unreadCounts') || '{}');
-            unreadCounts[transformedMsg.conversationId] = 
-              (unreadCounts[transformedMsg.conversationId] || 0) + 1;
-            localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
-          } catch (error) {
-            console.error('Error al actualizar contador en localStorage:', error);
+
+          // Actualizar contador de no leídos
+          if (transformedMsg.conversationId &&
+              (!activeConversation || transformedMsg.conversationId !== activeConversation.conversationid) &&
+              typeof transformedMsg.conversationId === 'number') {
+            console.log('🔔 [ChatBox] Incrementando contador de no leídos para:', transformedMsg.conversationId);
+            incrementUnreadCount(transformedMsg.conversationId);
+            
+            // Actualizar localStorage
+            try {
+              const unreadCounts = JSON.parse(localStorage.getItem('unreadCounts') || '{}');
+              unreadCounts[transformedMsg.conversationId] = 
+                (unreadCounts[transformedMsg.conversationId] || 0) + 1;
+              localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
+              console.log('💾 [ChatBox] Contador de no leídos actualizado en localStorage');
+            } catch (error) {
+              console.error('Error al actualizar contador en localStorage:', error);
+            }
           }
         }
       } else {

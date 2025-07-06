@@ -220,132 +220,73 @@ export const ChatBox = () => {
 
   // Manejo de mensajes entrantes - versión optimizada
   useEffect(() => {
-    console.log('🔄 [ChatBox] Revisando mensajes en tiempo real...');
-    
-    // Verificar conexión
-    if (!isConnected) {
-      console.log('❌ [ChatBox] No hay conexión al socket');
+    // Verificar conexión y si hay mensajes para procesar
+    if (!isConnected || !messagesSocket.length || !activeConversation?.conversationid) {
       return;
     }
     
-    // Verificar si hay mensajes nuevos
-    if (!messagesSocket.length) {
-      console.log('ℹ️ [ChatBox] No hay mensajes en el socket');
-      return;
-    }
-    
-    console.log('ℹ️ [ChatBox] Procesando mensajes del socket:', messagesSocket.length);
-    
-    // Procesar todos los mensajes a la vez para evitar múltiples renders
-    const newMessages: MessageModel[] = [];
-    
-    messagesSocket.forEach(msg => {
-      // Log detallado del mensaje recibido
-      console.log('📥 [ChatBox] Mensaje recibido:', {
-        id: msg.idWhatsapp,
-        from: msg.from,
-        owner: msg.owner,
-        text: msg.text,
-        content: msg.content,
-        conversationId: msg.conversationId,
-        timestamp: msg.timestamp,
-        sentAt: msg.sentAt
-      });
+    // Filtrar mensajes relevantes para la conversación actual
+    const relevantMessages = messagesSocket.filter(msg => {
+      // Verificar si el mensaje es para la conversación actual
+      const isForCurrentConversation = 
+        msg.conversationId === activeConversation.conversationid ||
+        msg.from === activeConversation.phone?.replace(/\+/g, '') ||
+        activeConversation.phone?.includes(msg.from || '');
       
-      // Transformar mensaje a formato MessageModel
+      // Verificar si el mensaje ya existe
+      const isDuplicate = msg.idWhatsapp 
+        ? storedMessages.some(m => m.idWhatsapp === msg.idWhatsapp)
+        : false;
+      
+      return isForCurrentConversation && !isDuplicate;
+    });
+    
+    if (!relevantMessages.length) return;
+    
+    // Transformar y agregar mensajes al store
+    const newMessages = relevantMessages.map(msg => {
       const transformedMsg: MessageModel = {
         content: msg.content || msg.text || '',
         owner: msg.owner === 'CUSTOMER' ? MESSAGE_OWNER.CLIENT : MESSAGE_OWNER.AGENT,
         sentAt: msg.sentAt || (msg.timestamp ? parseInt(msg.timestamp) * 1000 : Date.now()),
         type: MESSAGE_TYPE.TEXT,
-        conversationId: msg.conversationId ? Number(msg.conversationId) : activeConversation?.conversationid ? Number(activeConversation.conversationid) : undefined,
+        conversationId: activeConversation.conversationid,
         from: msg.from || '',
-        id: Number(msg.idWhatsapp) || Date.now(),
+        id: msg.idWhatsapp ? Number(msg.idWhatsapp) : Date.now(),
         idWhatsapp: msg.idWhatsapp || ''
       };
-
-      // Log del mensaje transformado
-      console.log('🔄 [ChatBox] Mensaje transformado:', {
-        id: transformedMsg.id,
-        from: transformedMsg.from,
-        owner: transformedMsg.owner,
-        content: transformedMsg.content,
-        conversationId: transformedMsg.conversationId
-      });
       
-
-
-      // 2. Verificar si el mensaje ya existe para evitar duplicados
-      const isDuplicate = storedMessages.some(existingMsg => 
-        existingMsg.idWhatsapp === transformedMsg.idWhatsapp
-      );
-
-      // Log de verificación de duplicados
-      console.log('🔍 [ChatBox] Verificando duplicado:', {
-        isDuplicate,
-        idWhatsapp: transformedMsg.idWhatsapp
-      });
-
-      // Solo añadir mensajes no duplicados
-      if (!isDuplicate) {
-        newMessages.push(transformedMsg);
-        
-        // Log de mensaje añadido
-        console.log('✅ [ChatBox] Mensaje añadido al store:', {
-          id: transformedMsg.id,
-          from: transformedMsg.from,
-          content: transformedMsg.content,
-          conversationId: transformedMsg.conversationId
-        });
-
-        // Manejar mensajes del cliente
-        if (transformedMsg.owner === MESSAGE_OWNER.CLIENT) {
-          console.log('✅ [ChatBox] Mensaje del cliente añadido:', {
-            idWhatsapp: transformedMsg.idWhatsapp,
-            conversationId: transformedMsg.conversationId,
-            activeConversationId: activeConversation?.conversationid
-          });
-
-          // Actualizar contador de no leídos
-          if (transformedMsg.conversationId &&
-              (!activeConversation || transformedMsg.conversationId !== activeConversation.conversationid) &&
-              typeof transformedMsg.conversationId === 'number') {
-            console.log('🔔 [ChatBox] Incrementando contador de no leídos para:', transformedMsg.conversationId);
-            incrementUnreadCount(transformedMsg.conversationId);
-            
-            // Actualizar localStorage
-            try {
-              const unreadCounts = JSON.parse(localStorage.getItem('unreadCounts') || '{}');
-              unreadCounts[transformedMsg.conversationId] = 
-                (unreadCounts[transformedMsg.conversationId] || 0) + 1;
-              localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
-              console.log('💾 [ChatBox] Contador de no leídos actualizado en localStorage');
-            } catch (error) {
-              console.error('Error al actualizar contador en localStorage:', error);
-            }
+      // Manejar mensajes del cliente (para contadores de no leídos)
+      if (transformedMsg.owner === MESSAGE_OWNER.CLIENT) {
+        // Actualizar contador de no leídos si es necesario
+        if (typeof transformedMsg.conversationId === 'number') {
+          incrementUnreadCount(transformedMsg.conversationId);
+          
+          // Actualizar localStorage
+          try {
+            const unreadCounts = JSON.parse(localStorage.getItem('unreadCounts') || '{}');
+            unreadCounts[transformedMsg.conversationId] = 
+              (unreadCounts[transformedMsg.conversationId] || 0) + 1;
+            localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
+          } catch (error) {
+            console.error('Error al actualizar contador en localStorage:', error);
           }
         }
-      } else {
-        console.log('❌ [ChatBox] Mensaje duplicado:', msg.idWhatsapp);
       }
+      
+      return transformedMsg;
     });
-
-    // Añadir mensajes nuevos al store
+    
+    // Agregar mensajes al store
     if (newMessages.length > 0) {
-      console.log('✅ [ChatBox] Añadiendo mensajes nuevos al store:', newMessages.length);
-      newMessages.forEach(msg => {
-        pushMessage(msg);
-      });
+      newMessages.forEach(pushMessage);
       
       // Auto-scroll al último mensaje
       setTimeout(() => {
         if (chatWindow.current) {
-          console.log(' ↓ [ChatBox] Auto-scroll activado');
           chatWindow.current.scrollTop = chatWindow.current.scrollHeight;
         }
       }, 100);
-    } else {
-      console.log('ℹ️ [ChatBox] No se añadieron mensajes nuevos');
     }
   }, [messagesSocket, storedMessages, activeConversation, pushMessage, chatWindow, clearMessages, isConnected]);
 
@@ -926,32 +867,28 @@ useEffect(() => {
 
   // Mensajes a mostrar con filtro de búsqueda si es necesario
   const displayedMessages = useMemo(() => {
+    if (!activeConversation?.conversationid) return [];
+    
     // Filtrar mensajes de la conversación activa
     const activeConversationMessages = storedMessages.filter(
-      msg => msg.conversationId === activeConversation?.conversationid
+      msg => msg.conversationId === activeConversation.conversationid
     );
-
-    console.debug('[ChatBox] Filtrando mensajes:', {
-      totalMensajes: storedMessages.length,
-      mensajesConversacionActiva: activeConversationMessages.length,
-      conversacionActiva: activeConversation?.conversationid
-    });
     
-    if (activeConversationMessages.length === 0) {
-      return [];
-    }
+    // Ordenar por fecha
+    const sortedMessages = [...activeConversationMessages].sort(
+      (a, b) => (a.sentAt || 0) - (b.sentAt || 0)
+    );
     
-    // Si hay texto de búsqueda, filtrar los mensajes
+    // Aplicar filtro de búsqueda si existe
     if (searchText.trim()) {
       const searchLower = searchText.toLowerCase();
-      return activeConversationMessages.filter(msg => 
+      return sortedMessages.filter(msg => 
         msg.content?.toLowerCase().includes(searchLower)
       );
     }
     
-    // Si no hay búsqueda, mostrar los mensajes de la conversación activa
-    return activeConversationMessages;
-  }, [storedMessages, searchText]);
+    return sortedMessages;
+  }, [storedMessages, searchText, activeConversation?.conversationid]);
   
   // Removed message logging effect to prevent infinite loop
 

@@ -86,8 +86,10 @@ const DialogTransfer = () => {
       userAgentOriginId: dataToken.userId
     }
     try {
+      console.log("Transfer payload:", transfer);
       await _conversation.transferChat(transfer)
         .then((res) => {
+          console.log("Transfer response:", res);
           if (res.status === 201) {
             showSuccess("Chat Transferido Exitosamente")
             setDialogTransfer(false)

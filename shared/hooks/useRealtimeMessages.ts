@@ -1,158 +1,155 @@
-import { useEffect, useState, useCallback } from "react";
-import { io, Socket } from "socket.io-client";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { io, Socket, ManagerOptions, SocketOptions } from "socket.io-client";
 
-// Define el tipo de mensaje con todas las propiedades necesarias
 interface Message {
   from: string;
   text: string;
   timestamp: string;
-  // Propiedades adicionales que se usan en la aplicación
   idWhatsapp?: string;
-  content?: string; 
+  content?: string;
   sentAt?: number;
   owner?: string;
   type?: string;
   numberDestination?: string;
   received?: boolean;
-  conversationId?: string | number; // Actualizado para soportar string y number
+  conversationId?: string | number;
 }
 
-const useRealtimeMessages = (socketUrl: string) => {
+interface UseRealtimeMessagesReturn {
+  messages: Message[];
+  isConnected: boolean;
+  clearMessages: () => void;
+}
+
+const useRealtimeMessages = (socketUrl: string): UseRealtimeMessagesReturn => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
+  const isConnectingRef = useRef(false);
 
   // Función para limpiar mensajes
   const clearMessages = useCallback(() => {
     setMessages([]);
   }, []);
 
-  useEffect(() => {
-    if (!socketUrl) {
-      console.error('❌ [Realtime] No se proporcionó una URL de socket');
-      return;
+  // Función para manejar mensajes entrantes
+  const handleIncomingMessage = useCallback((data: any) => {
+    let newMessage: Message | null = null;
+
+    // Verificar si es un mensaje de WhatsApp
+    if (data.entry) {
+      const message = data.entry[0]?.changes[0]?.value?.messages?.[0];
+      if (!message) return;
+      
+      // Crear ID único para el mensaje
+      const messageId = message.id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      newMessage = {
+        from: message.from,
+        text: message.text?.body || '',
+        content: message.text?.body || '',
+        timestamp: message.timestamp,
+        sentAt: parseInt(message.timestamp) * 1000,
+        owner: 'CUSTOMER',
+        idWhatsapp: messageId,
+        conversationId: message.from,
+        type: message.type || 'text'
+      };
+    } else if (data && typeof data === 'object' && data.idWhatsapp) {
+      // Si es un mensaje ya transformado del backend
+      newMessage = {
+        from: data.from,
+        text: data.text || data.content || '',
+        content: data.content || data.text || '',
+        timestamp: data.timestamp || Date.now().toString(),
+        sentAt: data.sentAt || (data.timestamp ? parseInt(data.timestamp) * 1000 : Date.now()),
+        owner: data.owner || (data.from ? 'CUSTOMER' : 'AGENT'),
+        idWhatsapp: data.idWhatsapp,
+        conversationId: data.conversationId || data.from,
+        type: data.type || 'text'
+      };
     }
 
-    console.log(`🔌 [Realtime] Conectando a ${socketUrl}...`);
+    if (newMessage) {
+      setMessages(prev => {
+        // Verificar si el mensaje ya existe
+        const exists = prev.some(msg => 
+          (msg.idWhatsapp && msg.idWhatsapp === newMessage?.idWhatsapp) ||
+          (msg.from === newMessage?.from && 
+           msg.sentAt === newMessage?.sentAt && 
+           msg.content === newMessage?.content)
+        );
+        return exists ? prev : [...prev, newMessage as Message];
+      });
+    }
+  }, []);
 
-    // Configuración mejorada para el socket
-    const socketOptions: any = {
+  useEffect(() => {
+    if (!socketUrl || isConnectingRef.current) return;
+    
+    isConnectingRef.current = true;
+    
+    const socketOptions: Partial<ManagerOptions & SocketOptions> = {
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      transports: ['websocket', 'polling']
+      transports: ['websocket']
     };
 
     try {
-      const newSocket = io(socketUrl, socketOptions);
+      const socket = io(socketUrl, socketOptions);
+      socketRef.current = socket;
 
       // Manejar eventos de conexión
-      newSocket.on('connect', () => {
-        console.log('✅ [Realtime] CONECTADO al socket:', socketUrl);
+      const onConnect = () => {
         setIsConnected(true);
-      });
-
-      newSocket.on('connect_error', (error) => {
-        console.error('❌ [Realtime] ERROR DE CONEXIÓN:', error);
-        setIsConnected(false);
-      });
-
-      newSocket.on('disconnect', (reason) => {
-        console.log('🔌 [Realtime] DESCONECTADO:', reason);
-        setIsConnected(false);
-      });
-
-      // Función para manejar mensajes entrantes
-      const handleIncomingMessage = (data: any) => {
-        console.log('📥 [Realtime] Evento recibido:', data);
-        
-        // Verificar si es un mensaje de WhatsApp
-        if (data.entry) {
-          const message = data.entry[0]?.changes[0]?.value?.messages?.[0];
-          if (!message) {
-            console.log('❌ [Realtime] No se pudo extraer el mensaje del payload');
-            return;
-          }
-          
-          console.log('📩 [Realtime] Mensaje de WhatsApp recibido:', {
-            id: message.id,
-            from: message.from,
-            text: message.text?.body,
-            timestamp: message.timestamp,
-            owner: 'CUSTOMER'
-          });
-
-          // Transformar el mensaje del formato del webhook a nuestro formato
-          const transformedMessage: Message = {
-            from: message.from,
-            text: message.text?.body || '',
-            content: message.text?.body || '',
-            timestamp: message.timestamp,
-            sentAt: parseInt(message.timestamp) * 1000,
-            owner: 'CUSTOMER',
-            idWhatsapp: message.id,
-            conversationId: message.from,
-            type: message.type || 'text'
-          };
-
-          console.log('✅ [Realtime] Mensaje transformado:', transformedMessage);
-          setMessages(prev => [...prev, transformedMessage]);
-        } else {
-          // Si es un mensaje ya transformado del backend
-          console.log('📩 [Realtime] Mensaje del backend recibido:', data);
-          
-          // Verificar si el mensaje tiene el formato esperado
-          if (data.idWhatsapp && data.from) {
-            const message: Message = {
-              from: data.from,
-              text: data.text || data.content || '',
-              content: data.content || data.text || '',
-              timestamp: data.timestamp || Date.now().toString(),
-              sentAt: data.sentAt || (data.timestamp ? parseInt(data.timestamp) * 1000 : Date.now()),
-              owner: data.owner || (data.from ? 'CUSTOMER' : 'AGENT'),
-              idWhatsapp: data.idWhatsapp,
-              conversationId: data.conversationId || data.from,
-              type: data.type || 'text'
-            };
-            
-            console.log('✅ [Realtime] Mensaje transformado (formato backend):', message);
-            setMessages(prev => [...prev, message]);
-          } else {
-            console.log('⚠️ [Realtime] Formato de mensaje no reconocido:', data);
-          }
-        }
+        isConnectingRef.current = false;
       };
 
-      // Escuchar ambos eventos para asegurar compatibilidad
-      newSocket.on('whatsapp:message', handleIncomingMessage);
-      newSocket.on('message', handleIncomingMessage);
+      const onConnectError = (error: Error) => {
+        console.error('Error de conexión con el socket:', error);
+        setIsConnected(false);
+        isConnectingRef.current = false;
+      };
 
-      // Guardar referencia al socket
-      setSocket(newSocket);
+      const onDisconnect = () => {
+        setIsConnected(false);
+      };
+
+      // Configurar manejadores de eventos
+      socket.on('connect', onConnect);
+      socket.on('connect_error', onConnectError);
+      socket.on('disconnect', onDisconnect);
+      socket.on('whatsapp:message', handleIncomingMessage);
+      socket.on('message', handleIncomingMessage);
 
       // Limpieza al desmontar
       return () => {
-        console.log('🧹 [Realtime] Limpiando conexión del socket');
-        if (newSocket) {
-          newSocket.off('connect');
-          newSocket.off('connect_error');
-          newSocket.off('disconnect');
-          newSocket.off('whatsapp:message');
-          newSocket.off('message');
-          newSocket.disconnect();
+        socket.off('connect', onConnect);
+        socket.off('connect_error', onConnectError);
+        socket.off('disconnect', onDisconnect);
+        socket.off('whatsapp:message', handleIncomingMessage);
+        socket.off('message', handleIncomingMessage);
+        
+        if (socket.connected) {
+          socket.disconnect();
         }
+        
+        socketRef.current = null;
+        isConnectingRef.current = false;
       };
     } catch (error) {
-      console.error('🚨 [Realtime] Error al inicializar el socket:', error);
+      console.error('Error al inicializar el socket:', error);
+      setIsConnected(false);
+      isConnectingRef.current = false;
     }
-  }, [socketUrl]);
+  }, [socketUrl, handleIncomingMessage]);
 
   return {
     messages,
     isConnected,
-    clearMessages,
-    socket
+    clearMessages
   };
 };
 

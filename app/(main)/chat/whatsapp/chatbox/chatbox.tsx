@@ -218,6 +218,9 @@ export const ChatBox = () => {
     };
   };
 
+  // Usar un Set para rastrear los IDs de mensajes ya procesados
+  const processedMessageIds = useRef(new Set<string | number>());
+  
   // Manejo de mensajes entrantes - versión optimizada
   useEffect(() => {
     // Verificar conexión y si hay mensajes para procesar
@@ -233,18 +236,26 @@ export const ChatBox = () => {
         msg.from === activeConversation.phone?.replace(/\+/g, '') ||
         activeConversation.phone?.includes(msg.from || '');
       
-      // Verificar si el mensaje ya existe
-      const isDuplicate = msg.idWhatsapp 
-        ? storedMessages.some(m => m.idWhatsapp === msg.idWhatsapp)
-        : false;
+      // Generar un ID único para el mensaje
+      const messageId = msg.idWhatsapp || `${msg.from}-${msg.sentAt || msg.timestamp}`;
       
-      return isForCurrentConversation && !isDuplicate;
+      // Verificar si el mensaje ya fue procesado
+      const alreadyProcessed = processedMessageIds.current.has(messageId);
+      
+      // Si el mensaje es relevante y no ha sido procesado, lo marcamos como procesado
+      if (isForCurrentConversation && !alreadyProcessed) {
+        processedMessageIds.current.add(messageId);
+        return true;
+      }
+      
+      return false;
     });
     
     if (!relevantMessages.length) return;
     
     // Transformar y agregar mensajes al store
     const newMessages = relevantMessages.map(msg => {
+      const messageId = msg.idWhatsapp || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const transformedMsg: MessageModel = {
         content: msg.content || msg.text || '',
         owner: msg.owner === 'CUSTOMER' ? MESSAGE_OWNER.CLIENT : MESSAGE_OWNER.AGENT,
@@ -252,8 +263,8 @@ export const ChatBox = () => {
         type: MESSAGE_TYPE.TEXT,
         conversationId: activeConversation.conversationid,
         from: msg.from || '',
-        id: msg.idWhatsapp ? Number(msg.idWhatsapp) : Date.now(),
-        idWhatsapp: msg.idWhatsapp || ''
+        id: Number.isSafeInteger(Number(messageId)) ? Number(messageId) : Date.now(),
+        idWhatsapp: messageId
       };
       
       // Manejar mensajes del cliente (para contadores de no leídos)
@@ -269,7 +280,7 @@ export const ChatBox = () => {
               (unreadCounts[transformedMsg.conversationId] || 0) + 1;
             localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
           } catch (error) {
-            console.error('Error al actualizar contador en localStorage:', error);
+            // Error manejado sin log
           }
         }
       }
@@ -277,8 +288,9 @@ export const ChatBox = () => {
       return transformedMsg;
     });
     
-    // Agregar mensajes al store
+    // Agregar mensajes al store en un solo lote
     if (newMessages.length > 0) {
+      // Usar un solo pushMessage para todos los mensajes
       newMessages.forEach(pushMessage);
       
       // Auto-scroll al último mensaje
@@ -288,7 +300,14 @@ export const ChatBox = () => {
         }
       }, 100);
     }
-  }, [messagesSocket, storedMessages, activeConversation, pushMessage, chatWindow, clearMessages, isConnected]);
+    
+    // Limpiar mensajes antiguos del Set para evitar fugas de memoria
+    if (processedMessageIds.current.size > 100) {
+      processedMessageIds.current = new Set(
+        Array.from(processedMessageIds.current).slice(-50)
+      );
+    }
+  }, [messagesSocket, storedMessages, activeConversation, pushMessage, chatWindow, isConnected]);
 
   useEffect(() => {
     if (chatWindow.current) {

@@ -130,6 +130,7 @@ const useRealtimeMessages = (socketUrl: string): UseRealtimeMessagesReturn => {
 
       socket.on('message', (msg) => {
         console.log(" [Frontend] Mensaje recibido desde el socket:", msg);
+        console.log(" [Debug] Contenido del mensaje:", msg);
         handleIncomingMessage(msg);
       });
 

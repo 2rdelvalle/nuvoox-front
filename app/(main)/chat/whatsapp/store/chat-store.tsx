@@ -77,7 +77,10 @@ export const useChatStore = create<useChatStoreForm>((set, get) => ({
   },
   setConversations: (cnv : Conversation[]) => set((state) => ({ conversations: cnv })),
   setConversationsNotAssigned: (cnv : Conversation[]) => set((state) => ({ conversationsNotAssigned: cnv })),
-  pushConversations: (cnv : Conversation[]) => set((state) => ({ conversations: [...state.conversations, ...cnv] })),
+  pushConversations: (cnv : Conversation[]) => set((state) => {
+    console.log("➕ Agregando conversaciones:", cnv.map(c => c.conversationid));
+    return { conversations: [...state.conversations, ...cnv] };
+  }),
   updateConversation: (cnv) => set((state) => ({
     conversations: state.conversations.map((c) => (c.id === cnv.id ? { ...c, ...cnv } : c))
   })),
@@ -103,6 +106,7 @@ export const useChatStore = create<useChatStoreForm>((set, get) => ({
   },
   deleteConversation: (cnv) => set((state) => {
     if (!cnv?.conversationid) return state;
+    console.log("🗑️ Eliminando conversación:", cnv.conversationid);
     return { 
       conversations: state.conversations.filter((c) => c.conversationid !== cnv.conversationid) 
     };

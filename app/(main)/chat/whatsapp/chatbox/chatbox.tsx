@@ -908,7 +908,9 @@ useEffect(() => {
     
     return sortedMessages;
   }, [storedMessages, searchText, activeConversation?.conversationid]);
-  
+
+  console.log("🔄 [ChatBox] Renderizando componente con mensajes:", displayedMessages);
+
   // Removed message logging effect to prevent infinite loop
 
   // Removed debug logging effect to prevent infinite loop

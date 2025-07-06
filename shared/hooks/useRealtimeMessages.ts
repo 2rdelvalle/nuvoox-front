@@ -121,8 +121,17 @@ const useRealtimeMessages = (socketUrl: string): UseRealtimeMessagesReturn => {
       socket.on('connect', onConnect);
       socket.on('connect_error', onConnectError);
       socket.on('disconnect', onDisconnect);
-      socket.on('whatsapp:message', handleIncomingMessage);
-      socket.on('message', handleIncomingMessage);
+
+      // Loguear cuando llega un mensaje al cliente desde el socket
+      socket.on('whatsapp:message', (msg) => {
+        console.log(" [Frontend] Mensaje recibido desde el socket:", msg);
+        handleIncomingMessage(msg);
+      });
+
+      socket.on('message', (msg) => {
+        console.log(" [Frontend] Mensaje recibido desde el socket:", msg);
+        handleIncomingMessage(msg);
+      });
 
       // Limpieza al desmontar
       return () => {

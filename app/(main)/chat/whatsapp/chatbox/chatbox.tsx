@@ -604,13 +604,62 @@ useEffect(() => {
 
   // Función para manejar la transferencia
   const handleTransfer = (type: 'agent' | 'group' | 'bot', id?: string) => {
-    console.log('Transferencia de chat a:', type, id);
-    // Lógica para transferir el chat
-    showSuccess(`Chat transferido a ${type} ${id}`);
-    // Cerrar el diálogo
-    setShowTransferDialog(false);
-    // Reiniciar la selección
-    setTransferOption(null);
+    console.log('=== INICIANDO TRANSFERENCIA ===');
+    console.log('Tipo de transferencia:', type);
+    console.log('ID de destino:', id);
+    console.log('Conversación activa:', activeConversation);
+    console.log('Transfer option seleccionada:', transferOption);
+    
+    try {
+      // Validaciones básicas
+      if (!activeConversation) {
+        const errorMsg = 'No hay una conversación activa para transferir';
+        console.error(errorMsg);
+        showError(errorMsg);
+        return;
+      }
+
+      if (!id) {
+        const errorMsg = 'No se especificó un destino para la transferencia';
+        console.error(errorMsg);
+        showError(errorMsg);
+        return;
+      }
+
+      console.log('Iniciando transferencia de chat:', {
+        conversationId: activeConversation.conversationid,
+        destinationType: type,
+        destinationId: id,
+        timestamp: new Date().toISOString()
+      });
+
+      // Aquí iría la lógica real de transferencia
+      // Por ahora solo mostramos un mensaje de éxito
+      const successMsg = `Chat transferido a ${type} ${id} exitosamente`;
+      console.log(successMsg);
+      showSuccess(successMsg);
+      
+      // Registro adicional para depuración
+      console.log('Transferencia completada, cerrando diálogo...');
+      
+    } catch (error) {
+      const errorMsg = `Error al transferir el chat: ${error instanceof Error ? error.message : 'Error desconocido'}`;
+      console.error('Error en handleTransfer:', {
+        error,
+        type,
+        id,
+        activeConversation,
+        transferOption,
+        timestamp: new Date().toISOString()
+      });
+      showError(errorMsg);
+    } finally {
+      // Siempre cerramos el diálogo y reiniciamos el estado
+      console.log('Limpiando estado de transferencia...');
+      setShowTransferDialog(false);
+      setTransferOption(null);
+      console.log('Estado de transferencia limpiado');
+    }
   };
 
   const updateBalanceAfterSendingTemplates = async (numberOfTemplates: number, costPerTemplate: number) => {

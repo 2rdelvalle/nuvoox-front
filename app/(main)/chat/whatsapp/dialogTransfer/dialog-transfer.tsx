@@ -69,7 +69,16 @@ const DialogTransfer = () => {
     </div>
   )
 
-  async function transferChat (rowData : any) {
+  const transferChat = async (rowData: any) => {
+    console.log('=== INICIANDO TRANSFERENCIA ===');
+    console.log('Conversación activa:', activeConversation);
+    
+    if (!activeConversation) {
+      console.error('No hay conversación activa');
+      showError("No hay una conversación activa para transferir")
+      return
+    }
+
     if (!dataToken) {
       showError("No se pudo obtener la información del usuario")
       return
@@ -80,11 +89,13 @@ const DialogTransfer = () => {
       return
     }
 
-    const transfer : TransferChat = {
+    const transfer: TransferChat = {
       destinationNumber: activeConversation?.destination_number,
       userAgentDestinationId: rowData.id,
       userAgentOriginId: dataToken.userId
     }
+    
+    console.log('Datos de transferencia a enviar:', transfer);
     try {
       console.log("Transfer payload:", transfer);
       await _conversation.transferChat(transfer)
@@ -114,9 +125,19 @@ const DialogTransfer = () => {
           <Column
             field="id"
             header="Acciones"
-            body={(rowData: any) => (
-              <ActionButton actionAsignate={() => transferChat(rowData)} />
-            )}
+            body={(rowData: any) => {
+              console.log('Renderizando botón de acción para agente:', rowData);
+              return (
+                <ActionButton 
+                  actionAsignate={() => {
+                    console.log('Se hizo clic en transferir al agente:', rowData);
+                    transferChat(rowData).catch(error => {
+                      console.error('Error en transferChat:', error);
+                    });
+                  }} 
+                />
+              );
+            }}
           />
         </DataTable>
       </div>
@@ -127,13 +148,21 @@ const DialogTransfer = () => {
     return rowData.userCompanyGroup && rowData.userCompanyGroup.length > 0
   }
 
+  // Log cuando el diálogo se muestra/oculta
+  useEffect(() => {
+    console.log('Estado del diálogo de transferencia:', dialogTransfer);
+  }, [dialogTransfer]);
+
   return (
     <Dialog
       header="Transferir Chat"
-      maximized
       visible={dialogTransfer}
-      onHide={() => { if (!dialogTransfer) return; setDialogTransfer(false) }}
-      style={{ width: "50vw" }}
+      onHide={() => {
+        console.log('Cerrando diálogo de transferencia');
+        setDialogTransfer(false);
+      }}
+      style={{ width: '50vw' }}
+      breakpoints={{ '960px': '75vw', '641px': '90vw' }}
     >
       <div className="card">
         <DataTable

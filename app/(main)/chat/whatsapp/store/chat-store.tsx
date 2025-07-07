@@ -60,19 +60,19 @@ export const useChatStore = create<useChatStoreForm>((set, get) => ({
     if (state.activeConversation?.conversationid !== cnv.conversationid) {
       // Reset unread count when selecting a conversation
       if (cnv.conversationid) {
-        // Directly use the resetUnreadCount logic instead of calling the function
-        // to avoid potential circular references
-        set((state) => ({
+        // Update the conversations state to reset unread count
+        set({
           conversations: state.conversations.map((c) => (
             c.conversationid === cnv.conversationid 
               ? { ...c, unreadCount: 0 } 
               : c
-          ))
-        }));
+          )),
+          activeConversation: cnv // Set the active conversation in the same update
+        });
+      } else {
+        // Just set the active conversation if no conversationId
+        set({ activeConversation: cnv });
       }
-      
-      // Set the active conversation
-      set({ activeConversation: cnv });
     }
   },
   setConversations: (cnv : Conversation[]) => set((state) => ({ conversations: cnv })),
@@ -95,14 +95,20 @@ export const useChatStore = create<useChatStoreForm>((set, get) => ({
     // Validate conversationId to avoid issues
     if (!conversationId) return;
     
+    const state = get();
+    
+    // Only update if the conversation exists and has unread messages
+    const conversation = state.conversations.find(c => c.conversationid === conversationId);
+    if (!conversation || conversation.unreadCount === 0) return;
+    
     // Update the conversations state directly without causing circular references
-    set((state) => ({
+    set({
       conversations: state.conversations.map((c) => (
         c.conversationid === conversationId 
           ? { ...c, unreadCount: 0 } 
           : c
       ))
-    }));
+    });
   },
   deleteConversation: (cnv: Conversation | ConversationCaratule) => set((state) => {
     const conversationId = cnv?.conversationid || (cnv as any)?.id;

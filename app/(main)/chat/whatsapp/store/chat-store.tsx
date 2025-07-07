@@ -15,7 +15,7 @@ type useChatStoreForm = {
     conversationsNotAssigned: Conversation[]
     setConversationsNotAssigned: (cnv : Conversation[]) => void
     pushConversations: (cnv : Conversation[]) => void
-    deleteConversation: (cnv : Conversation) => void
+    deleteConversation: (cnv: Conversation | ConversationCaratule) => void
     updateConversation: (cnv : Conversation) => void
     incrementUnreadCount: (conversationId: number) => void
     resetUnreadCount: (conversationId: number) => void
@@ -104,11 +104,12 @@ export const useChatStore = create<useChatStoreForm>((set, get) => ({
       ))
     }));
   },
-  deleteConversation: (cnv) => set((state) => {
-    if (!cnv?.conversationid) return state;
-    console.log("🗑️ Eliminando conversación:", cnv.conversationid);
+  deleteConversation: (cnv: Conversation | ConversationCaratule) => set((state) => {
+    const conversationId = cnv?.conversationid || (cnv as any)?.id;
+    if (!conversationId) return state;
+    console.log("🗑️ Eliminando conversación:", conversationId);
     return { 
-      conversations: state.conversations.filter((c) => c.conversationid !== cnv.conversationid) 
+      conversations: state.conversations.filter((c) => c.conversationid !== conversationId) 
     };
   }),
   actualNumberOfMaintanceSelected: null,

@@ -60,7 +60,17 @@ export const ChatBox = () => {
 
   // ESTADOS ---
   //
-  const { actualNumberOfMaintanceSelected, activeConversation } = useChatStore()
+  // Obtener el estado del store de chat
+  const { 
+    actualNumberOfMaintanceSelected, 
+    activeConversation,
+    setActiveConversation,
+    deleteConversation,
+    setDialogTransfer,
+    incrementUnreadCount,
+    conversations,
+    setConversations
+  } = useChatStore();
 
   // Obtener las plantillas filtradas por compañía
   const companyId = dataToken?.user.company.companyId
@@ -609,7 +619,6 @@ useEffect(() => {
     console.log('Tipo de transferencia:', type);
     console.log('ID de destino:', id);
     console.log('Conversación activa:', activeConversation);
-    console.log('Transfer option seleccionada:', transferOption);
     
     try {
       // Validaciones básicas
@@ -634,11 +643,8 @@ useEffect(() => {
         timestamp: new Date().toISOString()
       });
 
-      // Llamar al servicio de transferencia
-      console.log('Iniciando llamada al servicio de transferencia...');
-      
       // Validar que dataToken existe y tiene la información del usuario
-      if (!dataToken || !dataToken.user) {
+      if (!dataToken?.user) {
         const errorMsg = 'No se pudo obtener la información de autenticación del usuario';
         console.error(errorMsg);
         showError(errorMsg);
@@ -646,6 +652,7 @@ useEffect(() => {
       }
       
       const userId = dataToken.user.userId;
+      const conversationId = activeConversation.conversationid;
       
       const transferData = {
         destinationNumber: activeConversation.destination_number,
@@ -660,12 +667,17 @@ useEffect(() => {
       
       console.log('Respuesta del servidor:', response);
       
-      const successMsg = `Chat transferido a ${type} ${id} exitosamente`;
+      // Actualizar el estado local
+      // 1. Eliminar la conversación de la lista actual
+      deleteConversation(activeConversation);
+      
+      // 2. Cerrar la conversación activa si es la que se está transfiriendo
+      setActiveConversation(null);
+      
+      // 3. Mostrar mensaje de éxito
+      const successMsg = `Chat transferido exitosamente`;
       console.log(successMsg);
       showSuccess(successMsg);
-      
-      // Registro adicional para depuración
-      console.log('Transferencia completada, cerrando diálogo...');
       
     } catch (error) {
       const errorMsg = `Error al transferir el chat: ${error instanceof Error ? error.message : 'Error desconocido'}`;
@@ -674,16 +686,13 @@ useEffect(() => {
         type,
         id,
         activeConversation,
-        transferOption,
         timestamp: new Date().toISOString()
       });
       showError(errorMsg);
     } finally {
-      // Siempre cerramos el diálogo y reiniciamos el estado
-      console.log('Limpiando estado de transferencia...');
+      // Cerrar el diálogo de transferencia
       setShowTransferDialog(false);
       setTransferOption(null);
-      console.log('Estado de transferencia limpiado');
     }
   };
 
@@ -901,7 +910,8 @@ useEffect(() => {
     return `${hours}:${minutes.toString().padStart(2, "0")}`
   }
 
-  const { setDialogTransfer, setActiveConversation, deleteConversation, incrementUnreadCount } = useChatStore()
+  // Estado local para la conversación actual
+  const [currentConversation, setCurrentConversation] = useState<ConversationCaratule | null>(null);
   // Abre el diálogo para transferir el chat
   const transferChat = () => {
     // Usar el nuevo estado local

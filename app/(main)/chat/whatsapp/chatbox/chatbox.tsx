@@ -3,6 +3,7 @@ import { useToast } from "@/shared/context/toast/toastContext"
 import { usePostRequest } from "@/shared/customHooks/usePostRequestResult"
 import { useFetch } from "@/shared/hooks/useFetch"
 import { axiosInstance } from "@/shared/instances/axios-instance"
+import ConversationService from "@/shared/services/conversation/conversation.service"
 import { usePush } from "@/shared/hooks/usePush"
 import useRealtimeMessages from "@/shared/hooks/useRealtimeMessages"
 import { confirmDialog } from "primereact/confirmdialog"
@@ -603,7 +604,7 @@ useEffect(() => {
   }, [companyId, showError]);
 
   // Función para manejar la transferencia
-  const handleTransfer = (type: 'agent' | 'group' | 'bot', id?: string) => {
+  const handleTransfer = async (type: 'agent' | 'group' | 'bot', id?: string) => {
     console.log('=== INICIANDO TRANSFERENCIA ===');
     console.log('Tipo de transferencia:', type);
     console.log('ID de destino:', id);
@@ -633,8 +634,32 @@ useEffect(() => {
         timestamp: new Date().toISOString()
       });
 
-      // Aquí iría la lógica real de transferencia
-      // Por ahora solo mostramos un mensaje de éxito
+      // Llamar al servicio de transferencia
+      console.log('Iniciando llamada al servicio de transferencia...');
+      
+      // Validar que dataToken existe y tiene la información del usuario
+      if (!dataToken || !dataToken.user) {
+        const errorMsg = 'No se pudo obtener la información de autenticación del usuario';
+        console.error(errorMsg);
+        showError(errorMsg);
+        return;
+      }
+      
+      const userId = dataToken.user.userId;
+      
+      const transferData = {
+        destinationNumber: activeConversation.destination_number,
+        userAgentDestinationId: Number(id), // Convertir a número
+        userAgentOriginId: userId
+      };
+      
+      console.log('Datos de transferencia a enviar:', transferData);
+      
+      // Realizar la transferencia
+      const response = await ConversationService.transferChat(transferData);
+      
+      console.log('Respuesta del servidor:', response);
+      
       const successMsg = `Chat transferido a ${type} ${id} exitosamente`;
       console.log(successMsg);
       showSuccess(successMsg);

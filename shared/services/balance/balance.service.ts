@@ -389,13 +389,30 @@ class BalanceService {
       const currentBalance = await this.getBalance(companyId, true);
       console.log(`Saldo actual antes de consumo: ${currentBalance.balanceUSD} USD`);
       
-      if (typeof currentBalance.balanceUSD !== 'number') {
-        throw new Error('El saldo actual no es un número válido');
+      // Validación y normalización del saldo actual
+      let currentBalanceUSD: number;
+      if (typeof currentBalance.balanceUSD === 'number') {
+        currentBalanceUSD = currentBalance.balanceUSD;
+      } else if (typeof currentBalance.balanceUSD === 'string') {
+        currentBalanceUSD = parseFloat(currentBalance.balanceUSD);
+      } else if ((currentBalance as any)['balance_usd'] !== undefined) {
+        // Soporte para posible estructura alternativa del backend
+        const balanceUsdValue = (currentBalance as any)['balance_usd'];
+        currentBalanceUSD = typeof balanceUsdValue === 'number' ? 
+                         balanceUsdValue : 
+                         parseFloat(balanceUsdValue as string);
+      } else {
+        throw new Error('El saldo actual no tiene un formato válido');
+      }
+      
+      // Verificar si la conversión resultó en un número válido
+      if (isNaN(currentBalanceUSD)) {
+        throw new Error('El saldo actual no se pudo convertir a un número válido');
       }
       
       // Validamos que haya saldo suficiente
-      if (currentBalance.balanceUSD < finalAmount) {
-        throw new Error(`Saldo insuficiente. Saldo actual: ${currentBalance.balanceUSD} USD, Consumo: ${finalAmount} USD`);
+      if (currentBalanceUSD < finalAmount) {
+        throw new Error(`Saldo insuficiente. Saldo actual: ${currentBalanceUSD} USD, Consumo: ${finalAmount} USD`);
       }
       
       // Registramos la transacción de consumo en el backend
@@ -410,7 +427,7 @@ class BalanceService {
       });
       
       // Actualizamos nuestro caché local con el nuevo saldo calculado
-      const newBalance = currentBalance.balanceUSD - finalAmount;
+      const newBalance = currentBalanceUSD - finalAmount;
       const cacheKey = String(companyId);
       this.balanceCache.set(cacheKey, {
         balanceUSD: newBalance,

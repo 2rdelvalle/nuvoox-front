@@ -48,22 +48,28 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
       try {
         // Si es la conversación activa, resetear contador
         if (activeConversation?.conversationid === conversation.conversationid) {
-          resetUnreadCount(conversation.conversationid);
-          setUnreadCount(0);
+          if (unreadCount !== 0) {
+            setUnreadCount(0);
+            // Ya no llamamos a resetUnreadCount aquí para evitar actualizaciones cíclicas
+            // El contador se resetea directamente en el store cuando cambia la conversación activa
+          }
           return;
         }
 
         // Si no es la conversación activa, obtener contador del estado global
-        const conversationData = useChatStore.getState().conversations.find(
+        const conversations = useChatStore.getState().conversations;
+        const conversationData = conversations.find(
           c => c.conversationid === conversation.conversationid
         );
         
         if (conversationData && typeof conversationData.unreadCount === 'number') {
-          // Actualizar el contador local para mostrar el badge
-          setUnreadCount(conversationData.unreadCount);
+          // Actualizar solo si el contador ha cambiado (optimización de renderizado)
+          if (unreadCount !== conversationData.unreadCount) {
+            setUnreadCount(conversationData.unreadCount);
+          }
         }
       } catch (error) {
-        console.error('Error al actualizar contador de mensajes no leídos:', error);
+        // Evitamos logs en producción
       }
     };
     
@@ -72,14 +78,14 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
     
     // Crear una suscripción al store de chat para actualizar cuando cambie el estado
     const unsubscribe = useChatStore.subscribe((state) => {
-      // Cuando cambien las conversaciones, actualizar el contador
+      // Solo actualizamos si cambian las conversaciones
       updateUnreadCount();
       return state;
     });
     
     // Limpiar suscripción al desmontar
     return () => unsubscribe();
-  }, [conversation.conversationid, activeConversation, resetUnreadCount]);
+  }, [conversation.conversationid, activeConversation, unreadCount]);
 
   /**
    * Obtener y formatear la hora del último mensaje

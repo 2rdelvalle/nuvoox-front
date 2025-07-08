@@ -232,93 +232,82 @@ export const ChatBox = () => {
   // Usar un Set para rastrear los IDs de mensajes ya procesados
   const processedMessageIds = useRef(new Set<string | number>());
   
-  // Manejo de mensajes entrantes - versión optimizada
+  // Manejo de mensajes entrantes - versión optimizada para todas las conversaciones
   useEffect(() => {
     // Verificar conexión y si hay mensajes para procesar
-    if (!isConnected || !messagesSocket.length || !activeConversation?.conversationid) {
+    if (!isConnected || !messagesSocket.length) {
       return;
     }
     
-    // Filtrar mensajes relevantes para la conversación actual
-    const relevantMessages = messagesSocket.filter(msg => {
-      // Verificar si el mensaje es para la conversación actual
-      const isForCurrentConversation = 
-        msg.conversationId === activeConversation.conversationid ||
-        msg.from === activeConversation.phone?.replace(/\+/g, '') ||
-        activeConversation.phone?.includes(msg.from || '');
-      
+    // Procesar todos los mensajes entrantes
+    const processedMessages = messagesSocket.filter(msg => {
       // Generar un ID único para el mensaje
       const messageId = msg.idWhatsapp || `${msg.from}-${msg.sentAt || msg.timestamp}`;
       
       // Verificar si el mensaje ya fue procesado
       const alreadyProcessed = processedMessageIds.current.has(messageId);
       
-      // Si el mensaje es relevante y no ha sido procesado, lo marcamos como procesado
-      if (isForCurrentConversation && !alreadyProcessed) {
+      if (!alreadyProcessed) {
         processedMessageIds.current.add(messageId);
+        
+        // Buscar la conversación correspondiente a este mensaje
+        const matchingConversation = conversations.find(conv => {
+          return conv.conversationid === msg.conversationId ||
+                 conv.phone?.replace(/\+/g, '') === msg.from ||
+                 conv.phone?.includes(msg.from || '') ||
+                 conv.destination_number === msg.from;
+        });
+        
+        // Si encontramos la conversación, procesar el mensaje
+        if (matchingConversation) {
+          // Manejar mensajes del cliente (para contadores de no leídos)
+          if (msg.owner === 'CUSTOMER') {
+            // Solo incrementar contador si NO es la conversación activa
+            const conversationId = matchingConversation.conversationid;
+            if (activeConversation?.conversationid !== conversationId && 
+                typeof conversationId === 'number') {
+              // Asegurarnos de que sea explícitamente un número para TypeScript
+              incrementUnreadCount(conversationId);
+            }
+          }
+          
+          // Si es la conversación activa, agregarlo a los mensajes
+          if (activeConversation?.conversationid === matchingConversation.conversationid) {
+            const transformedMsg: MessageModel = {
+              content: msg.content || msg.text || '',
+              owner: msg.owner === 'CUSTOMER' ? MESSAGE_OWNER.CLIENT : MESSAGE_OWNER.AGENT,
+              sentAt: msg.sentAt || (msg.timestamp ? parseInt(msg.timestamp) * 1000 : Date.now()),
+              type: MESSAGE_TYPE.TEXT,
+              conversationId: matchingConversation.conversationid,
+              from: msg.from || '',
+              id: Number.isSafeInteger(Number(messageId)) ? Number(messageId) : Date.now(),
+              idWhatsapp: messageId
+            };
+            
+            // Agregar el mensaje al store
+            pushMessage(transformedMsg);
+            
+            // Auto-scroll al último mensaje
+            setTimeout(() => {
+              if (chatWindow.current) {
+                chatWindow.current.scrollTop = chatWindow.current.scrollHeight;
+              }
+            }, 100);
+          }
+        }
+        
         return true;
       }
       
       return false;
     });
     
-    if (!relevantMessages.length) return;
-    
-    // Transformar y agregar mensajes al store
-    const newMessages = relevantMessages.map(msg => {
-      const messageId = msg.idWhatsapp || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const transformedMsg: MessageModel = {
-        content: msg.content || msg.text || '',
-        owner: msg.owner === 'CUSTOMER' ? MESSAGE_OWNER.CLIENT : MESSAGE_OWNER.AGENT,
-        sentAt: msg.sentAt || (msg.timestamp ? parseInt(msg.timestamp) * 1000 : Date.now()),
-        type: MESSAGE_TYPE.TEXT,
-        conversationId: activeConversation.conversationid,
-        from: msg.from || '',
-        id: Number.isSafeInteger(Number(messageId)) ? Number(messageId) : Date.now(),
-        idWhatsapp: messageId
-      };
-      
-      // Manejar mensajes del cliente (para contadores de no leídos)
-      if (transformedMsg.owner === MESSAGE_OWNER.CLIENT) {
-        // Actualizar contador de no leídos si es necesario
-        if (typeof transformedMsg.conversationId === 'number') {
-          incrementUnreadCount(transformedMsg.conversationId);
-          
-          // Actualizar localStorage
-          try {
-            const unreadCounts = JSON.parse(localStorage.getItem('unreadCounts') || '{}');
-            unreadCounts[transformedMsg.conversationId] = 
-              (unreadCounts[transformedMsg.conversationId] || 0) + 1;
-            localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
-          } catch (error) {
-            // Error manejado sin log
-          }
-        }
-      }
-      
-      return transformedMsg;
-    });
-    
-    // Agregar mensajes al store en un solo lote
-    if (newMessages.length > 0) {
-      // Usar un solo pushMessage para todos los mensajes
-      newMessages.forEach(pushMessage);
-      
-      // Auto-scroll al último mensaje
-      setTimeout(() => {
-        if (chatWindow.current) {
-          chatWindow.current.scrollTop = chatWindow.current.scrollHeight;
-        }
-      }, 100);
+    // Limpiar mensajes procesados del socket
+    if (processedMessages.length > 0) {
+      clearMessages();
     }
     
-    // Limpiar mensajes antiguos del Set para evitar fugas de memoria
-    if (processedMessageIds.current.size > 100) {
-      processedMessageIds.current = new Set(
-        Array.from(processedMessageIds.current).slice(-50)
-      );
-    }
-  }, [messagesSocket, storedMessages, activeConversation, pushMessage, chatWindow, isConnected]);
+  }, [isConnected, messagesSocket, conversations, activeConversation, pushMessage, clearMessages, incrementUnreadCount]);
 
   useEffect(() => {
     if (chatWindow.current) {

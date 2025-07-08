@@ -4,6 +4,33 @@ import { CompanyBalanceDto, RechargeBalanceDto } from './dtos/company-balance.dt
 import { BalanceTransactionDto, BalanceTransactionFilterDto } from './dtos/balance-transaction.dto';
 import { TemplateCostService } from '../template/template-cost.service';
 
+// Utilidad para imprimir logs solo en producción o si está habilitada la depuración
+const DEBUG_BALANCE = true; // Forzar logs para diagnóstico inmediato
+const isProduction = process.env.NODE_ENV === 'production';
+const debugLog = (message: string, ...data: any[]) => {
+  if (isProduction || DEBUG_BALANCE) {
+    console.log(`[BalanceService-DEBUG] ${message}`, ...data);
+  }
+};
+
+// Utilidad para loguear errores detallados
+const debugError = (message: string, error: any) => {
+  if (isProduction || DEBUG_BALANCE) {
+    console.error(`[BalanceService-DEBUG-ERROR] ${message}`);
+    if (error?.response) {
+      console.error('Status:', error.response.status);
+      console.error('Data:', error.response.data);
+      console.error('Headers:', error.response.headers);
+    } else if (error?.request) {
+      console.error('Request sent but no response received');
+      console.error('Request:', error.request);
+    } else {
+      console.error('Error sin request:', error.message || error);
+    }
+    console.error('Config:', error?.config);
+  }
+};
+
 // Extendemos la interfaz CompanyBalanceDto para incluir información adicional
 export interface ExtendedCompanyBalanceDto extends CompanyBalanceDto {
   amountDeducted?: number;
@@ -12,6 +39,8 @@ export interface ExtendedCompanyBalanceDto extends CompanyBalanceDto {
     status: number | string;
     message: string;
   } | null;
+  cacheOnly?: boolean; // Indica si el cambio solo afectó al caché local
+  message?: string; // Mensaje informativo sobre el estado de la operación
 }
 
 /**
@@ -345,13 +374,21 @@ class BalanceService {
   }
 
   /**
-   * Decrementa el saldo de una empresa por consumo de plantillas
+   * Decrementa el saldo de una empresa por consumo de plantillas - SOLO PARA CACHÉ LOCAL
+   * 
+   * IMPORTANTE: Esta función ya no intenta registrar el consumo en el backend directamente.
+   * El consumo real de saldo debe realizarse únicamente a través de TemplateService.sendTemplate(),
+   * que activa automáticamente el consumo de saldo en el backend mediante TemplateBalanceInterceptor.
+   * 
+   * Esta función ahora solo actualiza el caché local para mantener la experiencia de usuario fluida
+   * y debe llamarse después de un envío exitoso de plantilla para mantener sincronizado el estado local.
+   * 
    * @param companyId ID de la empresa
    * @param amountUSD Monto en USD a decrementar
    * @param templateType Tipo de plantilla (UTILITY, MARKETING, etc.)
    * @param templateDestination Destino de la plantilla (número o grupo)
    * @param country Código de país del destino (ej: CO, MX)
-   * @returns Balance actualizado
+   * @returns Balance actualizado en caché local
    */
   public async decrementBalance(
     companyId: number | string,
@@ -395,7 +432,7 @@ class BalanceService {
         }
       }
       
-      // Primero, obtenemos el saldo actual
+      // Obtenemos el saldo actual (forzando actualización desde backend)
       const currentBalance = await this.getBalance(companyId, true);
       console.log(`Saldo actual antes de consumo: ${currentBalance.balanceUSD} USD`);
       
@@ -425,95 +462,17 @@ class BalanceService {
         throw new Error(`Saldo insuficiente. Saldo actual: ${currentBalanceUSD} USD, Consumo: ${finalAmount} USD`);
       }
       
-      // Variables para almacenar respuesta y control de errores
-      let response = null;
-      let apiError = null;
+      /**
+       * NOTA IMPORTANTE: Las siguientes líneas que intentaban registrar el consumo en el backend
+       * a través de endpoints directos como '/balance/consumption', '/companies/:companyId/balance/consumption',
+       * '/companies/balance/consumption', o '/company/balance/consumption' han sido eliminadas.
+       * 
+       * Esto se debe a que estos endpoints no existen en el backend. El consumo de saldo
+       * debe realizarse a través de TemplateService.sendTemplate(), que activará automáticamente
+       * el consumo de saldo en el backend mediante TemplateBalanceInterceptor.
+       */
       
-      // Intentamos múltiples rutas para el endpoint de consumo
-      // Primera opción: /balance/consumption (ruta original)
-      try {
-        response = await axiosInstance.post('/balance/consumption', {
-          companyId: companyIdNum,
-          amountUSD: finalAmount,
-          templateType,
-          templateDestination,
-          country,
-          description: `Consumo por envío de plantilla ${templateType}${country ? ' a ' + country : ''}`,
-          costDetails: costDetails 
-        });
-        console.log('[BalanceService] Consumo registrado exitosamente en endpoint original');
-      } catch (error: any) {
-        if (error?.response && error.response.status === 404) {
-          console.warn('[BalanceService] Endpoint /balance/consumption no encontrado, intentando rutas alternativas...');
-          apiError = error;
-          
-          // Opción principal alternativa: /companies/:companyId/balance/consumption (formato REST)
-          try {
-            response = await axiosInstance.post(`/companies/${companyIdNum}/balance/consumption`, {
-              amountUSD: finalAmount,
-              templateType,
-              templateDestination,
-              country,
-              description: `Consumo por envío de plantilla ${templateType}${country ? ' a ' + country : ''}`,
-              costDetails: costDetails
-            });
-            console.log('[BalanceService] Consumo registrado exitosamente en endpoint REST correcto');
-            apiError = null; // Resetear el error si esta opción funciona
-          } catch (companyIdError: any) {
-            if (companyIdError?.response && companyIdError.response.status === 404) {
-              console.warn('[BalanceService] Endpoint REST no encontrado, intentando rutas alternativas planas...');
-              
-              // Opción alternativa antigua: /companies/balance/consumption (formato plano)
-              try {
-                response = await axiosInstance.post('/companies/balance/consumption', {
-                  companyId: companyIdNum,
-                  amountUSD: finalAmount,
-                  templateType,
-                  templateDestination,
-                  country,
-                  description: `Consumo por envío de plantilla ${templateType}${country ? ' a ' + country : ''}`,
-                  costDetails: costDetails
-                });
-                console.log('[BalanceService] Consumo registrado exitosamente en endpoint alternativo 1');
-                apiError = null; // Resetear el error si la segunda opción funciona
-              } catch (innerError: any) {
-                if (innerError?.response && innerError.response.status === 404) {
-                  console.warn('[BalanceService] Endpoint alternativo 1 no encontrado, intentando otra ruta...');
-                  
-                  // Tercera opción: /company/balance/consumption
-                  try {
-                    response = await axiosInstance.post('/company/balance/consumption', {
-                      companyId: companyIdNum,
-                      amountUSD: finalAmount,
-                      templateType,
-                      templateDestination,
-                      country,
-                      description: `Consumo por envío de plantilla ${templateType}${country ? ' a ' + country : ''}`,
-                      costDetails: costDetails
-                    });
-                    console.log('[BalanceService] Consumo registrado exitosamente en endpoint alternativo 2');
-                    apiError = null; // Resetear el error si la tercera opción funciona
-                  } catch (finalError: any) {
-                    console.warn('[BalanceService] Todos los endpoints de consumo fallaron, actualizando solo caché local');
-                    // No actualizamos apiError para poder registrar que hubo un problema
-                  }
-                } else {
-                  // Si es otro tipo de error (no 404), lo guardamos
-                  apiError = innerError;
-                }
-              }
-            } else {
-              // Si es otro tipo de error (no 404), lo guardamos
-              apiError = companyIdError;
-            }
-          }
-        } else {
-          // Si es otro tipo de error (no 404), lo guardamos
-          apiError = error;
-        }
-      }
-      
-      // Actualizamos nuestro caché local con el nuevo saldo calculado
+      // Solo actualizamos nuestro caché local con el nuevo saldo calculado
       const newBalance = currentBalanceUSD - finalAmount;
       const cacheKey = String(companyId);
       this.balanceCache.set(cacheKey, {
@@ -521,12 +480,8 @@ class BalanceService {
         timestamp: Date.now()
       });
       
-      console.log(`Saldo después de consumo: ${newBalance} USD (monto descontado: ${finalAmount} USD)`);
-      
-      // Si hubo error en la API pero queremos continuar, generamos una advertencia
-      if (apiError) {
-        console.warn('[BalanceService] No se pudo registrar el consumo en el backend, pero se actualizó el caché local');
-      }
+      console.log(`Saldo después de consumo en caché local: ${newBalance} USD (monto descontado: ${finalAmount} USD)`);
+      console.log('[BalanceService] IMPORTANTE: El consumo de saldo debe registrarse a través de TemplateService.sendTemplate()');
       
       // Retornamos el balance actualizado con información adicional
       return {
@@ -535,11 +490,10 @@ class BalanceService {
         lastUpdated: new Date(),
         amountDeducted: finalAmount, // Incluir el monto real deducido para mostrar al usuario
         costDetails: costDetails, // Incluir detalles del costo para auditoría
-        apiError: apiError ? {
-          status: apiError?.response?.status || 'unknown',
-          message: 'Error al registrar consumo en backend. El saldo se actualizó localmente pero podría no reflejarse en el servidor.'
-        } : null // Incluir info del error si ocurrió
+        cacheOnly: true, // Indicador de que este cambio solo afectó al caché local
+        message: 'El saldo se actualizó solo localmente. Para un registro completo, use TemplateService.sendTemplate()'
       };
+
     } catch (error: any) {
       console.error('Error al decrementar saldo:', error);
       throw error;

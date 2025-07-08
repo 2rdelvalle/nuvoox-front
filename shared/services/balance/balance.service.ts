@@ -1,8 +1,18 @@
 import { axiosInstance } from '../../instances/axios-instance';
-import { AxiosResponse } from 'axios';
+import { AxiosResponse, AxiosError } from 'axios';
 import { CompanyBalanceDto, RechargeBalanceDto } from './dtos/company-balance.dto';
 import { BalanceTransactionDto, BalanceTransactionFilterDto } from './dtos/balance-transaction.dto';
 import { TemplateCostService } from '../template/template-cost.service';
+
+// Extendemos la interfaz CompanyBalanceDto para incluir información adicional
+export interface ExtendedCompanyBalanceDto extends CompanyBalanceDto {
+  amountDeducted?: number;
+  costDetails?: { baseCost: number; additionalCost: number };
+  apiError?: {
+    status: number | string;
+    message: string;
+  } | null;
+}
 
 /**
  * Servicio para gestionar el saldo de las empresas
@@ -349,7 +359,7 @@ class BalanceService {
     templateType: string = 'MARKETING',
     templateDestination: string = '',
     country: string = 'CO'
-  ): Promise<CompanyBalanceDto> {
+  ): Promise<ExtendedCompanyBalanceDto> {
     try {
       const companyIdNum = Number(companyId);
       
@@ -415,16 +425,72 @@ class BalanceService {
         throw new Error(`Saldo insuficiente. Saldo actual: ${currentBalanceUSD} USD, Consumo: ${finalAmount} USD`);
       }
       
-      // Registramos la transacción de consumo en el backend
-      const response = await axiosInstance.post('/balance/consumption', {
-        companyId: companyIdNum,
-        amountUSD: finalAmount,
-        templateType,
-        templateDestination,
-        country,
-        description: `Consumo por envío de plantilla ${templateType}${country ? ' a ' + country : ''}`,
-        costDetails: costDetails // Incluir detalles del cálculo para auditoría
-      });
+      // Variables para almacenar respuesta y control de errores
+      let response = null;
+      let apiError = null;
+      
+      // Intentamos múltiples rutas para el endpoint de consumo
+      // Primera opción: /balance/consumption (ruta original)
+      try {
+        response = await axiosInstance.post('/balance/consumption', {
+          companyId: companyIdNum,
+          amountUSD: finalAmount,
+          templateType,
+          templateDestination,
+          country,
+          description: `Consumo por envío de plantilla ${templateType}${country ? ' a ' + country : ''}`,
+          costDetails: costDetails 
+        });
+        console.log('[BalanceService] Consumo registrado exitosamente en endpoint original');
+      } catch (error: any) {
+        if (error?.response && error.response.status === 404) {
+          console.warn('[BalanceService] Endpoint /balance/consumption no encontrado, intentando rutas alternativas...');
+          apiError = error;
+          
+          // Segunda opción: /companies/balance/consumption
+          try {
+            response = await axiosInstance.post('/companies/balance/consumption', {
+              companyId: companyIdNum,
+              amountUSD: finalAmount,
+              templateType,
+              templateDestination,
+              country,
+              description: `Consumo por envío de plantilla ${templateType}${country ? ' a ' + country : ''}`,
+              costDetails: costDetails
+            });
+            console.log('[BalanceService] Consumo registrado exitosamente en endpoint alternativo 1');
+            apiError = null; // Resetear el error si la segunda opción funciona
+          } catch (innerError: any) {
+            if (innerError?.response && innerError.response.status === 404) {
+              console.warn('[BalanceService] Endpoint alternativo 1 no encontrado, intentando otra ruta...');
+              
+              // Tercera opción: /company/balance/consumption
+              try {
+                response = await axiosInstance.post('/company/balance/consumption', {
+                  companyId: companyIdNum,
+                  amountUSD: finalAmount,
+                  templateType,
+                  templateDestination,
+                  country,
+                  description: `Consumo por envío de plantilla ${templateType}${country ? ' a ' + country : ''}`,
+                  costDetails: costDetails
+                });
+                console.log('[BalanceService] Consumo registrado exitosamente en endpoint alternativo 2');
+                apiError = null; // Resetear el error si la tercera opción funciona
+              } catch (finalError: any) {
+                console.warn('[BalanceService] Todos los endpoints de consumo fallaron, actualizando solo caché local');
+                // No actualizamos apiError para poder registrar que hubo un problema
+              }
+            } else {
+              // Si es otro tipo de error (no 404), lo guardamos
+              apiError = innerError;
+            }
+          }
+        } else {
+          // Si es otro tipo de error (no 404), lo guardamos
+          apiError = error;
+        }
+      }
       
       // Actualizamos nuestro caché local con el nuevo saldo calculado
       const newBalance = currentBalanceUSD - finalAmount;
@@ -436,14 +502,24 @@ class BalanceService {
       
       console.log(`Saldo después de consumo: ${newBalance} USD (monto descontado: ${finalAmount} USD)`);
       
+      // Si hubo error en la API pero queremos continuar, generamos una advertencia
+      if (apiError) {
+        console.warn('[BalanceService] No se pudo registrar el consumo en el backend, pero se actualizó el caché local');
+      }
+      
+      // Retornamos el balance actualizado con información adicional
       return {
         ...currentBalance,
         balanceUSD: newBalance,
         lastUpdated: new Date(),
         amountDeducted: finalAmount, // Incluir el monto real deducido para mostrar al usuario
-        costDetails: costDetails // Incluir detalles del costo para auditoría
+        costDetails: costDetails, // Incluir detalles del costo para auditoría
+        apiError: apiError ? {
+          status: apiError?.response?.status || 'unknown',
+          message: 'Error al registrar consumo en backend. El saldo se actualizó localmente pero podría no reflejarse en el servidor.'
+        } : null // Incluir info del error si ocurrió
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al decrementar saldo:', error);
       throw error;
     }

@@ -59,9 +59,11 @@ const MasiveChat: React.FC = () => {
   // ID de la empresa obtenido del token para actualizar el saldo
   const companyId = dataFromToken?.user?.company?.companyId
 
-  // trae los numeros de la empresa que maneja el ajente
-  const { data: numbersOfMaintance } =
-    useSWRFetch<NumbersOfMaintanceCaratule[]>(`/companies/getNumbersOfMaintance/${dataFromToken?.user?.company?.companyId}`)
+  // trae los numeros de la empresa que maneja el ajente - solo si existe un ID de compañía válido
+  const { data: numbersOfMaintance } = useSWRFetch<NumbersOfMaintanceCaratule[]>(
+    companyId ? `/companies/getNumbersOfMaintance/${companyId}` : ''
+  )
+  
   console.log('Números de mantenimiento:', numbersOfMaintance?.map(n => ({
     number: n.number,
     idNumberPhone: n.idNumberPhone

@@ -374,14 +374,14 @@ class BalanceService {
   }
 
   /**
-   * Decrementa el saldo de una empresa por consumo de plantillas - SOLO PARA CACHÉ LOCAL
+   * Actualiza el saldo local tras el envío de una plantilla - SOLO PARA CACHÉ LOCAL
    * 
-   * IMPORTANTE: Esta función ya no intenta registrar el consumo en el backend directamente.
-   * El consumo real de saldo debe realizarse únicamente a través de TemplateService.sendTemplate(),
-   * que activa automáticamente el consumo de saldo en el backend mediante TemplateBalanceInterceptor.
+   * IMPORTANTE: Esta función NO registra consumo en el backend.
+   * El consumo real de saldo SÓLO debe ocurrir a través de TemplateService.sendTemplate(),
+   * que activa el consumo de saldo mediante TemplateBalanceInterceptor en el backend.
    * 
-   * Esta función ahora solo actualiza el caché local para mantener la experiencia de usuario fluida
-   * y debe llamarse después de un envío exitoso de plantilla para mantener sincronizado el estado local.
+   * Esta función SÓLO actualiza el caché local para mantener la UI actualizada
+   * y debe llamarse después de un envío exitoso de plantilla.
    * 
    * @param companyId ID de la empresa
    * @param amountUSD Monto en USD a decrementar
@@ -398,9 +398,10 @@ class BalanceService {
     country: string = 'CO'
   ): Promise<ExtendedCompanyBalanceDto> {
     try {
+      debugLog(`Iniciando actualización de caché local para saldo - NO se realizará consumo en backend`);
       const companyIdNum = Number(companyId);
       
-      // Calcular el costo total (base + tarifa personalizada) si no se proporciona un monto
+      // Calcular el costo total si no se proporciona un monto específico
       let finalAmount = amountUSD;
       let costDetails = { baseCost: amountUSD, additionalCost: 0 };
       
@@ -423,7 +424,7 @@ class BalanceService {
             additionalCost: finalAmount - baseCost
           };
           
-          console.log(`[BalanceService] Costo calculado con tarifa personalizada: ${finalAmount} USD`, costDetails);
+          debugLog(`Costo calculado con tarifa personalizada: ${finalAmount} USD`, costDetails);
         } catch (costError) {
           console.error('Error al calcular costo con tarifa personalizada:', costError);
           // Si falla el cálculo, usar valor por defecto según tipo de plantilla
@@ -432,9 +433,9 @@ class BalanceService {
         }
       }
       
-      // Obtenemos el saldo actual (forzando actualización desde backend)
+      // Obtenemos el saldo actual actualizado desde backend
       const currentBalance = await this.getBalance(companyId, true);
-      console.log(`Saldo actual antes de consumo: ${currentBalance.balanceUSD} USD`);
+      debugLog(`Saldo actual antes de actualización: ${currentBalance.balanceUSD} USD`);
       
       // Validación y normalización del saldo actual
       let currentBalanceUSD: number;
@@ -443,7 +444,6 @@ class BalanceService {
       } else if (typeof currentBalance.balanceUSD === 'string') {
         currentBalanceUSD = parseFloat(currentBalance.balanceUSD);
       } else if ((currentBalance as any)['balance_usd'] !== undefined) {
-        // Soporte para posible estructura alternativa del backend
         const balanceUsdValue = (currentBalance as any)['balance_usd'];
         currentBalanceUSD = typeof balanceUsdValue === 'number' ? 
                          balanceUsdValue : 
@@ -452,27 +452,18 @@ class BalanceService {
         throw new Error('El saldo actual no tiene un formato válido');
       }
       
-      // Verificar si la conversión resultó en un número válido
       if (isNaN(currentBalanceUSD)) {
         throw new Error('El saldo actual no se pudo convertir a un número válido');
       }
       
-      // Validamos que haya saldo suficiente
+      // Validamos que haya saldo suficiente (aunque el consumo real ya se realizó en backend)
       if (currentBalanceUSD < finalAmount) {
-        throw new Error(`Saldo insuficiente. Saldo actual: ${currentBalanceUSD} USD, Consumo: ${finalAmount} USD`);
+        // Advertencia en lugar de error, ya que esto podría ocurrir si el balance real ya fue actualizado
+        console.warn(`Advertencia: El saldo local (${currentBalanceUSD} USD) es menor que el monto a decrementar (${finalAmount} USD)`);
+        // Seguimos adelante, ya que esta función solo actualiza el caché local
       }
       
-      /**
-       * NOTA IMPORTANTE: Las siguientes líneas que intentaban registrar el consumo en el backend
-       * a través de endpoints directos como '/balance/consumption', '/companies/:companyId/balance/consumption',
-       * '/companies/balance/consumption', o '/company/balance/consumption' han sido eliminadas.
-       * 
-       * Esto se debe a que estos endpoints no existen en el backend. El consumo de saldo
-       * debe realizarse a través de TemplateService.sendTemplate(), que activará automáticamente
-       * el consumo de saldo en el backend mediante TemplateBalanceInterceptor.
-       */
-      
-      // Solo actualizamos nuestro caché local con el nuevo saldo calculado
+      // Calculamos el nuevo saldo y actualizamos el caché local
       const newBalance = currentBalanceUSD - finalAmount;
       const cacheKey = String(companyId);
       this.balanceCache.set(cacheKey, {
@@ -480,22 +471,20 @@ class BalanceService {
         timestamp: Date.now()
       });
       
-      console.log(`Saldo después de consumo en caché local: ${newBalance} USD (monto descontado: ${finalAmount} USD)`);
-      console.log('[BalanceService] IMPORTANTE: El consumo de saldo debe registrarse a través de TemplateService.sendTemplate()');
+      debugLog(`Saldo actualizado en caché local: ${newBalance} USD (monto: ${finalAmount} USD)`);
       
       // Retornamos el balance actualizado con información adicional
       return {
         ...currentBalance,
         balanceUSD: newBalance,
         lastUpdated: new Date(),
-        amountDeducted: finalAmount, // Incluir el monto real deducido para mostrar al usuario
-        costDetails: costDetails, // Incluir detalles del costo para auditoría
-        cacheOnly: true, // Indicador de que este cambio solo afectó al caché local
-        message: 'El saldo se actualizó solo localmente. Para un registro completo, use TemplateService.sendTemplate()'
+        amountDeducted: finalAmount,
+        costDetails: costDetails,
+        cacheOnly: true,
+        message: 'Saldo actualizado localmente después del envío de plantilla'
       };
-
     } catch (error: any) {
-      console.error('Error al decrementar saldo:', error);
+      console.error('Error al actualizar saldo local:', error);
       throw error;
     }
   }

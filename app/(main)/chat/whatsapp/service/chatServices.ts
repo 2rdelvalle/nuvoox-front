@@ -85,12 +85,15 @@ export async function sendPlainMessage (to: string, message: string, token: stri
 
 /**
  * Envía un mensaje de plantilla (template) a través de la API de WhatsApp.
+ * Primero notifica al backend para consumir saldo y luego envía la plantilla directamente a WhatsApp.
+ * 
  * @param recipientPhone Número de teléfono del destinatario (con signo +).
  * @param accessToken Token de acceso para la API.
  * @param senderId Identificador del teléfono remitente.
  * @param nameTemplate Nombre de la plantilla sin prefijo.
  * @param companyId ID de la empresa.
  * @param companyInitials Dos primeras letras del nombre de la empresa.
+ * @param templateId ID opcional de la plantilla en la base de datos.
  * @returns true si se envió correctamente.
  */
 export async function sendTemplateMessage (
@@ -99,23 +102,44 @@ export async function sendTemplateMessage (
   senderId: string, 
   nameTemplate: string, 
   companyId: number,
-  companyInitials: string
+  companyInitials: string,
+  destination: string = "CO" // País destino por defecto
 ): Promise<boolean> {
-  // Agregar prefijo (ID de empresa + iniciales)
-  const prefix = `${companyId}${companyInitials.toLowerCase()}_`;
-  const templateNameWithPrefix = `${prefix}${nameTemplate}`;
-  
-  const apiUrl = `https://graph.facebook.com/v22.0/${senderId}/messages`
-  const messageData = {
-    messaging_product: "whatsapp",
-    to: recipientPhone,
-    type: "template",
-    template: {
-      name: templateNameWithPrefix,
-      language: { code: "es" }
-    }
-  }
   try {
+    // Paso 1: Notificar al backend para validación de saldo y registro del envío
+    console.log(`Notificando al backend sobre envío de plantilla: ${nameTemplate} para empresa ID: ${companyId}`);
+    
+    const backendResponse = await axiosInstance.post('/templates/send-template', {
+      companyId,
+      templateName: nameTemplate,
+      recipientPhone,
+      senderId,
+      accessToken,
+      companyInitials,
+      destination
+    });
+    
+    if (!backendResponse.data?.success) {
+      console.error('Error en la validación del backend:', backendResponse.data);
+      throw new Error(backendResponse.data?.message || 'Error validando el envío de plantilla');
+    }
+    
+    // Paso 2: Enviar la plantilla a la API de WhatsApp
+    // Agregar prefijo (ID de empresa + iniciales)
+    const prefix = `${companyId}${companyInitials.toLowerCase()}_`;
+    const templateNameWithPrefix = `${prefix}${nameTemplate}`;
+    
+    const apiUrl = `https://graph.facebook.com/v22.0/${senderId}/messages`
+    const messageData = {
+      messaging_product: "whatsapp",
+      to: recipientPhone,
+      type: "template",
+      template: {
+        name: templateNameWithPrefix,
+        language: { code: "es" }
+      }
+    }
+
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
@@ -124,14 +148,17 @@ export async function sendTemplateMessage (
       },
       body: JSON.stringify(messageData)
     })
+    
     if (!response.ok) {
       const errorData = await response.json()
       throw errorData.error || errorData
     }
-    return true
+    
+    console.log(`Plantilla ${nameTemplate} enviada exitosamente a ${recipientPhone}`);
+    return true;
   } catch (error) {
-    // Error occurred while sending template
-    throw error
+    console.error('Error al enviar plantilla:', error);
+    throw error;
   }
 }
 

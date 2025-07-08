@@ -447,10 +447,9 @@ class BalanceService {
           console.warn('[BalanceService] Endpoint /balance/consumption no encontrado, intentando rutas alternativas...');
           apiError = error;
           
-          // Segunda opción: /companies/balance/consumption
+          // Opción principal alternativa: /companies/:companyId/balance/consumption (formato REST)
           try {
-            response = await axiosInstance.post('/companies/balance/consumption', {
-              companyId: companyIdNum,
+            response = await axiosInstance.post(`/companies/${companyIdNum}/balance/consumption`, {
               amountUSD: finalAmount,
               templateType,
               templateDestination,
@@ -458,15 +457,15 @@ class BalanceService {
               description: `Consumo por envío de plantilla ${templateType}${country ? ' a ' + country : ''}`,
               costDetails: costDetails
             });
-            console.log('[BalanceService] Consumo registrado exitosamente en endpoint alternativo 1');
-            apiError = null; // Resetear el error si la segunda opción funciona
-          } catch (innerError: any) {
-            if (innerError?.response && innerError.response.status === 404) {
-              console.warn('[BalanceService] Endpoint alternativo 1 no encontrado, intentando otra ruta...');
+            console.log('[BalanceService] Consumo registrado exitosamente en endpoint REST correcto');
+            apiError = null; // Resetear el error si esta opción funciona
+          } catch (companyIdError: any) {
+            if (companyIdError?.response && companyIdError.response.status === 404) {
+              console.warn('[BalanceService] Endpoint REST no encontrado, intentando rutas alternativas planas...');
               
-              // Tercera opción: /company/balance/consumption
+              // Opción alternativa antigua: /companies/balance/consumption (formato plano)
               try {
-                response = await axiosInstance.post('/company/balance/consumption', {
+                response = await axiosInstance.post('/companies/balance/consumption', {
                   companyId: companyIdNum,
                   amountUSD: finalAmount,
                   templateType,
@@ -475,15 +474,37 @@ class BalanceService {
                   description: `Consumo por envío de plantilla ${templateType}${country ? ' a ' + country : ''}`,
                   costDetails: costDetails
                 });
-                console.log('[BalanceService] Consumo registrado exitosamente en endpoint alternativo 2');
-                apiError = null; // Resetear el error si la tercera opción funciona
-              } catch (finalError: any) {
-                console.warn('[BalanceService] Todos los endpoints de consumo fallaron, actualizando solo caché local');
-                // No actualizamos apiError para poder registrar que hubo un problema
+                console.log('[BalanceService] Consumo registrado exitosamente en endpoint alternativo 1');
+                apiError = null; // Resetear el error si la segunda opción funciona
+              } catch (innerError: any) {
+                if (innerError?.response && innerError.response.status === 404) {
+                  console.warn('[BalanceService] Endpoint alternativo 1 no encontrado, intentando otra ruta...');
+                  
+                  // Tercera opción: /company/balance/consumption
+                  try {
+                    response = await axiosInstance.post('/company/balance/consumption', {
+                      companyId: companyIdNum,
+                      amountUSD: finalAmount,
+                      templateType,
+                      templateDestination,
+                      country,
+                      description: `Consumo por envío de plantilla ${templateType}${country ? ' a ' + country : ''}`,
+                      costDetails: costDetails
+                    });
+                    console.log('[BalanceService] Consumo registrado exitosamente en endpoint alternativo 2');
+                    apiError = null; // Resetear el error si la tercera opción funciona
+                  } catch (finalError: any) {
+                    console.warn('[BalanceService] Todos los endpoints de consumo fallaron, actualizando solo caché local');
+                    // No actualizamos apiError para poder registrar que hubo un problema
+                  }
+                } else {
+                  // Si es otro tipo de error (no 404), lo guardamos
+                  apiError = innerError;
+                }
               }
             } else {
               // Si es otro tipo de error (no 404), lo guardamos
-              apiError = innerError;
+              apiError = companyIdError;
             }
           }
         } else {
@@ -526,4 +547,6 @@ class BalanceService {
   }
 }
 
-export default BalanceService.getInstance()
+// Exportamos la instancia del servicio para uso en otros módulos
+const balanceServiceInstance = BalanceService.getInstance();
+export default balanceServiceInstance;

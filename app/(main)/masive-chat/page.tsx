@@ -288,8 +288,12 @@ const MasiveChat: React.FC = () => {
     const successfulSends: CsvRow[] = [];
     const templateCosts = { utility: 0, marketing: 0 };
     
+    console.log(`[MasiveChat] Iniciando envío masivo de plantillas. Total filas: ${csvData?.length || 0}`);
+    
     if (csvData && numbersOfMaintance && dataTemplates) {
       for (const row of csvData) {
+        console.log(`[MasiveChat] Procesando plantilla: ${row.templateName} para enviar a: +${row.indicativePhone}${row.destinationPhone}`);
+        
         if (isRowValid(row)) {
           // Buscar el registro de numbersOfMaintance correspondiente al teléfono de origen
           const maintRecord = numbersOfMaintance.find(
@@ -325,18 +329,30 @@ const MasiveChat: React.FC = () => {
               }
             }
 
-            // Enviar la plantilla
-            await sendTemplateMessage(
-              newDestinationPhone,
-              maintRecord.IdAccountWB as any, // token de acceso desde numbersOfMaintance
-              maintRecord.idNumberPhone as any, // senderId desde numbersOfMaintance
-              row.templateName,
-              companyId,
-              companyInitials
-            );
-
-            results.push({ row, success: true });
-            successfulSends.push(row);
+            // Enviar la plantilla y registrar respuesta
+            console.log(`[MasiveChat] Enviando plantilla ${row.templateName} a ${newDestinationPhone} desde ${maintRecord.idNumberPhone}`);
+            
+            try {
+              await sendTemplateMessage(
+                newDestinationPhone,
+                maintRecord.IdAccountWB as any, // token de acceso desde numbersOfMaintance
+                maintRecord.idNumberPhone as any, // senderId desde numbersOfMaintance
+                row.templateName,
+                companyId,
+                companyInitials
+              );
+              
+              // Log detallado del éxito
+              console.log(`[MasiveChat] ✅ Plantilla ${row.templateName} enviada exitosamente a ${newDestinationPhone}`);
+              console.log(`[MasiveChat] Detalles: SenderID=${maintRecord.idNumberPhone}, TemplateID=${row.templateName}, CompanyID=${companyId}`);
+              
+              results.push({ row, success: true });
+              successfulSends.push(row);
+            } catch (sendError) {
+              // Este error debería ser capturado por el catch exterior, pero agregamos logs específicos aquí
+              console.error(`[MasiveChat] ❌ Error al enviar plantilla ${row.templateName} a ${newDestinationPhone}:`, sendError);
+              throw sendError;
+            }
           } catch (err) {
             results.push({ row, success: false, error: err });
           }
@@ -359,8 +375,12 @@ const MasiveChat: React.FC = () => {
     const successfulSends: MultimediaCsvRow[] = [];
     const templateCosts = { utility: 0, marketing: 0 };
     
+    console.log(`[MasiveChat] Iniciando envío masivo de plantillas multimedia. Total filas: ${multimediaCsvData?.length || 0}`);
+    
     if (multimediaCsvData && numbersOfMaintance && dataTemplates) {
       for (const row of multimediaCsvData) {
+        console.log(`[MasiveChat] Procesando plantilla multimedia: ${row.templateName} para enviar a: +${row.indicativePhone}${row.destinationPhone} (Tipo: ${row.mediaType})`);
+        
         if (isMultimediaRowValid(row)) {
           // Buscar el registro de numbersOfMaintance correspondiente al teléfono de origen
           const maintRecord = numbersOfMaintance.find(
@@ -428,16 +448,28 @@ const MasiveChat: React.FC = () => {
                 throw new Error("No se pudo obtener la información de la empresa")
               }
               
-              await sendTemplateMessage(
-                newDestinationPhone,
-                maintRecord.IdAccountWB as any, // token de acceso desde numbersOfMaintance
-                maintRecord.idNumberPhone as any, // senderId desde numbersOfMaintance
-                row.templateName,
-                companyId,
-                dataFromToken.user.company.name.substring(0, 2)
-              )
-              results.push({ row, success: true })
-              successfulSends.push(row)
+              console.log(`[MasiveChat] Enviando plantilla multimedia ${row.templateName} a ${newDestinationPhone} desde ${maintRecord.idNumberPhone}`);
+              
+              try {
+                await sendTemplateMessage(
+                  newDestinationPhone,
+                  maintRecord.IdAccountWB as any, // token de acceso desde numbersOfMaintance
+                  maintRecord.idNumberPhone as any, // senderId desde numbersOfMaintance
+                  row.templateName,
+                  companyId,
+                  dataFromToken.user.company.name.substring(0, 2)
+                );
+                
+                // Log detallado del éxito
+                console.log(`[MasiveChat] ✅ Plantilla multimedia ${row.templateName} enviada exitosamente a ${newDestinationPhone}`);
+                console.log(`[MasiveChat] Detalles: SenderID=${maintRecord.idNumberPhone}, TemplateID=${row.templateName}, CompanyID=${companyId}`);
+                
+                results.push({ row, success: true });
+                successfulSends.push(row);
+              } catch (sendError) {
+                console.error(`[MasiveChat] ❌ Error al enviar plantilla multimedia ${row.templateName} a ${newDestinationPhone}:`, sendError);
+                throw sendError;
+              }
               
               // Actualizar costos según categoría (precio estándar)
               if (template.categoryTemplateWhatsapp === "UTILITY") {

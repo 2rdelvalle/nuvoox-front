@@ -149,12 +149,21 @@ export async function sendTemplateMessage (
       body: JSON.stringify(messageData)
     })
     
+    const responseText = await response.text();
+    const responseData = responseText ? JSON.parse(responseText) : {};
+    
     if (!response.ok) {
-      const errorData = await response.json()
-      throw errorData.error || errorData
+      console.error(`Error al enviar plantilla a WhatsApp: ${JSON.stringify(responseData)}`);
+      throw responseData.error || responseData;
     }
     
+    // Logs detallados de la respuesta de WhatsApp
     console.log(`Plantilla ${nameTemplate} enviada exitosamente a ${recipientPhone}`);
+    console.log(`Respuesta de WhatsApp: ${JSON.stringify({
+      messageId: responseData.messages?.[0]?.id || 'N/A',
+      status: responseData.messages?.[0]?.status || 'N/A',
+      timestamp: new Date().toISOString()
+    })}`);
     return true;
   } catch (error) {
     console.error('Error al enviar plantilla:', error);

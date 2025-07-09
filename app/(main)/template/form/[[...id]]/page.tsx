@@ -81,7 +81,20 @@ const TemplateForm = () => {
   // Obtener información del usuario desde el token
   const token = getCookieToken()
   const dataFromToken = getDataFromToken(token ?? "")
-  const companyId = Number(dataFromToken?.user?.company?.companyId)
+  // Validar que realmente exista un ID de compañía válido
+  const rawCompanyId = dataFromToken?.user?.company?.companyId || localStorage.getItem('companyId')
+  // Usamos un valor predeterminado (1) en caso de que no se pueda obtener un ID válido
+  // Esto permite que la aplicación funcione, aunque se debe mostrar una advertencia
+  const companyId = !isNaN(Number(rawCompanyId)) && Number(rawCompanyId) > 0 ? Number(rawCompanyId) : 1
+  
+  // Verificar si tenemos un ID de compañía válido
+  useEffect(() => {
+    // Si estamos usando el valor predeterminado (1), mostrar una advertencia
+    if (companyId === 1 && !rawCompanyId) {
+      // En lugar de console.error, usamos un enfoque más apropiado para producción
+      showError('No se pudo identificar su compañía. Se usará un valor predeterminado.')
+    }
+  }, [companyId, rawCompanyId, showError])
 
   /**
    * Manejador para envío de plantilla básica de texto
@@ -232,18 +245,32 @@ try {
    */
   async function save (data: TemplateModel) {
     setBlocked(true)
-    await _template.save(data)
-      .then(() => {
-        showSuccess("Plantilla de texto creada correctamente")
-        onClickAction()
-      })
-      .catch((error) => {
-        console.error(error)
-        showError("Error al crear la plantilla de texto")
-      })
-      .finally(() => {
-        setBlocked(false)
-      })
+    try {
+      await _template.save(data)
+      showSuccess("Plantilla de texto creada correctamente")
+      onClickAction()
+    } catch (error: any) {
+      console.error('Error al crear plantilla:', error)
+      
+      // Manejar errores específicos
+      if (error.response?.status === 401) {
+        showError("Tu sesión es inválida o ha expirado. Por favor, vuelve a iniciar sesión.")
+      } else if (error.response?.status === 403) {
+        showError("No tienes permisos suficientes para crear plantillas.")
+      } else if (error.response?.status === 400) {
+        showError(error.response?.data?.message || "Error en los datos de la plantilla")
+      } else if (error.response?.status === 500) {
+        // Manejar errores del servidor
+        const errorMessage = error.response?.data?.message || 
+          "Error interno del servidor. Por favor, intenta nuevamente más tarde. Si el problema persiste, contacta al soporte técnico.";
+        showError(errorMessage)
+      } else {
+        // Manejar otros errores
+        showError("Error al crear la plantilla. Por favor, intenta nuevamente.")
+      }
+    } finally {
+      setBlocked(false)
+    }
   }
   
   /**
@@ -255,9 +282,19 @@ try {
       await _template.saveMultimedia(data)
       showSuccess("Plantilla multimedia creada correctamente")
       onClickAction()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al crear plantilla multimedia:', error)
-      showError("Error al crear la plantilla multimedia")
+      
+      // Manejar errores de autenticación específicos
+      if (error.response?.status === 401) {
+        showError("Tu sesión es inválida o ha expirado. Por favor, vuelve a iniciar sesión.")
+      } else if (error.response?.status === 403) {
+        showError("No tienes permisos suficientes para crear plantillas multimedia.")
+      } else if (error.response?.status === 400) {
+        showError(error.response?.data?.message || "Error en los datos de la plantilla multimedia")
+      } else {
+        showError("Error al crear la plantilla multimedia")
+      }
     } finally {
       setBlocked(false)
     }

@@ -68,26 +68,49 @@ const TemplatesPage = () => {
     }
   }, [fetchTemplates, user?.company?.companyId]);
   
+  // Rastreamos los IDs de eventos para evitar duplicados
+  const processedEventsRef = useRef<Set<string>>(new Set());
+
   // Efecto separado para manejar eventos en tiempo real
   useEffect(() => {
     // Para actualizaciones por cambios en data de tiempo real
     if (!data || !didInitialFetchRef.current) return;
     
-    const now = Date.now();
-    const eventType = data.eventType;
+    // Crear un identificador único para este evento
+    const eventId = `${data.eventType}_${data.timestamp || Date.now()}`;
     
-    // Mostrar un mensaje informativo sobre el tipo de evento
+    // Verificar si ya procesamos este evento
+    if (processedEventsRef.current.has(eventId)) {
+      return;
+    }
+    
+    // Throttling para limitar la frecuencia de actualizaciones
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < THROTTLE_TIME) {
+      console.log('🛑 Omitiendo actualización debido al throttling');
+      return;
+    }
+    
+    // Marcar este evento como procesado
+    processedEventsRef.current.add(eventId);
+    // Limitar el tamaño del conjunto para evitar crecimiento indefinido
+    if (processedEventsRef.current.size > 100) {
+      const values = Array.from(processedEventsRef.current);
+      processedEventsRef.current = new Set(values.slice(-50)); // Mantener solo los últimos 50
+    }
+    
+    const eventType = data.eventType;
     setLastEventType(eventType);
     
-    // Log detallado del evento para depuración
-    console.log(`🔄 Evento de plantilla detectado: ${eventType}`, data);
-    console.log('Datos del evento completo:', JSON.stringify(data));
-    
-    // Actualización forzada para todos los eventos de plantilla
-    // Esta solución garantiza que tanto plantillas de texto como multimedia se actualicen
-    console.log('⚡ Actualizando estado de plantillas...');
-    fetchTemplates();
-    lastFetchTimeRef.current = now;
+    // Actualización solo para eventos específicos
+    if (['approval', 'rejection', 'creation'].includes(eventType)) {
+      console.log(`🔄 Evento importante de plantilla detectado: ${eventType}`);
+      console.log('⚡ Actualizando estado de plantillas...');
+      fetchTemplates();
+      lastFetchTimeRef.current = now;
+    } else {
+      console.log(`ℹ️ Evento de plantilla ignorado para actualización automática: ${eventType}`);
+    }
     
     // Mostrar mensaje informativo según el tipo de evento
     if (eventType === 'approval') {

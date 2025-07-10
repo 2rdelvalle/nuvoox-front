@@ -125,9 +125,11 @@ export async function sendTemplateMessage (
     }
     
     // Paso 2: Enviar la plantilla a la API de WhatsApp
-    // Agregar prefijo (ID de empresa + iniciales)
+    // Agregar prefijo (ID de empresa + iniciales) y convertir todo a minúsculas
+    // Meta requiere que los nombres de plantillas estén en minúsculas
     const prefix = `${companyId}${companyInitials.toLowerCase()}_`;
-    const templateNameWithPrefix = `${prefix}${nameTemplate}`;
+    // Convertimos el nombre completo a minúsculas para asegurar compatibilidad con Meta
+    const templateNameWithPrefix = `${prefix}${nameTemplate}`.toLowerCase();
     
     const apiUrl = `https://graph.facebook.com/v22.0/${senderId}/messages`
     const messageData = {

@@ -749,6 +749,21 @@ useEffect(() => {
             )  
             if (ok) {
         showSuccess("Mensaje enviado")
+        
+        // Añadir la plantilla enviada al historial de mensajes visible
+        const newMessage: MessageModel = {
+          content: `Plantilla enviada: ${selectedTemplate.name}\n${selectedTemplate.text || 'Sin contenido de texto'}`,
+          owner: MESSAGE_OWNER.AGENT,
+          sentAt: Date.now(),
+          type: MESSAGE_TYPE.TEXT,
+          conversationId: activeConversation?.conversationid || 0,
+          id: Date.now(),
+          from: actualNumberOfMaintanceSelected?.number || ''
+        };
+        
+        // Añadir el mensaje al estado local y guardarlo en el store
+        addMessage(newMessage);
+        
         // Actualizar el saldo después de enviar la plantilla
         await updateBalanceAfterSendingTemplates(1, 0.0125);
       }

@@ -750,22 +750,40 @@ useEffect(() => {
             if (ok) {
         showSuccess("Mensaje enviado")
         
-        // Añadir la plantilla enviada al historial de mensajes visible
+        // Generar un ID único numérico para cumplir con el tipo MessageModel
+        const messageIdNum = Date.now();
+        const messageIdStr = `template_${messageIdNum}`;
+        
+        // Añadir la plantilla enviada al historial de mensajes visible con formato mejorado
         const newMessage: MessageModel = {
-          content: `Plantilla enviada: ${selectedTemplate.name}\n${selectedTemplate.text || 'Sin contenido de texto'}`,
+          content: `📝 *Plantilla enviada:* ${selectedTemplate.name}\n\n${selectedTemplate.text || 'Sin contenido de texto'}`,
           owner: MESSAGE_OWNER.AGENT,
           sentAt: Date.now(),
           type: MESSAGE_TYPE.TEXT,
           conversationId: activeConversation?.conversationid || 0,
-          id: Date.now(),
+          id: messageIdNum, // Usar el timestamp como ID numérico
+          idWhatsapp: messageIdStr, // Usar la cadena completa como idWhatsapp
           from: actualNumberOfMaintanceSelected?.number || ''
         };
         
-        // Añadir el mensaje al estado local y guardarlo en el store
+        // Agregar directamente a ambos stores para garantizar persistencia
         addMessage(newMessage);
+        
+        // Forzar la actualización del estado local y la visualización
+        // Uso directo del arreglo de mensajes actual para evitar errores de tipo
+        setMessages([...storedMessages, newMessage]);
+        
+        console.log('✅ Plantilla agregada al historial de chat:', newMessage);
         
         // Actualizar el saldo después de enviar la plantilla
         await updateBalanceAfterSendingTemplates(1, 0.0125);
+        
+        // Forzar scroll hacia abajo para mostrar el nuevo mensaje
+        setTimeout(() => {
+          if (chatWindow.current) {
+            chatWindow.current.scrollTop = chatWindow.current.scrollHeight;
+          }
+        }, 100);
       }
     } catch (error: any) {
       // Maneja el error en caso de token expirado u otros

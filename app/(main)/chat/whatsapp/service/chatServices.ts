@@ -168,8 +168,36 @@ export async function sendTemplateMessage (
       }
     };
     
+    // Validaciones detalladas para información multimedia
+    console.log("[DEBUG] mediaUrl recibido:", mediaUrl);
+    console.log("[DEBUG] tipo de plantilla:", mediaType);
+    
+    // Validar que mediaUrl existe y no está vacío
+    const isMediaUrlValid = !!mediaUrl && typeof mediaUrl === 'string' && mediaUrl.trim() !== '';
+    console.log(`[DEBUG] ¿mediaUrl es válido? ${isMediaUrlValid ? 'SÍ' : 'NO'}`);
+    
+    // Validar que mediaUrl comienza con https://
+    const isHttpsUrl = isMediaUrlValid && mediaUrl.startsWith('https://');
+    console.log(`[DEBUG] ¿mediaUrl es HTTPS? ${isHttpsUrl ? 'SÍ' : 'NO'}`);
+    
+    // Validar que el tipo coincide con lo que se espera enviar
+    const isCorrectMediaType = mediaType === 'image' || mediaType === 'video' || 
+                              mediaType === 'document' || mediaType === 'audio';
+    console.log(`[DEBUG] ¿Tipo de media correcto? ${isCorrectMediaType ? 'SÍ' : 'NO'}`);
+    
+    // Detalle completo de la información multimedia
+    console.log('[DEBUG] Resumen de validación multimedia:', {
+      finalTemplateName,
+      mediaUrl,
+      mediaType,
+      isMultimedia,
+      isMediaUrlValid,
+      isHttpsUrl,
+      isCorrectMediaType
+    });
+    
     // Si es plantilla multimedia, agregar los componentes necesarios
-    if (isMultimedia && mediaUrl) {
+    if (isMultimedia && isMediaUrlValid && isHttpsUrl) {
       console.log(`[DEBUG] Agregando componentes multimedia para plantilla: ${finalTemplateName}`);
       
       // Para plantillas de imagen, se requiere el componente header
@@ -188,6 +216,14 @@ export async function sendTemplateMessage (
       ];
       
       console.log(`[DEBUG] Componentes agregados: ${JSON.stringify(messageData.template.components)}`);
+    } else if (isMultimedia) {
+      // Si se identifica como multimedia pero falta información, alertar
+      console.error(`[ERROR] Plantilla marcada como multimedia pero falta información válida:`, {
+        mediaUrl,
+        mediaType,
+        isMediaUrlValid,
+        isHttpsUrl
+      });
     }
 
     const response = await fetch(apiUrl, {

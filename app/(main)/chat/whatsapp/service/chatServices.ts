@@ -124,20 +124,38 @@ export async function sendTemplateMessage (
       throw new Error(backendResponse.data?.message || 'Error validando el envío de plantilla');
     }
     
-    // Paso 2: Enviar la plantilla a la API de WhatsApp
-    // Agregar prefijo (ID de empresa + iniciales) y convertir todo a minúsculas
-    // Meta requiere que los nombres de plantillas estén en minúsculas
-    const prefix = `${companyId}${companyInitials.toLowerCase()}_`;
-    // Convertimos el nombre completo a minúsculas para asegurar compatibilidad con Meta
-    const templateNameWithPrefix = `${prefix}${nameTemplate}`.toLowerCase();
+    // Determinar si es una plantilla multimedia basándose en la respuesta del backend
+    const templateData = backendResponse.data?.templateData || {};
+    const isMultimedia = templateData.categoryTemplateWhatsapp === 'image' || 
+                         templateData.categoryTemplateWhatsapp === 'video' || 
+                         templateData.categoryTemplateWhatsapp === 'document' || 
+                         templateData.categoryTemplateWhatsapp === 'audio' || 
+                         templateData.categoryTemplateWhatsapp === 'multimedia';
     
+    console.log(`[DEBUG] Tipo de plantilla detectado: ${templateData.categoryTemplateWhatsapp || 'desconocido'}`);
+    console.log(`[DEBUG] Es plantilla multimedia: ${isMultimedia ? 'SÍ' : 'NO'}`);
+    
+    // Paso 2: Preparar el nombre de la plantilla según su tipo
+    let finalTemplateName;
+    
+    if (isMultimedia) {
+      // Para plantillas multimedia, usar el nombre ORIGINAL sin prefijo
+      finalTemplateName = nameTemplate.toLowerCase();
+      console.log(`[DEBUG] Usando nombre de plantilla multimedia SIN prefijo: ${finalTemplateName}`);
+    } else {
+      // Para plantillas de texto, también usar el nombre ORIGINAL sin prefijo
+      finalTemplateName = nameTemplate.toLowerCase();
+      console.log(`[DEBUG] Usando nombre de plantilla de texto SIN prefijo: ${finalTemplateName}`);
+    }
+    
+    // Paso 3: Enviar la plantilla a la API de WhatsApp
     const apiUrl = `https://graph.facebook.com/v22.0/${senderId}/messages`
     const messageData = {
       messaging_product: "whatsapp",
       to: recipientPhone,
       type: "template",
       template: {
-        name: templateNameWithPrefix,
+        name: finalTemplateName,
         language: { code: "es" }
       }
     }

@@ -150,7 +150,15 @@ export async function sendTemplateMessage (
     
     // Paso 3: Enviar la plantilla a la API de WhatsApp
     const apiUrl = `https://graph.facebook.com/v22.0/${senderId}/messages`
-    const messageData = {
+    
+    // Usar la información multimedia que ya obtuvimos previamente
+    let mediaUrl = templateData.mediaUrl;
+    const mediaType = templateData.categoryTemplateWhatsapp;
+    
+    console.log(`[DEBUG] Información de plantilla: mediaUrl=${mediaUrl}, mediaType=${mediaType}`);
+    
+    // Crear la estructura de datos base para el mensaje
+    const messageData: any = {
       messaging_product: "whatsapp",
       to: recipientPhone,
       type: "template",
@@ -158,6 +166,28 @@ export async function sendTemplateMessage (
         name: finalTemplateName,
         language: { code: "es" }
       }
+    };
+    
+    // Si es plantilla multimedia, agregar los componentes necesarios
+    if (isMultimedia && mediaUrl) {
+      console.log(`[DEBUG] Agregando componentes multimedia para plantilla: ${finalTemplateName}`);
+      
+      // Para plantillas de imagen, se requiere el componente header
+      messageData.template.components = [
+        {
+          type: "header",
+          parameters: [
+            {
+              type: "image",
+              image: {
+                link: mediaUrl
+              }
+            }
+          ]
+        }
+      ];
+      
+      console.log(`[DEBUG] Componentes agregados: ${JSON.stringify(messageData.template.components)}`);
     }
 
     const response = await fetch(apiUrl, {

@@ -42,9 +42,9 @@ const UserPage = () => {
     }
   }, [])
 
-  // Filtrar usuarios activos (status !== "INACTIVE")
+  // Filtrar usuarios activos (status !== "I")
   const activeUsers = Array.isArray(users) 
-    ? users.filter(user => user.status !== "INACTIVE") 
+    ? users.filter(user => user.status !== "I") 
     : [];
 
   // Registrar en consola para depuración

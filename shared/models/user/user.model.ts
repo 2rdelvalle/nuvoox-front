@@ -27,6 +27,7 @@ export interface UserCaratule {
   mail: string;
   company: CompanyCaratule
   role: RoleCaratule;
+  status?: string; // Campo opcional para estado del usuario (ACTIVE, INACTIVE, etc.)
 }
 
 export interface UserChangePassword {

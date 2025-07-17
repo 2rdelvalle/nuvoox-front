@@ -30,10 +30,10 @@ export const COLUMNS_USER = ({ callback }: props) => {
         .deleteById(rowData.userId)
         .then(({ data }) => {
           callback()
-          showInfo("Usuario eliminado correctamente")
+          showInfo("El usuario ha sido desactivado correctamente y ya no aparecerá en la lista")
         })
     } catch (error : any) {
-      showError(error.response?.data?.message ?? "Error al eliminar el usuario")
+      showError(error.response?.data?.message ?? "Error al desactivar el usuario")
     }
   }
 

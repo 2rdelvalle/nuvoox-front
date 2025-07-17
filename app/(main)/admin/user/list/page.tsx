@@ -22,7 +22,7 @@ const UserPage = () => {
   const dataToken = tokenData?.user
 
   // Usa el nuevo hook
-  const { responseData: users, isLoading, fetchData } = useFetchWithParams(_users.getCaratulesFromUserCompany)
+  const { responseData: users, isLoading, fetchData, setResponseData } = useFetchWithParams(_users.getCaratulesFromUserCompany)
 
   // Configura las columnas y el callback
   const { columns } = COLUMNS_USER({ 
@@ -30,7 +30,9 @@ const UserPage = () => {
       if (dataToken) {
         fetchData(dataToken)
       }
-    }
+    },
+    users: Array.isArray(users) ? users : [],
+    setUsers: setResponseData
   })
 
   // Llama a fetchData al cargar la página

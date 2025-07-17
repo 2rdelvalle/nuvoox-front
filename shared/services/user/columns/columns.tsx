@@ -9,9 +9,11 @@ import { UserService as _user } from "@/shared/services/index"
 
 type props = {
   callback : ()=> void
+  users?: any[]
+  setUsers?: (users: any[]) => void
 }
 
-export const COLUMNS_USER = ({ callback }: props) => {
+export const COLUMNS_USER = ({ callback, users, setUsers }: props) => {
   const { push } = useRouter()
 
   const { showInfo, showError } = useToast()
@@ -24,16 +26,28 @@ export const COLUMNS_USER = ({ callback }: props) => {
   }
 
   async function deleteWithId (rowData: any) {
-    console.log(rowData)
+    console.log('Eliminando usuario:', rowData)
     try {
+      // Si tenemos acceso a la lista de usuarios y la función para actualizarla
+      if (users && setUsers) {
+        // Actualizar la UI inmediatamente, sin esperar la respuesta del backend
+        const updatedUsers = users.filter(user => user.userId !== rowData.userId);
+        console.log(`Filtrando usuario ${rowData.userId}, usuarios restantes: ${updatedUsers.length}`);
+        setUsers(updatedUsers);
+      }
+
+      // Realizar la petición de eliminación al backend
       await _user
         .deleteById(rowData.userId)
         .then(({ data }) => {
+          // Recargar datos del backend por si acaso
           callback()
           showInfo("El usuario ha sido desactivado correctamente y ya no aparecerá en la lista")
         })
     } catch (error : any) {
       showError(error.response?.data?.message ?? "Error al desactivar el usuario")
+      // Si ocurrió un error, recargar los datos para restaurar el estado correcto
+      callback()
     }
   }
 

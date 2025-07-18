@@ -142,9 +142,15 @@ export async function sendTemplateMessage (
     const whatsappTemplateName = backendResponse.data?.whatsappTemplateName;
     
     if (whatsappTemplateName) {
-      // Si el backend proporciona el nombre con prefijo, usarlo directamente
-      finalTemplateName = whatsappTemplateName;
-      console.log(`[DEBUG] Usando nombre con prefijo proporcionado por el backend: ${finalTemplateName}`);
+      // Si el backend proporciona el nombre con prefijo, usarlo directamente pero normalizando a minúsculas
+      // Esto es crucial ya que Meta/WhatsApp espera el nombre en minúsculas (4em_sdfsdf vs 4Em_sdfsdf)
+      finalTemplateName = whatsappTemplateName.toLowerCase();
+      console.log(`[DEBUG] Usando nombre con prefijo proporcionado por el backend (normalizado): ${finalTemplateName}`);
+      
+      // Registrar la normalización si hubo cambios
+      if (whatsappTemplateName !== finalTemplateName) {
+        console.log(`[DEBUG] Normalización realizada: ${whatsappTemplateName} → ${finalTemplateName}`);
+      }
     } else {
       // Comportamiento anterior para mantener compatibilidad
       if (isMultimedia) {

@@ -138,14 +138,24 @@ export async function sendTemplateMessage (
     // Paso 2: Preparar el nombre de la plantilla según su tipo
     let finalTemplateName;
     
-    if (isMultimedia) {
-      // Para plantillas multimedia, usar el nombre ORIGINAL sin prefijo
-      finalTemplateName = nameTemplate.toLowerCase();
-      console.log(`[DEBUG] Usando nombre de plantilla multimedia SIN prefijo: ${finalTemplateName}`);
+    // Primero verificar si el backend nos proporcionó el nombre con prefijo
+    const whatsappTemplateName = backendResponse.data?.whatsappTemplateName;
+    
+    if (whatsappTemplateName) {
+      // Si el backend proporciona el nombre con prefijo, usarlo directamente
+      finalTemplateName = whatsappTemplateName;
+      console.log(`[DEBUG] Usando nombre con prefijo proporcionado por el backend: ${finalTemplateName}`);
     } else {
-      // Para plantillas de texto, también usar el nombre ORIGINAL sin prefijo
-      finalTemplateName = nameTemplate.toLowerCase();
-      console.log(`[DEBUG] Usando nombre de plantilla de texto SIN prefijo: ${finalTemplateName}`);
+      // Comportamiento anterior para mantener compatibilidad
+      if (isMultimedia) {
+        finalTemplateName = nameTemplate.toLowerCase();
+        console.log(`[DEBUG] Usando nombre de plantilla multimedia SIN prefijo: ${finalTemplateName}`);
+      } else {
+        finalTemplateName = nameTemplate.toLowerCase();
+        console.log(`[DEBUG] Usando nombre de plantilla de texto SIN prefijo: ${finalTemplateName}`);
+      }
+      // Advertencia para facilitar la depuración
+      console.warn('[WARN] Backend no proporcionó whatsappTemplateName, usando nombre sin prefijo que podría causar errores');
     }
     
     // Paso 3: Enviar la plantilla a la API de WhatsApp

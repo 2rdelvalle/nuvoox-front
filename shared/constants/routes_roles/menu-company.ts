@@ -50,7 +50,7 @@ export const MENU_COMPANY: MenuModel[] = [
       },
       {
         label: "Campañas",
-        icon: "pi pi-send", // modificado
+        icon: "pi pi-megaphone", // modificado
         items: [
           {
             label: "Envio Masivos",

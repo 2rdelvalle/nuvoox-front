@@ -47,6 +47,17 @@ export const MENU_COMPANY: MenuModel[] = [
             to: "/template/list"
           }
         ]
+      },
+      {
+        label: "Campañas",
+        icon: "pi pi-cog", // modificado
+        items: [
+          {
+            label: "Envio Masivos",
+            icon: "pi pi-send", // modificado
+            to: "/masive-chat"
+          }
+        ]
       }
     ]
   }

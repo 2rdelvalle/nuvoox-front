@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { MENU_ADMIN, MENU_COMPANY, MENU_USER_COMPANY } from "@/shared/constants/routes_roles"
+import { MENU_ADMIN, MENU_COMPANY, MENU_USER_COMPANY, getMenuUserCompany } from "@/shared/constants/routes_roles"
 import { JWTAuth } from "@/shared/models"
 import { RoleCaratule } from "@/shared/models/role"
 import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/sessionUtils"
@@ -11,14 +11,14 @@ import dynamic from "next/dynamic";
 // Versión del componente que solo se renderiza en el cliente
 const AppSubMenuClientOnly = dynamic(() => Promise.resolve(AppSubMenu), { ssr: false });
 
-function getMenuWithRoleType (role : RoleCaratule): MenuModel[] {
+function getMenuWithRoleType (role : RoleCaratule, user?: any): MenuModel[] {
   switch (role.name) {
     case "SUPERADMIN":
       return MENU_ADMIN
     case "EMPRESA":
       return MENU_COMPANY
     case "AGENTE":
-      return MENU_USER_COMPANY
+      return getMenuUserCompany(user)
     default:
       return [] as MenuModel[]
   }
@@ -39,7 +39,7 @@ const AppMenu = () => {
     
     // Determinar el modelo de menú basado en el rol del usuario
     if (dataToken && dataToken.user) {
-      setModel(getMenuWithRoleType(dataToken.user.role));
+      setModel(getMenuWithRoleType(dataToken.user.role, dataToken.user));
     } else {
       setModel([]);
     }

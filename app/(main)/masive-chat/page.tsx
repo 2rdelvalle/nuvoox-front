@@ -18,6 +18,7 @@ import { sendTemplateMessage } from "../chat/whatsapp/service/chatServices"
 import { Button } from "primereact/button"
 import { TabView, TabPanel } from 'primereact/tabview'
 import { TemplateMediaType } from "@/shared/models/template/multimedia-template.model"
+import { CampaignPermissionGuard } from "@/shared/components/guards/CampaignPermissionGuard"
 
 // Actualizar definición del tipo para las filas del XLSXS
 type CsvRow = {
@@ -502,7 +503,8 @@ const MasiveChat: React.FC = () => {
   }, [multimediaCsvData, numbersOfMaintance, dataTemplates, updateBalanceAfterSendingTemplates])
 
   return (
-    <EmptyPage>
+    <CampaignPermissionGuard>
+      <EmptyPage>
       <div className="flex flex-column align-items-center">
         {/* TabView para separar las opciones de envío normal y multimedia */}
         <TabView activeIndex={activeTabIndex} onTabChange={(e) => setActiveTabIndex(e.index)}
@@ -739,7 +741,8 @@ const MasiveChat: React.FC = () => {
           })()
         )}
       </div>
-    </EmptyPage>
+      </EmptyPage>
+    </CampaignPermissionGuard>
   )
 }
 

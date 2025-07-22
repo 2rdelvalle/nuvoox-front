@@ -19,6 +19,7 @@ export interface UserFormModel extends GeneralErrors{
         userNumbersToMaintance?: NumbersOfMaintanceCaratule[]
         canEditAll?: boolean;
         canEditCompany?: boolean;
+        can_send_campaigns?: boolean;
 }
 
 export interface UserCaratule {
@@ -28,6 +29,7 @@ export interface UserCaratule {
   company: CompanyCaratule
   role: RoleCaratule;
   status?: string; // Campo opcional para estado del usuario (ACTIVE, INACTIVE, etc.)
+  can_send_campaigns?: boolean;
 }
 
 export interface UserChangePassword {

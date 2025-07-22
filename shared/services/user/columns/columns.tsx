@@ -5,6 +5,7 @@ import ActionButton from "@/shared/small-components/ActionButtons/actionbutton"
 import { ColumnsType } from "@/shared/small-components/TableFilter/types/tableFilterTypes"
 import { useRouter } from "next/navigation"
 import { Badge } from "primereact/badge"
+import { InputSwitch } from "primereact/inputswitch"
 import { UserService as _user } from "@/shared/services/index"
 
 type props = {
@@ -51,6 +52,28 @@ export const COLUMNS_USER = ({ callback, users, setUsers }: props) => {
     }
   }
 
+  async function toggleCampaignPermission(rowData: UserCaratule, newValue: boolean) {
+    try {
+      // Actualizar la UI inmediatamente para mejor UX
+      if (users && setUsers) {
+        const updatedUsers = users.map(user => 
+          user.userId === rowData.userId 
+            ? { ...user, can_send_campaigns: newValue }
+            : user
+        );
+        setUsers(updatedUsers);
+      }
+
+      // Realizar la petición al backend
+      await _user.updateCampaignPermission(rowData.userId, newValue);
+      showInfo(`Privilegio de envío masivo ${newValue ? 'activado' : 'desactivado'} para ${rowData.name}`);
+    } catch (error: any) {
+      showError(error.response?.data?.message ?? "Error al actualizar el privilegio");
+      // Si ocurrió un error, recargar los datos para restaurar el estado correcto
+      callback();
+    }
+  }
+
   const columns : ColumnsType[] = [
     {
       field: "name",
@@ -80,9 +103,24 @@ export const COLUMNS_USER = ({ callback, users, setUsers }: props) => {
       )
     },
     {
+      field: "can_send_campaigns",
+      header: "Envío Masivo",
+      style: { width: "12%" },
+      body: (rowData: UserCaratule) => (
+        <div className="flex align-items-center justify-content-center">
+          <InputSwitch
+            checked={rowData.can_send_campaigns || false}
+            onChange={(e) => toggleCampaignPermission(rowData, e.value)}
+            disabled={rowData.role.name !== 'AGENTE'} // Solo habilitar para agentes
+            tooltip={rowData.role.name !== 'AGENTE' ? 'Solo disponible para agentes' : 'Permitir envío masivo'}
+          />
+        </div>
+      )
+    },
+    {
       field: "",
       header: "Acciones",
-      style: { width: "17%" },
+      style: { width: "12%" },
       body: (rowData: any) => (
         <ActionButton
           actionPencil={() => goToUpdate(rowData)}

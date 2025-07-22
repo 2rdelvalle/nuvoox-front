@@ -9,6 +9,8 @@ const userService = {
   create: (user: UserFormModel) => axios.post<UserFormModel>(userEndpoint, user),
   update: (user: UserFormModel) => axios.put<UserFormModel>(userEndpoint, user),
   findById: (userId: string) => axios.get<UserFormModel>(`${userEndpoint}/findByID/${userId}`),
-  deleteById: (userId: string) => axios.delete<UserFormModel>(`${userEndpoint}/${userId}`)
+  deleteById: (userId: string) => axios.delete<UserFormModel>(`${userEndpoint}/${userId}`),
+  updateCampaignPermission: (userId: number, canSendCampaigns: boolean) => 
+    axios.put<UserFormModel>(`${userEndpoint}/${userId}/campaign-permission`, { can_send_campaigns: canSendCampaigns })
 }
 export default userService

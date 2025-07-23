@@ -71,6 +71,11 @@ const PreviewTemplate: React.FC<PreviewTemplateProps> = ({ template, visible, on
       companyId = String(template.company.companyId);
     }
     
+    // DEBUG: Log para verificar qué datos llegan del backend
+    console.log('🔍 DEBUG - Template completo:', template);
+    console.log('🔍 DEBUG - template.textTemplate:', template.textTemplate);
+    console.log('🔍 DEBUG - Todas las propiedades:', Object.keys(template));
+    
     // Intenta obtener el contenido de la plantilla
     if (template.textTemplate) {
       templateContent = template.textTemplate;

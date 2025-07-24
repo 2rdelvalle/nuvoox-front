@@ -17,6 +17,7 @@ import { Panel } from 'primereact/panel';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { CampaignService, CreateCampaignDto } from '@/shared/services/campaign/campaign.service';
+import TemplateService from '@/shared/services/template/template.service';
 import { CampaignFormData, CampaignType, Agent, Template, Contact } from '@/shared/models/campaign';
 import { getCookieToken, getDataFromToken } from '@/shared/utilities/functions/sessionUtils';
 
@@ -103,25 +104,34 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
 
   const loadTemplates = async (companyId: number) => {
     try {
-      // Por ahora simulamos la carga de plantillas
-      // En la implementación real, esto vendría del TemplateService
-      const mockTemplates: Template[] = [
-        {
-          id: 1,
-          name: 'Plantilla Bienvenida',
-          textTemplate: 'Hola {{nombre}}, bienvenido a nuestro servicio',
-          statusTemplateWhatsapp: 'APPROVED'
-        },
-        {
-          id: 2,
-          name: 'Plantilla Promoción',
-          textTemplate: 'Hola {{nombre}}, tenemos una oferta especial para ti',
-          statusTemplateWhatsapp: 'APPROVED'
-        }
-      ];
-      setTemplates(mockTemplates);
+      // Cargar plantillas aprobadas de la empresa usando TemplateService
+      const response = await TemplateService.getAllByCompany(companyId);
+      
+      // Filtrar solo plantillas aprobadas y con ID válido
+      const approvedTemplates = response.data.filter(
+        template => 
+          template.statusTemplateWhatsapp === 'APPROVED' && 
+          template.id !== undefined && 
+          template.id !== null
+      );
+      
+      // Mapear al formato esperado por el componente
+      const mappedTemplates: Template[] = approvedTemplates.map(template => ({
+        id: template.id!,  // Usamos ! porque ya validamos que no es undefined
+        name: template.name || 'Sin nombre',
+        textTemplate: template.textTemplate || '',
+        statusTemplateWhatsapp: template.statusTemplateWhatsapp || 'APPROVED'
+      }));
+      
+      setTemplates(mappedTemplates);
+      
+      if (mappedTemplates.length === 0) {
+        console.warn('No se encontraron plantillas aprobadas para la empresa');
+      }
+      
     } catch (error) {
       console.error('Error loading templates:', error);
+      showError('Error al cargar las plantillas. Verifique su conexión.');
     }
   };
 

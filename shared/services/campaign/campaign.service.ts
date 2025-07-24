@@ -1,4 +1,5 @@
 import { axiosInstance } from '@/shared/instances/axios-instance';
+import { Campaign, Contact, CampaignProgress } from '../../models/campaign';
 
 export interface CreateCampaignDto {
   name: string;
@@ -112,15 +113,26 @@ export class CampaignService {
   }
 
   /**
-   * Obtener vista previa de contactos desde un archivo CSV
+   * Preview contacts from CSV file
    */
-  static async previewContacts(filePath: string): Promise<{
-    contacts: ContactPreview[];
-    totalCount: number;
-  }> {
-    const response = await axiosInstance.post(`${this.BASE_URL}/preview-contacts`, {
-      filePath
+  static async previewContacts(file: File): Promise<Contact[]> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await axiosInstance.post(`${this.BASE_URL}/preview-contacts`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
+
+    return response.data;
+  }
+
+  /**
+   * Get campaign progress and status
+   */
+  static async getCampaignProgress(campaignId: number): Promise<CampaignProgress> {
+    const response = await axiosInstance.get(`/campaigns/${campaignId}/progress`);
     return response.data;
   }
 }

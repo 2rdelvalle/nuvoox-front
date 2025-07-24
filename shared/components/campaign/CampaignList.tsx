@@ -11,8 +11,10 @@ import { Tag } from 'primereact/tag';
 import { Toolbar } from 'primereact/toolbar';
 import { InputText } from 'primereact/inputtext';
 import { ProgressSpinner } from 'primereact/progressspinner';
+import { ProgressBar } from 'primereact/progressbar';
+import { Badge } from 'primereact/badge';
 import { CampaignService, CampaignResponseDto } from '@/shared/services/campaign/campaign.service';
-import { CampaignStatus } from '@/shared/models/campaign';
+import { CampaignStatus, CampaignProgress } from '@/shared/models/campaign';
 
 const CampaignList: React.FC = () => {
   const router = useRouter();
@@ -22,9 +24,21 @@ const CampaignList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [globalFilter, setGlobalFilter] = useState('');
   const [selectedCampaigns, setSelectedCampaigns] = useState<CampaignResponseDto[]>([]);
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [campaignToDelete, setCampaignToDelete] = useState<CampaignResponseDto | null>(null);
+  const [campaignProgress, setCampaignProgress] = useState<Map<number, CampaignProgress>>(new Map());
+  const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadCampaigns();
+    progressUpdateInterval.current = setInterval(() => {
+      updateCampaignProgress();
+    }, 10000); // Update every 10 seconds
+    return () => {
+      if (progressUpdateInterval.current) {
+        clearInterval(progressUpdateInterval.current);
+      }
+    };
   }, []);
 
   const loadCampaigns = async () => {
@@ -32,11 +46,39 @@ const CampaignList: React.FC = () => {
       setLoading(true);
       const data = await CampaignService.getAll();
       setCampaigns(data);
+      // Load initial progress for each campaign
+      await updateCampaignProgress();
     } catch (error: any) {
       console.error('Error loading campaigns:', error);
-      showError('Error al cargar las campañas');
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Error al cargar las campañas',
+        life: 3000,
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateCampaignProgress = async () => {
+    try {
+      const progressMap = new Map<number, CampaignProgress>();
+      
+      for (const campaign of campaigns) {
+        if (campaign.id) {
+          try {
+            const progress = await CampaignService.getCampaignProgress(campaign.id);
+            progressMap.set(campaign.id, progress);
+          } catch (error) {
+            console.error(`Error loading progress for campaign ${campaign.id}:`, error);
+          }
+        }
+      }
+      
+      setCampaignProgress(progressMap);
+    } catch (error) {
+      console.error('Error updating campaign progress:', error);
     }
   };
 
@@ -152,6 +194,68 @@ const CampaignList: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const progressBodyTemplate = (rowData: CampaignResponseDto) => {
+    const progress = campaignProgress.get(rowData.id!);
+    
+    if (!progress) {
+      return <span className="text-gray-500">Cargando...</span>;
+    }
+
+    return (
+      <div className="flex flex-column gap-1">
+        <ProgressBar 
+          value={progress.progressPercentage} 
+          style={{ height: '8px' }}
+          className="w-full"
+        />
+        <small className="text-center">
+          {progress.sentMessages}/{progress.totalContacts} ({progress.progressPercentage}%)
+        </small>
+      </div>
+    );
+  };
+
+  const campaignStatusBodyTemplate = (rowData: CampaignResponseDto) => {
+    const progress = campaignProgress.get(rowData.id!);
+    
+    if (!progress) {
+      return <Badge value="Cargando" severity="info" />;
+    }
+
+    const getSeverity = (status: string) => {
+      switch (status) {
+        case 'completado':
+          return 'success';
+        case 'procesando':
+          return 'warning';
+        case 'fallida':
+          return 'danger';
+        default:
+          return 'info';
+      }
+    };
+
+    const getStatusText = (status: string) => {
+      switch (status) {
+        case 'completado':
+          return 'Completado';
+        case 'procesando':
+          return 'Procesando';
+        case 'fallida':
+          return 'Fallida';
+        default:
+          return 'Desconocido';
+      }
+    };
+
+    return (
+      <Badge 
+        value={getStatusText(progress.status)} 
+        severity={getSeverity(progress.status)}
+      />
+    );
   };
 
   const actionBodyTemplate = (rowData: CampaignResponseDto) => {
@@ -291,6 +395,18 @@ const CampaignList: React.FC = () => {
             body={dateBodyTemplate}
             sortable
             style={{ minWidth: '150px' }}
+          />
+          
+          <Column
+            header="Progreso"
+            body={progressBodyTemplate}
+            style={{ minWidth: '180px' }}
+          />
+          
+          <Column
+            header="Estado"
+            body={campaignStatusBodyTemplate}
+            style={{ minWidth: '120px' }}
           />
           
           <Column

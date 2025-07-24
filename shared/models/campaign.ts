@@ -1,19 +1,31 @@
 export interface Campaign {
-  id: number;
+  id?: number;
   name: string;
   type: CampaignType;
-  description?: string;
+  description: string;
   agentGroupTag?: string;
+  templateId: number;
+  selectedAgentIds: number[];
   contactsCsvPath?: string;
-  status: CampaignStatus;
-  template: {
+  totalContacts?: number;
+  sentMessages?: number;
+  status?: string;
+  template?: {
     id: number;
     name: string;
     textTemplate: string;
   };
-  selectedAgents: Agent[];
-  createdAt: string;
-  updatedAt: string;
+  selectedAgents?: Agent[];
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface CampaignProgress {
+  campaignId: number;
+  totalContacts: number;
+  sentMessages: number;
+  status: 'procesando' | 'completado' | 'fallida';
+  progressPercentage: number;
 }
 
 export interface Agent {

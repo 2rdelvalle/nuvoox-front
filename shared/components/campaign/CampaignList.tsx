@@ -1,0 +1,307 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+import { Button } from 'primereact/button';
+import { Toast } from 'primereact/toast';
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { Tag } from 'primereact/tag';
+import { Toolbar } from 'primereact/toolbar';
+import { InputText } from 'primereact/inputtext';
+import { ProgressSpinner } from 'primereact/progressspinner';
+import { CampaignService, CampaignResponseDto } from '@/shared/services/campaign/campaign.service';
+import { CampaignStatus } from '@/shared/models/campaign';
+
+const CampaignList: React.FC = () => {
+  const router = useRouter();
+  const toast = useRef<Toast>(null);
+  
+  const [campaigns, setCampaigns] = useState<CampaignResponseDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [selectedCampaigns, setSelectedCampaigns] = useState<CampaignResponseDto[]>([]);
+
+  useEffect(() => {
+    loadCampaigns();
+  }, []);
+
+  const loadCampaigns = async () => {
+    try {
+      setLoading(true);
+      const data = await CampaignService.getAll();
+      setCampaigns(data);
+    } catch (error: any) {
+      console.error('Error loading campaigns:', error);
+      showError('Error al cargar las campañas');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = () => {
+    router.push('/campaigns/create');
+  };
+
+  const handleEdit = (campaign: CampaignResponseDto) => {
+    router.push(`/campaigns/${campaign.id}`);
+  };
+
+  const handleDelete = (campaign: CampaignResponseDto) => {
+    confirmDialog({
+      message: `¿Está seguro de que desea eliminar la campaña "${campaign.name}"?`,
+      header: 'Confirmar Eliminación',
+      icon: 'pi pi-exclamation-triangle',
+      accept: async () => {
+        try {
+          await CampaignService.delete(campaign.id);
+          showSuccess('Campaña eliminada exitosamente');
+          loadCampaigns();
+        } catch (error: any) {
+          console.error('Error deleting campaign:', error);
+          showError('Error al eliminar la campaña');
+        }
+      }
+    });
+  };
+
+  const showSuccess = (message: string) => {
+    toast.current?.show({ severity: 'success', summary: 'Éxito', detail: message });
+  };
+
+  const showError = (message: string) => {
+    toast.current?.show({ severity: 'error', summary: 'Error', detail: message });
+  };
+
+  const getStatusSeverity = (status: string) => {
+    switch (status) {
+      case CampaignStatus.ACTIVE:
+        return 'success';
+      case CampaignStatus.DRAFT:
+        return 'info';
+      case CampaignStatus.PAUSED:
+        return 'warning';
+      case CampaignStatus.COMPLETED:
+        return 'success';
+      case CampaignStatus.CANCELLED:
+        return 'danger';
+      default:
+        return 'info';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case CampaignStatus.ACTIVE:
+        return 'Activa';
+      case CampaignStatus.DRAFT:
+        return 'Borrador';
+      case CampaignStatus.PAUSED:
+        return 'Pausada';
+      case CampaignStatus.COMPLETED:
+        return 'Completada';
+      case CampaignStatus.CANCELLED:
+        return 'Cancelada';
+      default:
+        return status;
+    }
+  };
+
+  // Plantillas de columnas
+  const statusBodyTemplate = (rowData: CampaignResponseDto) => {
+    return (
+      <Tag 
+        value={getStatusLabel(rowData.status)} 
+        severity={getStatusSeverity(rowData.status)}
+      />
+    );
+  };
+
+  const templateBodyTemplate = (rowData: CampaignResponseDto) => {
+    return (
+      <div>
+        <div className="font-medium">{rowData.template.name}</div>
+        <div className="text-sm text-500 mt-1">
+          {rowData.template.textTemplate.substring(0, 50)}...
+        </div>
+      </div>
+    );
+  };
+
+  const agentsBodyTemplate = (rowData: CampaignResponseDto) => {
+    const count = rowData.selectedAgents.length;
+    return (
+      <div>
+        <span className="font-medium">{count} agente{count !== 1 ? 's' : ''}</span>
+        {count > 0 && (
+          <div className="text-sm text-500 mt-1">
+            {rowData.selectedAgents.slice(0, 2).map(agent => agent.name).join(', ')}
+            {count > 2 && ` y ${count - 2} más`}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const dateBodyTemplate = (rowData: CampaignResponseDto) => {
+    return new Date(rowData.createdAt).toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const actionBodyTemplate = (rowData: CampaignResponseDto) => {
+    return (
+      <div className="flex gap-2">
+        <Button
+          icon="pi pi-eye"
+          className="p-button-rounded p-button-text p-button-info"
+          onClick={() => handleEdit(rowData)}
+          tooltip="Ver/Editar"
+          tooltipOptions={{ position: 'top' }}
+        />
+        <Button
+          icon="pi pi-trash"
+          className="p-button-rounded p-button-text p-button-danger"
+          onClick={() => handleDelete(rowData)}
+          tooltip="Eliminar"
+          tooltipOptions={{ position: 'top' }}
+        />
+      </div>
+    );
+  };
+
+  // Toolbar
+  const leftToolbarTemplate = () => {
+    return (
+      <div className="flex flex-wrap gap-2">
+        <Button
+          label="Nueva Campaña"
+          icon="pi pi-plus"
+          className="p-button-success"
+          onClick={handleCreate}
+        />
+      </div>
+    );
+  };
+
+  const rightToolbarTemplate = () => {
+    return (
+      <div className="flex align-items-center gap-2">
+        <span className="p-input-icon-left">
+          <i className="pi pi-search" />
+          <InputText
+            type="search"
+            placeholder="Buscar campañas..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+          />
+        </span>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-content-center align-items-center" style={{ height: '400px' }}>
+        <ProgressSpinner />
+      </div>
+    );
+  }
+
+  return (
+    <div className="campaign-list">
+      <Toast ref={toast} />
+      <ConfirmDialog />
+      
+      <div className="card">
+        <Toolbar 
+          className="mb-4" 
+          left={leftToolbarTemplate} 
+          right={rightToolbarTemplate}
+        />
+
+        <DataTable
+          value={campaigns}
+          selection={selectedCampaigns}
+          onSelectionChange={(e) => setSelectedCampaigns(e.value as CampaignResponseDto[])}
+          selectionMode="multiple"
+          dataKey="id"
+          paginator
+          rows={10}
+          rowsPerPageOptions={[5, 10, 25]}
+          className="datatable-responsive"
+          paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+          currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} campañas"
+          globalFilter={globalFilter}
+          emptyMessage="No se encontraron campañas."
+          responsiveLayout="scroll"
+        >
+          <Column 
+            selectionMode="multiple" 
+            headerStyle={{ width: '3rem' }}
+          />
+          
+          <Column
+            field="name"
+            header="Nombre"
+            sortable
+            style={{ minWidth: '200px' }}
+          />
+          
+          <Column
+            field="type"
+            header="Tipo"
+            sortable
+            style={{ minWidth: '100px' }}
+            body={(rowData) => (
+              <Tag value={rowData.type.toUpperCase()} severity="info" />
+            )}
+          />
+          
+          <Column
+            field="status"
+            header="Estado"
+            body={statusBodyTemplate}
+            sortable
+            style={{ minWidth: '120px' }}
+          />
+          
+          <Column
+            field="template"
+            header="Plantilla"
+            body={templateBodyTemplate}
+            style={{ minWidth: '250px' }}
+          />
+          
+          <Column
+            field="selectedAgents"
+            header="Agentes"
+            body={agentsBodyTemplate}
+            style={{ minWidth: '150px' }}
+          />
+          
+          <Column
+            field="createdAt"
+            header="Fecha Creación"
+            body={dateBodyTemplate}
+            sortable
+            style={{ minWidth: '150px' }}
+          />
+          
+          <Column
+            body={actionBodyTemplate}
+            header="Acciones"
+            style={{ minWidth: '120px' }}
+          />
+        </DataTable>
+      </div>
+    </div>
+  );
+};
+
+export default CampaignList;

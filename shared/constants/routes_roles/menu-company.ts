@@ -53,6 +53,16 @@ export const MENU_COMPANY: MenuModel[] = [
         icon: "pi pi-megaphone", // modificado
         items: [
           {
+            label: "Nuevas campañas",
+            icon: "pi pi-plus-circle",
+            to: "/campaigns/create"
+          },
+          {
+            label: "Gestionar campañas",
+            icon: "pi pi-list",
+            to: "/campaigns/list"
+          },
+          {
             label: "Envio Masivos",
             icon: "pi pi-send", // modificado
             to: "/masive-chat"

@@ -135,4 +135,12 @@ export class CampaignService {
     const response = await axiosInstance.get(`/campaigns/${campaignId}/progress`);
     return response.data;
   }
+
+  /**
+   * Send campaign manually
+   */
+  static async sendCampaign(campaignId: number): Promise<{ message: string; campaignId: number }> {
+    const response = await axiosInstance.post(`/campaigns/${campaignId}/send`);
+    return response.data;
+  }
 }

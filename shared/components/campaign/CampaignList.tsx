@@ -90,6 +90,45 @@ const CampaignList: React.FC = () => {
     router.push(`/campaigns/${campaign.id}`);
   };
 
+  const handleSendCampaign = async (campaign: CampaignResponseDto) => {
+    try {
+      setLoading(true);
+      
+      // Confirmar antes de enviar
+      const confirmed = window.confirm(
+        `¿Está seguro de que desea enviar la campaña "${campaign.name}"? Esta acción iniciará el envío de mensajes a todos los contactos.`
+      );
+      
+      if (!confirmed) {
+        return;
+      }
+
+      // Enviar campaña
+      const response = await CampaignService.sendCampaign(campaign.id!);
+      
+      toast.current?.show({
+        severity: 'success',
+        summary: 'Éxito',
+        detail: response.message,
+        life: 3000,
+      });
+
+      // Actualizar progreso inmediatamente
+      await updateCampaignProgress();
+      
+    } catch (error: any) {
+      console.error('Error sending campaign:', error);
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: error.response?.data?.message || 'Error al enviar la campaña',
+        life: 5000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDelete = (campaign: CampaignResponseDto) => {
     confirmDialog({
       message: `¿Está seguro de que desea eliminar la campaña "${campaign.name}"?`,
@@ -259,8 +298,28 @@ const CampaignList: React.FC = () => {
   };
 
   const actionBodyTemplate = (rowData: CampaignResponseDto) => {
+    const progress = campaignProgress.get(rowData.id!);
+    const canSend = progress && 
+      progress.status !== 'completado' && 
+      progress.status !== 'fallida' &&
+      progress.totalContacts > 0;
+    
+    const isSending = progress && progress.status === 'procesando';
+
     return (
       <div className="flex gap-2">
+        {canSend && (
+          <Button
+            icon={isSending ? "pi pi-spin pi-spinner" : "pi pi-play"}
+            className={`p-button-rounded p-button-text ${
+              isSending ? 'p-button-warning' : 'p-button-success'
+            }`}
+            onClick={() => handleSendCampaign(rowData)}
+            disabled={isSending}
+            tooltip={isSending ? "Enviando..." : "Enviar Campaña"}
+            tooltipOptions={{ position: 'top' }}
+          />
+        )}
         <Button
           icon="pi pi-eye"
           className="p-button-rounded p-button-text p-button-info"

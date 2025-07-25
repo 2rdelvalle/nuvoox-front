@@ -141,14 +141,12 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
       // Cargar agentes reales de la empresa usando UserService
       const response = await userService.getAgentsByCompany(companyId);
       
-      // Filtrar solo usuarios con rol AGENTE y mapear al formato esperado
-      const mappedAgents: Agent[] = response.data
-        .filter((user: any) => user.role && user.role.name === 'AGENTE')
-        .map((agent: any) => ({
-          id: agent.userId || parseInt(agent.id), // Usar userId del backend
-          name: agent.name || 'Sin nombre',
-          mail: agent.mail || agent.email || 'sin-email@empresa.com'
-        }));
+      // Mapear la respuesta del backend al formato esperado por el componente
+      const mappedAgents: Agent[] = response.data.map((agent: any) => ({
+        id: parseInt(agent.id), // El backend retorna id como string
+        name: agent.name || 'Sin nombre',
+        mail: agent.email || agent.mail || 'sin-email@empresa.com'
+      }));
       
       setAgents(mappedAgents);
       setAvailableAgents(mappedAgents);
@@ -388,9 +386,97 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
 
                 {formData.templateId && (
                   <div className="col-12">
-                    <label className="block text-900 font-medium mb-2">Vista Previa</label>
+                    <label className="block text-900 font-medium mb-2">Vista Previa de la Plantilla</label>
                     <div className="p-3 border-1 border-300 border-round bg-gray-50">
-                      {templates.find(t => t.id === formData.templateId)?.textTemplate}
+                      {(() => {
+                        const selectedTemplate = templates.find(t => t.id === formData.templateId);
+                        
+                        if (!selectedTemplate) {
+                          return (
+                            <div className="text-500 font-italic">
+                              <i className="pi pi-exclamation-triangle mr-2"></i>
+                              Plantilla no encontrada
+                            </div>
+                          );
+                        }
+
+                        const hasText = selectedTemplate.textTemplate && selectedTemplate.textTemplate.trim();
+                        const hasMedia = (selectedTemplate as any).mediaUrl; // Preparado para cuando se habilite
+                        
+                        return (
+                          <div>
+                            {/* Información de la plantilla */}
+                            <div className="mb-3 pb-2 border-bottom-1 border-200">
+                              <strong className="text-primary">{selectedTemplate.name}</strong>
+                              <div className="text-500 text-sm mt-1">
+                                <i className="pi pi-tag mr-1"></i>
+                                Tipo: {hasMedia ? 'Multimedia' : 'Solo texto'}
+                              </div>
+                            </div>
+
+                            {/* Vista previa de multimedia (preparado para futuro) */}
+                            {hasMedia && (
+                              <div className="mb-3">
+                                <div className="text-600 font-medium mb-2">
+                                  <i className="pi pi-image mr-1"></i>
+                                  Contenido Multimedia:
+                                </div>
+                                <div className="p-2 border-1 border-200 border-round bg-white">
+                                  <img 
+                                    src={(selectedTemplate as any).mediaUrl} 
+                                    alt="Vista previa multimedia"
+                                    className="max-w-full h-auto border-round"
+                                    style={{ maxHeight: '200px' }}
+                                    onError={(e) => {
+                                      const img = e.target as HTMLImageElement;
+                                      const nextDiv = img.nextElementSibling as HTMLDivElement;
+                                      img.style.display = 'none';
+                                      if (nextDiv) nextDiv.style.display = 'block';
+                                    }}
+                                  />
+                                  <div className="text-500 font-italic" style={{ display: 'none' }}>
+                                    <i className="pi pi-exclamation-circle mr-1"></i>
+                                    No se pudo cargar la imagen multimedia
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Vista previa del texto */}
+                            {hasText ? (
+                              <div>
+                                <div className="text-600 font-medium mb-2">
+                                  <i className="pi pi-comment mr-1"></i>
+                                  Mensaje de texto:
+                                </div>
+                                <div className="p-2 border-1 border-200 border-round bg-white white-space-pre-wrap">
+                                  {selectedTemplate.textTemplate}
+                                </div>
+                                <div className="mt-2 text-500 text-sm">
+                                  <i className="pi pi-info-circle mr-1"></i>
+                                  Los valores {'{'}1{'}'}, {'{'}2{'}'}, etc. serán reemplazados con datos reales.
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-500 font-italic">
+                                <i className="pi pi-info-circle mr-2"></i>
+                                No hay contenido de texto para esta plantilla.
+                              </div>
+                            )}
+
+                            {/* Nota sobre multimedia */}
+                            {!hasMedia && (
+                              <div className="mt-3 p-2 bg-blue-50 border-1 border-blue-200 border-round">
+                                <div className="text-blue-700 text-sm">
+                                  <i className="pi pi-info-circle mr-1"></i>
+                                  <strong>Nota:</strong> Si esta plantilla incluye imágenes o archivos multimedia, 
+                                  se mostrarán aquí cuando la funcionalidad esté habilitada en el sistema.
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()} 
                     </div>
                   </div>
                 )}

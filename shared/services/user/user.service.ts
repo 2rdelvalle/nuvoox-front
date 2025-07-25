@@ -17,6 +17,6 @@ const userService = {
    * @returns Promise with list of agents
    */
   getAgentsByCompany: (companyId: number) => 
-    axios.get(`${userEndpoint}?companyId=${companyId}`)
+    axios.get(`${userEndpoint}/${companyId}/company`)
 }
 export default userService

@@ -141,12 +141,14 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
       // Cargar agentes reales de la empresa usando UserService
       const response = await userService.getAgentsByCompany(companyId);
       
-      // Mapear la respuesta del backend al formato esperado por el componente
-      const mappedAgents: Agent[] = response.data.map((agent: any) => ({
-        id: parseInt(agent.id), // El backend retorna id como string
-        name: agent.name || 'Sin nombre',
-        mail: agent.email || agent.mail || 'sin-email@empresa.com'
-      }));
+      // Filtrar solo usuarios con rol AGENTE y mapear al formato esperado
+      const mappedAgents: Agent[] = response.data
+        .filter((user: any) => user.role && user.role.name === 'AGENTE')
+        .map((agent: any) => ({
+          id: parseInt(agent.userId), // Usar userId del backend
+          name: agent.name || 'Sin nombre',
+          mail: agent.mail || 'sin-email@empresa.com'
+        }));
       
       setAgents(mappedAgents);
       setAvailableAgents(mappedAgents);

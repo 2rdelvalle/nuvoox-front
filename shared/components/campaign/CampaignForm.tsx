@@ -18,6 +18,7 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { CampaignService, CreateCampaignDto } from '@/shared/services/campaign/campaign.service';
 import TemplateService from '@/shared/services/template/template.service';
+import userService from '@/shared/services/user/user.service';
 import { CampaignFormData, CampaignType, Agent, Template, Contact } from '@/shared/models/campaign';
 import { getCookieToken, getDataFromToken } from '@/shared/utilities/functions/sessionUtils';
 
@@ -137,18 +138,31 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
 
   const loadAgents = async (companyId: number) => {
     try {
-      // Por ahora simulamos la carga de agentes
-      // En la implementación real, esto vendría del UserService
-      const mockAgents: Agent[] = [
-        { id: 1, name: 'Juan Pérez', mail: 'juan@empresa.com' },
-        { id: 2, name: 'María García', mail: 'maria@empresa.com' },
-        { id: 3, name: 'Carlos López', mail: 'carlos@empresa.com' },
-        { id: 4, name: 'Ana Martínez', mail: 'ana@empresa.com' }
-      ];
-      setAgents(mockAgents);
-      setAvailableAgents(mockAgents);
-    } catch (error) {
+      // Cargar agentes reales de la empresa usando UserService
+      const response = await userService.getAgentsByCompany(companyId);
+      
+      // Mapear la respuesta del backend al formato esperado por el componente
+      const mappedAgents: Agent[] = response.data.map((agent: any) => ({
+        id: parseInt(agent.id), // El backend retorna id como string
+        name: agent.name || 'Sin nombre',
+        mail: agent.email || agent.mail || 'sin-email@empresa.com'
+      }));
+      
+      setAgents(mappedAgents);
+      setAvailableAgents(mappedAgents);
+      
+      if (mappedAgents.length === 0) {
+        console.warn('No se encontraron agentes para la empresa');
+        showError('No se encontraron agentes disponibles para esta empresa');
+      }
+      
+    } catch (error: any) {
       console.error('Error loading agents:', error);
+      showError('Error al cargar los agentes. Verifique su conexión.');
+      
+      // En caso de error, establecer lista vacía
+      setAgents([]);
+      setAvailableAgents([]);
     }
   };
 

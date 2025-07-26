@@ -19,6 +19,7 @@ import { Column } from 'primereact/column';
 import { CampaignService, CreateCampaignDto } from '@/shared/services/campaign/campaign.service';
 import TemplateService from '@/shared/services/template/template.service';
 import userService from '@/shared/services/user/user.service';
+import GroupAgentService from '@/shared/services/group-agent/group.service';
 import { CampaignFormData, CampaignType, Agent, Template, Contact } from '@/shared/models/campaign';
 import { getCookieToken, getDataFromToken } from '@/shared/utilities/functions/sessionUtils';
 
@@ -92,8 +93,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
       // Cargar agentes de la empresa
       await loadAgents(dataToken.user.company.companyId);
       
-      // Cargar grupos de agentes (simulado por ahora)
-      setAgentGroups(['Grupo Ventas', 'Grupo Soporte', 'Grupo Marketing']);
+      // Los grupos se cargan dinámicamente con useEffect cuando se marque el checkbox
 
     } catch (error) {
       console.error('Error loading initial data:', error);
@@ -102,6 +102,37 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
       setLoading(false);
     }
   };
+
+  // useEffect para cargar grupos dinámicamente cuando se marque el checkbox
+  useEffect(() => {
+    const loadGroupsWhenChecked = async () => {
+      // Obtener datos del usuario actual para validar rol y obtener companyId
+      const dataToken = getDataFromToken(getCookieToken() || '');
+      
+      // Validación por rol: solo permitir para rol EMPRESA
+      if (!dataToken?.user?.role?.name || dataToken.user.role.name !== 'EMPRESA') {
+        console.warn('Funcionalidad de grupos solo disponible para rol EMPRESA');
+        return;
+      }
+      
+      if (formData.useAgentGroup && dataToken?.user?.company?.companyId) {
+        // Cargar grupos solo si el checkbox está marcado
+        await loadAgentGroups(dataToken.user.company.companyId);
+      } else if (!formData.useAgentGroup) {
+        // Limpiar selección de grupo al desmarcar el checkbox
+        setFormData(prev => ({ ...prev, agentGroupTag: '' }));
+        // Opcional: limpiar la lista de grupos para ahorrar memoria
+        setAgentGroups([]);
+      }
+    };
+    
+    loadGroupsWhenChecked();
+  }, [formData.useAgentGroup]); // Solo se ejecuta cuando cambia useAgentGroup
+
+  // useEffect inicial para cargar datos cuando el componente se monte
+  useEffect(() => {
+    loadInitialData();
+  }, []);
 
   const loadTemplates = async (companyId: number) => {
     try {
@@ -165,6 +196,27 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
       // En caso de error, establecer lista vacía
       setAgents([]);
       setAvailableAgents([]);
+    }
+  };
+
+  const loadAgentGroups = async (companyId: number) => {
+    try {
+      // Cargar grupos reales de la empresa usando GroupAgentService
+      const response = await GroupAgentService.getGroupAgentsWithFullDetails(companyId);
+      
+      // Mapear la respuesta del backend al formato esperado por el componente
+      const mappedGroups: string[] = response.data.map((group: any) => group.name || 'Grupo sin nombre');
+      
+      setAgentGroups(mappedGroups);
+      
+      if (mappedGroups.length === 0) {
+        console.warn('No se encontraron grupos de agentes para la empresa');
+      }
+      
+    } catch (error: any) {
+      console.error('Error loading agent groups:', error);
+      // En caso de error, establecer lista vacía (no mostrar error al usuario ya que es opcional)
+      setAgentGroups([]);
     }
   };
 
@@ -514,7 +566,8 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
                       options={agentGroupOptions}
                       onChange={(e) => handleInputChange('agentGroupTag', e.value)}
                       className={`w-full ${errors.agentGroupTag ? 'p-invalid' : ''}`}
-                      placeholder="Seleccione un grupo"
+                      placeholder={agentGroups.length === 0 ? "No hay grupos disponibles" : "Seleccione un grupo"}
+                      disabled={agentGroups.length === 0}
                     />
                     {errors.agentGroupTag && <small className="p-error">{errors.agentGroupTag}</small>}
                   </div>

@@ -662,6 +662,12 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
                       className="p-button-outlined p-button-sm"
                       onClick={() => downloadContactsCsvTemplate('formato_contactos_campana.csv')}
                       tooltip="Descargar archivo CSV de ejemplo con el formato correcto"
+                      tooltipOptions={{
+                        position: 'top',
+                        className: 'custom-tooltip',
+                        showDelay: 300,
+                        hideDelay: 300
+                      }}
                     />
                   </div>
                   <FileUpload

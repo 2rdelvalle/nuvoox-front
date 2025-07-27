@@ -90,10 +90,17 @@ const messageRequestTracker = (() => {
 // Add authentication interceptor to include JWT token
 axiosInstance.interceptors.request.use(
   (config) => {
+    console.log('[DEBUG INTERCEPTOR] Ejecutando interceptor para URL:', config.url);
+    
     // Add JWT token to all requests
     const token = getCookieToken();
+    console.log('[DEBUG INTERCEPTOR] Token obtenido:', token ? 'SÍ' : 'NO');
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('[DEBUG INTERCEPTOR] Authorization header agregado:', config.headers.Authorization?.substring(0, 50) + '...');
+    } else {
+      console.log('[DEBUG INTERCEPTOR] No se agregó Authorization header - token no encontrado');
     }
     
     // Check if this is a message fetch request

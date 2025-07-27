@@ -1,4 +1,5 @@
 import axios from "axios"
+import { getCookieToken } from '@/shared/utilities/functions/sessionUtils'
 
 const axiosInstance = axios.create({
   baseURL:
@@ -86,9 +87,15 @@ const messageRequestTracker = (() => {
   };
 })();
 
-// Add request interceptor to block duplicate message requests
+// Add authentication interceptor to include JWT token
 axiosInstance.interceptors.request.use(
   (config) => {
+    // Add JWT token to all requests
+    const token = getCookieToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
     // Check if this is a message fetch request
     if (config.url === '/message/getMessages' && config.method === 'post' && config.data) {
       try {

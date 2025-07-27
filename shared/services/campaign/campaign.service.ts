@@ -54,8 +54,23 @@ export class CampaignService {
    * Crear una nueva campaña
    */
   static async create(campaignData: CreateCampaignDto): Promise<CampaignResponseDto> {
-    const response = await axiosInstance.post(this.BASE_URL, campaignData);
-    return response.data;
+    try {
+      console.log('[DEBUG FRONTEND] Enviando datos campaña:', campaignData);
+      console.log('[DEBUG FRONTEND] Token enviado:', axiosInstance.defaults.headers.common['Authorization'] || 'No token found');
+      console.log('[DEBUG FRONTEND] URL completa:', this.BASE_URL);
+      
+      const response = await axiosInstance.post(this.BASE_URL, campaignData);
+      console.log('[DEBUG FRONTEND] Campaña creada exitosamente:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('[ERROR FRONTEND] Fallo al guardar campaña:', error);
+      if (error.response) {
+        console.error('[ERROR FRONTEND] Código de estado:', error.response.status);
+        console.error('[ERROR FRONTEND] Respuesta del servidor:', error.response.data);
+        console.error('[ERROR FRONTEND] Headers de respuesta:', error.response.headers);
+      }
+      throw error;
+    }
   }
 
   /**

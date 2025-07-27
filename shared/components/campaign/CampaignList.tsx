@@ -238,8 +238,20 @@ const CampaignList: React.FC = () => {
   const progressBodyTemplate = (rowData: CampaignResponseDto) => {
     const progress = campaignProgress.get(rowData.id!);
     
+    // Para campañas recién creadas sin progreso inicial
     if (!progress) {
-      return <span className="text-gray-500">Cargando...</span>;
+      return (
+        <div className="flex flex-column gap-1">
+          <ProgressBar 
+            value={0} 
+            style={{ height: '8px' }}
+            className="w-full"
+          />
+          <small className="text-center text-gray-500">
+            Sin iniciar
+          </small>
+        </div>
+      );
     }
 
     return (
@@ -259,8 +271,9 @@ const CampaignList: React.FC = () => {
   const campaignStatusBodyTemplate = (rowData: CampaignResponseDto) => {
     const progress = campaignProgress.get(rowData.id!);
     
+    // Para campañas recién creadas sin progreso inicial
     if (!progress) {
-      return <Badge value="Cargando" severity="info" />;
+      return <Badge value="Listo para enviar" severity="success" />;
     }
 
     const getSeverity = (status: string) => {
@@ -299,10 +312,12 @@ const CampaignList: React.FC = () => {
 
   const actionBodyTemplate = (rowData: CampaignResponseDto) => {
     const progress = campaignProgress.get(rowData.id!);
-    const canSend = progress && 
-      progress.status !== 'completado' && 
-      progress.status !== 'fallida' &&
-      progress.totalContacts > 0;
+    
+    // Para campañas sin progreso inicial (recién creadas) o con progreso válido
+    const canSend = !progress || // Campaña recién creada sin progreso
+      (progress && 
+       progress.status !== 'completado' &&
+       progress.status !== 'fallida');
     
     const isSending = progress && progress.status === 'procesando';
 

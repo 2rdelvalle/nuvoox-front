@@ -45,7 +45,7 @@ export enum CampaignType {
 }
 
 export enum CampaignStatus {
-  DRAFT = 'draft',
+  DRAFT = 'borrador',
   ACTIVE = 'active',
   PAUSED = 'paused',
   COMPLETED = 'completed',

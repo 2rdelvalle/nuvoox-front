@@ -22,6 +22,8 @@ import userService from '@/shared/services/user/user.service';
 import GroupAgentService from '@/shared/services/group-agent/group.service';
 import { CampaignFormData, CampaignType, Agent, Template, Contact } from '@/shared/models/campaign';
 import { getCookieToken, getDataFromToken } from '@/shared/utilities/functions/sessionUtils';
+import { downloadContactsCsvTemplate } from '@/shared/utilities/csv/downloadCsvTemplate';
+import { parseCsvFile, ParsedContact } from '@/shared/utilities/csv/parseCsv';
 
 interface CampaignFormProps {
   initialData?: Partial<CampaignFormData>;
@@ -242,21 +244,50 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
 
       setLoading(true);
       
-      // Por ahora simulamos el procesamiento del archivo
-      // En la implementación real, esto subiría el archivo al servidor
-      const mockContacts: Contact[] = [
-        { nombre: 'Cliente 1', telefono: '+573001234567', email: 'cliente1@email.com' },
-        { nombre: 'Cliente 2', telefono: '+573001234568', email: 'cliente2@email.com' },
-        { nombre: 'Cliente 3', telefono: '+573001234569' }
-      ];
+      // Validar tipo de archivo
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        showError('Por favor seleccione un archivo CSV válido');
+        return;
+      }
       
-      setContacts(mockContacts);
-      setContactsPreview(mockContacts.slice(0, 5)); // Mostrar solo los primeros 5
-      showSuccess(`Archivo procesado exitosamente. ${mockContacts.length} contactos encontrados.`);
+      // Procesar archivo CSV real
+      const parseResult = await parseCsvFile(file);
       
-    } catch (error) {
-      console.error('Error processing file:', error);
-      showError('Error al procesar el archivo CSV');
+      // Convertir ParsedContact a Contact (formato del componente)
+      const processedContacts: Contact[] = parseResult.contacts.map(contact => ({
+        nombre: contact.nombre,
+        telefono: contact.telefono,
+        email: contact.email
+      }));
+      
+      // Actualizar estado con contactos reales
+      setContacts(processedContacts);
+      setContactsPreview(processedContacts.slice(0, 5)); // Mostrar solo los primeros 5
+      
+      // Mostrar resultado del procesamiento
+      if (parseResult.errors.length > 0) {
+        // Hay errores pero algunos contactos son válidos
+        const errorSummary = parseResult.errors.slice(0, 3).join('; ');
+        const moreErrors = parseResult.errors.length > 3 ? ` y ${parseResult.errors.length - 3} errores más` : '';
+        
+        showError(`Archivo procesado con advertencias: ${errorSummary}${moreErrors}. Contactos válidos: ${parseResult.validRows}/${parseResult.totalRows}`);
+      } else {
+        // Procesamiento exitoso sin errores
+        showSuccess(`Archivo procesado exitosamente. ${processedContacts.length} contactos encontrados.`);
+      }
+      
+      // Si no hay contactos válidos, mostrar error específico
+      if (processedContacts.length === 0) {
+        showError('No se encontraron contactos válidos en el archivo CSV. Verifique el formato.');
+      }
+      
+    } catch (error: any) {
+      console.error('Error processing CSV file:', error);
+      showError(error.message || 'Error al procesar el archivo CSV');
+      
+      // Limpiar estado en caso de error
+      setContacts([]);
+      setContactsPreview([]);
     } finally {
       setLoading(false);
     }
@@ -620,9 +651,19 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
             <Panel header="Contactos" className="mb-4">
               <div className="grid">
                 <div className="col-12">
-                  <label className="block text-900 font-medium mb-2">
-                    Importar Contactos (CSV)
-                  </label>
+                  <div className="flex justify-content-between align-items-center mb-2">
+                    <label className="block text-900 font-medium">
+                      Importar Contactos (CSV)
+                    </label>
+                    <Button
+                      type="button"
+                      label="Descargar Formato"
+                      icon="pi pi-download"
+                      className="p-button-outlined p-button-sm"
+                      onClick={() => downloadContactsCsvTemplate('formato_contactos_campana.csv')}
+                      tooltip="Descargar archivo CSV de ejemplo con el formato correcto"
+                    />
+                  </div>
                   <FileUpload
                     mode="basic"
                     name="contacts"
@@ -633,7 +674,9 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
                     className="mb-3"
                   />
                   <small className="text-500">
-                    El archivo CSV debe contener columnas: nombre, telefono, email (opcional)
+                    El archivo CSV debe contener columnas: nombre, telefono, email (opcional).
+                    <br />
+                    <strong>Formato del teléfono:</strong> Incluir indicativo del país (ej: +573126486075)
                   </small>
                 </div>
 

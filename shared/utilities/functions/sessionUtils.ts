@@ -104,17 +104,26 @@ export const getDataFromToken = (token?: string) : JWTAuth | null => {
 export const getCookieToken = () => {
   // Verificar si estamos en el navegador
   if (typeof window === 'undefined') {
+    console.log('[DEBUG COOKIE] Ejecutándose en servidor, no hay cookies disponibles');
     return null; // Estamos en el servidor, no hay cookies disponibles
   }
   
   try {
+    console.log('[DEBUG COOKIE] Todas las cookies:', document.cookie);
+    
     const token = document.cookie
       .split("; ")
       .find((row) => row.startsWith("token"))
       ?.split("=")[1];
+    
+    console.log('[DEBUG COOKIE] Token encontrado:', token ? 'SÍ' : 'NO');
+    if (token) {
+      console.log('[DEBUG COOKIE] Token (primeros 50 chars):', token.substring(0, 50) + '...');
+    }
+    
     return token;
   } catch (error) {
-    console.error('Error al obtener cookie:', error);
+    console.error('[ERROR COOKIE] Error al obtener cookie:', error);
     return null;
   }
 }

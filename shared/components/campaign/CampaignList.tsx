@@ -273,7 +273,7 @@ const CampaignList: React.FC = () => {
     
     // Para campañas recién creadas sin progreso inicial
     if (!progress) {
-      return <Badge value="Listo para enviar" severity="success" />;
+      return <Badge value="Pendiente" severity="info" />;
     }
 
     const getSeverity = (status: string) => {

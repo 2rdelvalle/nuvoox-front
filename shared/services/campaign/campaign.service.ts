@@ -1,4 +1,5 @@
-import { axiosInstance } from '@/shared/instances/axios-instance';
+import { axiosInstance } from '../../instances/axios-instance';
+import { getCookieToken } from '../../utilities/functions/sessionUtils';
 import { Campaign, Contact, CampaignProgress } from '../../models/campaign';
 
 export interface CreateCampaignDto {
@@ -56,7 +57,12 @@ export class CampaignService {
   static async create(campaignData: CreateCampaignDto): Promise<CampaignResponseDto> {
     try {
       console.log('[DEBUG FRONTEND] Enviando datos campaña:', campaignData);
-      console.log('[DEBUG FRONTEND] Token enviado:', axiosInstance.defaults.headers.common['Authorization'] || 'No token found');
+      // Verificar si el token se agregará por el interceptor
+      const tokenFromCookie = getCookieToken();
+      console.log('[DEBUG FRONTEND] Token desde cookie (será agregado por interceptor):', tokenFromCookie ? 'SÍ' : 'NO');
+      if (tokenFromCookie) {
+        console.log('[DEBUG FRONTEND] Token (primeros 50 chars):', tokenFromCookie.substring(0, 50) + '...');
+      }
       console.log('[DEBUG FRONTEND] URL completa:', this.BASE_URL);
       
       const response = await axiosInstance.post(this.BASE_URL, campaignData);

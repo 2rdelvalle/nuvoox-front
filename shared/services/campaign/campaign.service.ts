@@ -161,11 +161,48 @@ export class CampaignService {
    * Send campaign manually using the new independent delivery service
    */
   static async sendCampaign(campaignId: number): Promise<{ message: string; campaignId: number }> {
-    // TODO: Cambiar al nuevo endpoint independiente una vez que esté completamente funcional
-    // const response = await axiosInstance.post(`/campaign-delivery/send/${campaignId}`);
+    const requestId = `frontend_send_${Date.now()}`;
+    console.log(`[CAMPAIGN-SERVICE-FRONTEND][${requestId}] 🚀 Iniciando envío de campaña ID: ${campaignId}`);
     
-    // Por ahora, usar el endpoint existente para evitar romper producción
-    const response = await axiosInstance.post(`/campaigns/${campaignId}/send`);
-    return response.data;
+    try {
+      // Debug: Verificar configuración de axios
+      console.log(`[CAMPAIGN-SERVICE-FRONTEND][${requestId}] 🔍 Configuración axios:`, {
+        baseURL: axiosInstance.defaults.baseURL,
+        headers: axiosInstance.defaults.headers,
+        timeout: axiosInstance.defaults.timeout
+      });
+      
+      // TODO: Cambiar al nuevo endpoint independiente una vez que esté completamente funcional
+      // const response = await axiosInstance.post(`/campaign-delivery/send/${campaignId}`);
+      
+      const endpoint = `/campaigns/${campaignId}/send`;
+      console.log(`[CAMPAIGN-SERVICE-FRONTEND][${requestId}] 📤 Enviando POST a: ${endpoint}`);
+      
+      // Por ahora, usar el endpoint existente para evitar romper producción
+      const response = await axiosInstance.post(endpoint);
+      
+      console.log(`[CAMPAIGN-SERVICE-FRONTEND][${requestId}] ✅ Respuesta exitosa:`, {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data
+      });
+      
+      return response.data;
+      
+    } catch (error) {
+      console.error(`[CAMPAIGN-SERVICE-FRONTEND][${requestId}] ❌ Error enviando campaña:`, {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers
+        }
+      });
+      
+      throw error; // Re-lanzar para que el componente lo maneje
+    }
   }
 }

@@ -10,6 +10,9 @@ export interface CreateCampaignDto {
   templateId: number;
   selectedAgentIds?: number[];
   companyId: number;
+  // Campos para procesamiento CSV
+  contactsCsvData?: string; // Datos del CSV como string (JSON de contactos)
+  contactsCsvPath?: string; // Ruta del archivo CSV (opcional)
 }
 
 export interface UpdateCampaignDto {

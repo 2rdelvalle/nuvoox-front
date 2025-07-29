@@ -337,8 +337,17 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
         agentGroupTag: formData.useAgentGroup ? formData.agentGroupTag : undefined,
         templateId: formData.templateId!,
         selectedAgentIds: formData.useAgentGroup ? undefined : formData.selectedAgentIds,
-        companyId: dataToken.user.company.companyId
+        companyId: dataToken.user.company.companyId,
+        // ✅ AGREGAR: Enviar contactos procesados del CSV
+        contactsCsvData: contacts.length > 0 ? JSON.stringify(contacts) : undefined,
+        contactsCsvPath: contacts.length > 0 ? 'uploaded_contacts.csv' : undefined
       };
+
+      console.log('[DEBUG FRONTEND] Datos de campaña a enviar:', {
+        ...campaignData,
+        contactsCount: contacts.length,
+        hasContacts: contacts.length > 0
+      });
 
       if (isEdit && campaignId) {
         await CampaignService.update(campaignId, campaignData);

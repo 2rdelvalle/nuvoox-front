@@ -189,7 +189,7 @@ export class CampaignService {
       
       return response.data;
       
-    } catch (error) {
+    } catch (error: any) {
       console.error(`[CAMPAIGN-SERVICE-FRONTEND][${requestId}] ❌ Error enviando campaña:`, {
         message: error.message,
         status: error.response?.status,

@@ -158,9 +158,13 @@ export class CampaignService {
   }
 
   /**
-   * Send campaign manually
+   * Send campaign manually using the new independent delivery service
    */
   static async sendCampaign(campaignId: number): Promise<{ message: string; campaignId: number }> {
+    // TODO: Cambiar al nuevo endpoint independiente una vez que esté completamente funcional
+    // const response = await axiosInstance.post(`/campaign-delivery/send/${campaignId}`);
+    
+    // Por ahora, usar el endpoint existente para evitar romper producción
     const response = await axiosInstance.post(`/campaigns/${campaignId}/send`);
     return response.data;
   }

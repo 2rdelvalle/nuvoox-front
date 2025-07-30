@@ -61,17 +61,28 @@ const CampaignList: React.FC = () => {
     }
   };
 
-  const updateCampaignProgress = async () => {
+  const updateCampaignProgress = async (specificCampaignId?: number) => {
     try {
-      const progressMap = new Map<number, CampaignProgress>();
+      const progressMap = new Map<number, CampaignProgress>(campaignProgress);
       
-      for (const campaign of campaigns) {
-        if (campaign.id) {
-          try {
-            const progress = await CampaignService.getCampaignProgress(campaign.id);
-            progressMap.set(campaign.id, progress);
-          } catch (error) {
-            console.error(`Error loading progress for campaign ${campaign.id}:`, error);
+      // Si se especifica un ID, actualizar solo esa campaña
+      if (specificCampaignId) {
+        try {
+          const progress = await CampaignService.getCampaignProgress(specificCampaignId);
+          progressMap.set(specificCampaignId, progress);
+        } catch (error) {
+          console.error(`Error loading progress for campaign ${specificCampaignId}:`, error);
+        }
+      } else {
+        // Si no se especifica ID, actualizar todas las campañas
+        for (const campaign of campaigns) {
+          if (campaign.id) {
+            try {
+              const progress = await CampaignService.getCampaignProgress(campaign.id);
+              progressMap.set(campaign.id, progress);
+            } catch (error) {
+              console.error(`Error loading progress for campaign ${campaign.id}:`, error);
+            }
           }
         }
       }
@@ -113,8 +124,8 @@ const CampaignList: React.FC = () => {
         life: 3000,
       });
 
-      // Actualizar progreso inmediatamente
-      await updateCampaignProgress();
+      // Actualizar progreso solo de la campaña enviada
+      await updateCampaignProgress(campaign.id);
       
     } catch (error: any) {
       console.error('Error sending campaign:', error);

@@ -101,43 +101,41 @@ const CampaignList: React.FC = () => {
     router.push(`/campaigns/${campaign.id}`);
   };
 
-  const handleSendCampaign = async (campaign: CampaignResponseDto) => {
-    try {
-      setLoading(true);
-      
-      // Confirmar antes de enviar
-      const confirmed = window.confirm(
-        `¿Está seguro de que desea enviar la campaña "${campaign.name}"? Esta acción iniciará el envío de mensajes a todos los contactos.`
-      );
-      
-      if (!confirmed) {
-        return;
+  const handleSendCampaign = (campaign: CampaignResponseDto) => {
+    confirmDialog({
+      message: `¿Está seguro de que desea enviar la campaña "${campaign.name}"? Esta acción iniciará el envío de mensajes a todos los contactos.`,
+      header: 'Confirmar Envío de Campaña',
+      icon: 'pi pi-send',
+      acceptClassName: 'p-button-success',
+      accept: async () => {
+        try {
+          setLoading(true);
+          // Enviar campaña
+          const response = await CampaignService.sendCampaign(campaign.id!);
+          
+          toast.current?.show({
+            severity: 'success',
+            summary: 'Éxito',
+            detail: response.message,
+            life: 3000,
+          });
+
+          // Actualizar progreso solo de la campaña enviada
+          await updateCampaignProgress(campaign.id);
+          
+        } catch (error: any) {
+          console.error('Error sending campaign:', error);
+          toast.current?.show({
+            severity: 'error',
+            summary: 'Error',
+            detail: error.response?.data?.message || 'Error al enviar la campaña',
+            life: 5000,
+          });
+        } finally {
+          setLoading(false);
+        }
       }
-
-      // Enviar campaña
-      const response = await CampaignService.sendCampaign(campaign.id!);
-      
-      toast.current?.show({
-        severity: 'success',
-        summary: 'Éxito',
-        detail: response.message,
-        life: 3000,
-      });
-
-      // Actualizar progreso solo de la campaña enviada
-      await updateCampaignProgress(campaign.id);
-      
-    } catch (error: any) {
-      console.error('Error sending campaign:', error);
-      toast.current?.show({
-        severity: 'error',
-        summary: 'Error',
-        detail: error.response?.data?.message || 'Error al enviar la campaña',
-        life: 5000,
-      });
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const handleDelete = (campaign: CampaignResponseDto) => {

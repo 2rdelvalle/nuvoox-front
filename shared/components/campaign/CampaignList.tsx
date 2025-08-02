@@ -101,76 +101,13 @@ const CampaignList: React.FC = () => {
     router.push(`/campaigns/${campaign.id}`);
   };
 
-  // Estilos personalizados para el diálogo de confirmación
-  const dialogStyle = {
-    width: '90%',
-    maxWidth: '480px',
-    margin: '1rem auto',
-    borderRadius: '8px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-  };
-
-  const headerStyle = {
-    padding: '1.25rem',
-    fontSize: '1.2rem',
-    fontWeight: '500',
-    borderBottom: '1px solid #e5e7eb',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem'
-  };
-
-  const contentStyle = {
-    padding: '1.5rem',
-    lineHeight: '1.5',
-    color: '#4b5563'
-  };
-
-  const footerStyle = {
-    padding: '1rem 1.25rem',
-    borderTop: '1px solid #e5e7eb',
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '0.75rem'
-  };
-
   const handleSendCampaign = (campaign: CampaignResponseDto) => {
     confirmDialog({
-      message: (
-        <div style={contentStyle}>
-          ¿Está seguro de que desea enviar la campaña <strong>"${campaign.name}"</strong>? 
-          <div style={{ marginTop: '0.75rem' }}>Esta acción iniciará el envío de mensajes a todos los contactos.</div>
-        </div>
-      ),
-      header: (
-        <div style={headerStyle}>
-          <i className="pi pi-send" style={{ color: 'var(--primary-color)' }}></i>
-          <span>Confirmar Envío de Campaña</span>
-        </div>
-      ),
-      style: dialogStyle,
-      contentStyle: { padding: 0 },
-      footer: (options) => (
-        <div style={footerStyle}>
-          <button 
-            type="button" 
-            className="p-button p-component p-button-text" 
-            onClick={options.onHide}
-            style={{ padding: '0.5rem 1rem' }}
-          >
-            Cancelar
-          </button>
-          <button 
-            type="button" 
-            className="p-button p-component p-button-success" 
-            onClick={options.onAccept}
-            style={{ padding: '0.5rem 1rem' }}
-          >
-            <i className="pi pi-check"></i>
-            <span className="ml-2">Sí, Enviar</span>
-          </button>
-        </div>
-      ),
+      message: `¿Está seguro de que desea enviar la campaña "${campaign.name}"? Esta acción iniciará el envío de mensajes a todos los contactos.`,
+      header: 'Confirmar Envío de Campaña',
+      icon: 'pi pi-send',
+      acceptClassName: 'p-button-success',
+      style: { maxWidth: '480px', width: '90%' },
       accept: async () => {
         try {
           setLoading(true);

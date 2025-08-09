@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
@@ -44,59 +44,9 @@ const CampaignList: React.FC = () => {
     
     setCampaignsInternal(newCampaigns);
   };
-  const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    const debugId = `useeffect_init_${Date.now()}`;
-    console.log(`[USEEFFECT-DEBUG][${debugId}] 🚀 Iniciando useEffect del componente`);
-    console.log(`[USEEFFECT-DEBUG][${debugId}] 📋 Estado campaigns actual:`, campaigns.length);
-    
-    loadCampaigns();
-    
-    progressUpdateInterval.current = setInterval(() => {
-      const intervalDebugId = `polling_interval_${Date.now()}`;
-      console.log(`[POLLING-DEBUG][${intervalDebugId}] ⏰ Ejecutando polling automático (cada 10s)`);
-      console.log(`[POLLING-DEBUG][${intervalDebugId}] 📋 Campaigns antes del polling:`, campaigns.length);
-      updateCampaignProgress();
-    }, 10000); // Update every 10 seconds
-    
-    return () => {
-      console.log(`[USEEFFECT-DEBUG][${debugId}] 🧹 Limpieza del useEffect - clearing interval`);
-      if (progressUpdateInterval.current) {
-        clearInterval(progressUpdateInterval.current);
-      }
-    };
-  }, []);
-
-  const loadCampaigns = async () => {
-    try {
-      setLoading(true);
-      const debugId = `load_campaigns_${Date.now()}`;
-      console.log(`[FRONTEND-DEBUG][${debugId}] 🔄 Iniciando carga de campañas...`);
-      
-      const data = await CampaignService.getAll();
-      console.log(`[FRONTEND-DEBUG][${debugId}] 📊 Respuesta del backend:`, data);
-      console.log(`[FRONTEND-DEBUG][${debugId}] 📋 Total campañas recibidas:`, data?.length || 0);
-      
-      setCampaigns(data);
-      console.log(`[FRONTEND-DEBUG][${debugId}] 💾 Campañas guardadas en estado local`);
-      
-      // Load initial progress for each campaign
-      await updateCampaignProgress();
-    } catch (error: any) {
-      console.error(`[FRONTEND-DEBUG] ❌ Error loading campaigns:`, error);
-      toast.current?.show({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Error al cargar las campañas',
-        life: 3000,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateCampaignProgress = async (specificCampaignId?: number) => {
+  
+  // 🔧 MOVED: updateCampaignProgress before useEffect to fix TypeScript error
+  const updateCampaignProgress = useCallback(async (specificCampaignId?: number) => {
     try {
       const progressMap = new Map<number, CampaignProgress>(campaignProgress);
       const debugId = `frontend_progress_${Date.now()}`;
@@ -137,6 +87,72 @@ const CampaignList: React.FC = () => {
       setCampaignProgress(progressMap);
     } catch (error) {
       console.error('Error updating campaign progress:', error);
+    }
+  }, [campaigns, campaignProgress]); // 🔧 DEPENDENCIES FIXED
+
+  const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const debugId = `useeffect_init_${Date.now()}`;
+    console.log(`[USEEFFECT-DEBUG][${debugId}] 🚀 Iniciando useEffect del componente`);
+    console.log(`[USEEFFECT-DEBUG][${debugId}] 📋 Estado campaigns actual:`, campaigns.length);
+    
+    loadCampaigns();
+  }, []); // Solo al mount
+
+  // 🔧 SEPARATE useEffect para polling con dependencies actualizadas
+  useEffect(() => {
+    const debugId = `polling_setup_${Date.now()}`;
+    console.log(`[POLLING-DEBUG][${debugId}] 🔄 Configurando polling con campaigns actualizados: ${campaigns.length}`);
+    
+    // Limpiar polling anterior si existe
+    if (progressUpdateInterval.current) {
+      clearInterval(progressUpdateInterval.current);
+    }
+    
+    // Solo configurar polling si hay campañas
+    if (campaigns.length > 0) {
+      progressUpdateInterval.current = setInterval(() => {
+        const intervalDebugId = `polling_interval_${Date.now()}`;
+        console.log(`[POLLING-DEBUG][${intervalDebugId}] ⏰ Ejecutando polling automático (cada 10s)`);
+        console.log(`[POLLING-DEBUG][${intervalDebugId}] 📋 Campaigns antes del polling:`, campaigns.length);
+        updateCampaignProgress();
+      }, 10000);
+    }
+    
+    return () => {
+      console.log(`[POLLING-DEBUG][${debugId}] 🧹 Limpieza del polling`);
+      if (progressUpdateInterval.current) {
+        clearInterval(progressUpdateInterval.current);
+      }
+    };
+  }, [campaigns, updateCampaignProgress]); // 🔧 DEPENDENCIES FIXED
+
+  const loadCampaigns = async () => {
+    try {
+      setLoading(true);
+      const debugId = `load_campaigns_${Date.now()}`;
+      console.log(`[FRONTEND-DEBUG][${debugId}] 🔄 Iniciando carga de campañas...`);
+      
+      const data = await CampaignService.getAll();
+      console.log(`[FRONTEND-DEBUG][${debugId}] 📊 Respuesta del backend:`, data);
+      console.log(`[FRONTEND-DEBUG][${debugId}] 📋 Total campañas recibidas:`, data?.length || 0);
+      
+      setCampaigns(data);
+      console.log(`[FRONTEND-DEBUG][${debugId}] 💾 Campañas guardadas en estado local`);
+      
+      // Load initial progress for each campaign
+      await updateCampaignProgress();
+    } catch (error: any) {
+      console.error(`[FRONTEND-DEBUG] ❌ Error loading campaigns:`, error);
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Error al cargar las campañas',
+        life: 3000,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 

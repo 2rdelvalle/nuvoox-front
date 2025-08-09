@@ -44,12 +44,20 @@ const CampaignList: React.FC = () => {
   const loadCampaigns = async () => {
     try {
       setLoading(true);
+      const debugId = `load_campaigns_${Date.now()}`;
+      console.log(`[FRONTEND-DEBUG][${debugId}] 🔄 Iniciando carga de campañas...`);
+      
       const data = await CampaignService.getAll();
+      console.log(`[FRONTEND-DEBUG][${debugId}] 📊 Respuesta del backend:`, data);
+      console.log(`[FRONTEND-DEBUG][${debugId}] 📋 Total campañas recibidas:`, data?.length || 0);
+      
       setCampaigns(data);
+      console.log(`[FRONTEND-DEBUG][${debugId}] 💾 Campañas guardadas en estado local`);
+      
       // Load initial progress for each campaign
       await updateCampaignProgress();
     } catch (error: any) {
-      console.error('Error loading campaigns:', error);
+      console.error(`[FRONTEND-DEBUG] ❌ Error loading campaigns:`, error);
       toast.current?.show({
         severity: 'error',
         summary: 'Error',

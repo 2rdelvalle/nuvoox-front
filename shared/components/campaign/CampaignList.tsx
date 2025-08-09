@@ -20,21 +20,48 @@ const CampaignList: React.FC = () => {
   const router = useRouter();
   const toast = useRef<Toast>(null);
   
-  const [campaigns, setCampaigns] = useState<CampaignResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [campaigns, setCampaignsInternal] = useState<CampaignResponseDto[]>([]);
+  const [loading, setLoading] = useState(false);
   const [globalFilter, setGlobalFilter] = useState('');
   const [selectedCampaigns, setSelectedCampaigns] = useState<CampaignResponseDto[]>([]);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [campaignToDelete, setCampaignToDelete] = useState<CampaignResponseDto | null>(null);
   const [campaignProgress, setCampaignProgress] = useState<Map<number, CampaignProgress>>(new Map());
+  
+  // 🔧 DEBUG: Wrapper para trackear cambios en el estado campaigns
+  const setCampaigns = (newCampaigns: CampaignResponseDto[]) => {
+    const debugId = `state_change_${Date.now()}`;
+    const stack = new Error().stack;
+    console.log(`[STATE-DEBUG][${debugId}] 🔄 Actualizando estado campaigns:`);
+    console.log(`[STATE-DEBUG][${debugId}] 📊 Anterior: ${campaigns.length} campañas`);
+    console.log(`[STATE-DEBUG][${debugId}] 📊 Nuevo: ${newCampaigns?.length || 0} campañas`);
+    console.log(`[STATE-DEBUG][${debugId}] 📍 Llamado desde:`, stack?.split('\n')[2]?.trim());
+    
+    if (newCampaigns?.length === 0 && campaigns.length > 0) {
+      console.error(`[STATE-DEBUG][${debugId}] 🚨 ALERTA: Se está vaciando el estado campaigns!`);
+      console.error(`[STATE-DEBUG][${debugId}] 📋 Stack trace completo:`, stack);
+    }
+    
+    setCampaignsInternal(newCampaigns);
+  };
   const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    const debugId = `useeffect_init_${Date.now()}`;
+    console.log(`[USEEFFECT-DEBUG][${debugId}] 🚀 Iniciando useEffect del componente`);
+    console.log(`[USEEFFECT-DEBUG][${debugId}] 📋 Estado campaigns actual:`, campaigns.length);
+    
     loadCampaigns();
+    
     progressUpdateInterval.current = setInterval(() => {
+      const intervalDebugId = `polling_interval_${Date.now()}`;
+      console.log(`[POLLING-DEBUG][${intervalDebugId}] ⏰ Ejecutando polling automático (cada 10s)`);
+      console.log(`[POLLING-DEBUG][${intervalDebugId}] 📋 Campaigns antes del polling:`, campaigns.length);
       updateCampaignProgress();
     }, 10000); // Update every 10 seconds
+    
     return () => {
+      console.log(`[USEEFFECT-DEBUG][${debugId}] 🧹 Limpieza del useEffect - clearing interval`);
       if (progressUpdateInterval.current) {
         clearInterval(progressUpdateInterval.current);
       }

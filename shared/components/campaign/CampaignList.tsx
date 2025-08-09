@@ -64,29 +64,41 @@ const CampaignList: React.FC = () => {
   const updateCampaignProgress = async (specificCampaignId?: number) => {
     try {
       const progressMap = new Map<number, CampaignProgress>(campaignProgress);
+      const debugId = `frontend_progress_${Date.now()}`;
+      
+      console.log(`[FRONTEND-DEBUG][${debugId}] 🔍 Actualizando progreso de campaña...`);
+      console.log(`[FRONTEND-DEBUG][${debugId}] 📊 Specific ID:`, specificCampaignId || 'TODAS');
+      console.log(`[FRONTEND-DEBUG][${debugId}] 📋 Total campañas:`, campaigns.length);
       
       // Si se especifica un ID, actualizar solo esa campaña
       if (specificCampaignId) {
         try {
+          console.log(`[FRONTEND-DEBUG][${debugId}] 📤 Consultando progreso para campaña: ${specificCampaignId}`);
           const progress = await CampaignService.getCampaignProgress(specificCampaignId);
+          console.log(`[FRONTEND-DEBUG][${debugId}] 📊 Progreso recibido:`, progress);
           progressMap.set(specificCampaignId, progress);
         } catch (error) {
-          console.error(`Error loading progress for campaign ${specificCampaignId}:`, error);
+          console.error(`[FRONTEND-DEBUG][${debugId}] ❌ Error loading progress for campaign ${specificCampaignId}:`, error);
         }
       } else {
         // Si no se especifica ID, actualizar todas las campañas
+        console.log(`[FRONTEND-DEBUG][${debugId}] 📤 Consultando progreso para TODAS las campañas (${campaigns.length})`);
         for (const campaign of campaigns) {
           if (campaign.id) {
             try {
+              console.log(`[FRONTEND-DEBUG][${debugId}] 📤 Consultando progreso para campaña: ${campaign.id} (${campaign.name})`);
               const progress = await CampaignService.getCampaignProgress(campaign.id);
+              console.log(`[FRONTEND-DEBUG][${debugId}] 📊 Progreso recibido para ${campaign.id}:`, progress);
               progressMap.set(campaign.id, progress);
             } catch (error) {
-              console.error(`Error loading progress for campaign ${campaign.id}:`, error);
+              console.error(`[FRONTEND-DEBUG][${debugId}] ❌ Error loading progress for campaign ${campaign.id}:`, error);
             }
           }
         }
       }
       
+      console.log(`[FRONTEND-DEBUG][${debugId}] 💾 Actualizando estado del progreso...`);
+      console.log(`[FRONTEND-DEBUG][${debugId}] 📋 Mapa de progreso final:`, Array.from(progressMap.entries()));
       setCampaignProgress(progressMap);
     } catch (error) {
       console.error('Error updating campaign progress:', error);

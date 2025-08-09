@@ -156,8 +156,38 @@ export class CampaignService {
    * Get campaign progress and status
    */
   static async getCampaignProgress(campaignId: number): Promise<CampaignProgress> {
-    const response = await axiosInstance.get(`/campaigns/${campaignId}/progress`);
-    return response.data;
+    const debugId = `progress_request_${Date.now()}`;
+    console.log(`[FRONTEND-SERVICE-DEBUG][${debugId}] 📤 Solicitando progreso para campaña: ${campaignId}`);
+    console.log(`[FRONTEND-SERVICE-DEBUG][${debugId}] 🔗 URL: /campaigns/${campaignId}/progress`);
+    
+    try {
+      const response = await axiosInstance.get(`/campaigns/${campaignId}/progress`);
+      
+      console.log(`[FRONTEND-SERVICE-DEBUG][${debugId}] ✅ Respuesta exitosa:`, {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data
+      });
+      
+      console.log(`[FRONTEND-SERVICE-DEBUG][${debugId}] 📊 Datos específicos del progreso:`, {
+        campaignId: response.data.campaignId,
+        totalContacts: response.data.totalContacts,
+        sentMessages: response.data.sentMessages,
+        status: response.data.status,
+        progressPercentage: response.data.progressPercentage
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error(`[FRONTEND-SERVICE-DEBUG][${debugId}] ❌ Error obteniendo progreso:`, {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      throw error;
+    }
   }
 
   /**

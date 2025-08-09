@@ -45,8 +45,8 @@ const CampaignList: React.FC = () => {
     setCampaignsInternal(newCampaigns);
   };
   
-  // 🔧 MOVED: updateCampaignProgress before useEffect to fix TypeScript error
-  const updateCampaignProgress = useCallback(async (specificCampaignId?: number) => {
+  // 🔧 REVERTED: Back to regular function to prevent auto-start bug (keeping stale closure fix in useEffect)
+  const updateCampaignProgress = async (specificCampaignId?: number) => {
     try {
       const progressMap = new Map<number, CampaignProgress>(campaignProgress);
       const debugId = `frontend_progress_${Date.now()}`;
@@ -88,7 +88,7 @@ const CampaignList: React.FC = () => {
     } catch (error) {
       console.error('Error updating campaign progress:', error);
     }
-  }, [campaigns, campaignProgress]); // 🔧 DEPENDENCIES FIXED
+  };
 
   const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
 
@@ -100,33 +100,28 @@ const CampaignList: React.FC = () => {
     loadCampaigns();
   }, []); // Solo al mount
 
-  // 🔧 SEPARATE useEffect para polling con dependencies actualizadas
+  // 🔧 OPTIMIZED: Solo configurar polling una vez y usar ref para campaigns actuales
   useEffect(() => {
     const debugId = `polling_setup_${Date.now()}`;
-    console.log(`[POLLING-DEBUG][${debugId}] 🔄 Configurando polling con campaigns actualizados: ${campaigns.length}`);
+    console.log(`[POLLING-DEBUG][${debugId}] 🔄 Configurando polling inicial`);
     
-    // Limpiar polling anterior si existe
-    if (progressUpdateInterval.current) {
-      clearInterval(progressUpdateInterval.current);
-    }
+    // Solo configurar polling una vez al mount o cuando campaigns cambia de empty a populated
+    const hasInitialCampaigns = campaigns.length > 0;
     
-    // Solo configurar polling si hay campañas
-    if (campaigns.length > 0) {
+    if (hasInitialCampaigns && !progressUpdateInterval.current) {
+      console.log(`[POLLING-DEBUG][${debugId}] ⏰ Iniciando polling interval (cada 10s)`);
       progressUpdateInterval.current = setInterval(() => {
         const intervalDebugId = `polling_interval_${Date.now()}`;
         console.log(`[POLLING-DEBUG][${intervalDebugId}] ⏰ Ejecutando polling automático (cada 10s)`);
-        console.log(`[POLLING-DEBUG][${intervalDebugId}] 📋 Campaigns antes del polling:`, campaigns.length);
-        updateCampaignProgress();
+        updateCampaignProgress(); // updateCampaignProgress ya tiene access a campaigns actualizados
       }, 10000);
     }
     
     return () => {
-      console.log(`[POLLING-DEBUG][${debugId}] 🧹 Limpieza del polling`);
-      if (progressUpdateInterval.current) {
-        clearInterval(progressUpdateInterval.current);
-      }
+      // Solo limpiar en unmount del componente
+      console.log(`[POLLING-DEBUG][${debugId}] 🧹 Limpieza final del polling`);
     };
-  }, [campaigns, updateCampaignProgress]); // 🔧 DEPENDENCIES FIXED
+  }, [campaigns.length > 0]); // 🔧 Solo trigger cuando hay/no hay campañas (boolean)
 
   const loadCampaigns = async () => {
     try {

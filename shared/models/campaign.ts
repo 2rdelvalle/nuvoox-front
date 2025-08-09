@@ -24,7 +24,7 @@ export interface CampaignProgress {
   campaignId: number;
   totalContacts: number;
   sentMessages: number;
-  status: 'procesando' | 'completado' | 'fallida';
+  status: 'procesando' | 'completado' | 'fallida' | 'pendiente';
   progressPercentage: number;
 }
 

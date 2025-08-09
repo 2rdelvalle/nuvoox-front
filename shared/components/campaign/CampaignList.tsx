@@ -377,6 +377,8 @@ const CampaignList: React.FC = () => {
           return 'warning';
         case 'fallida':
           return 'danger';
+        case 'pendiente':
+          return 'info';
         default:
           return 'info';
       }
@@ -390,6 +392,8 @@ const CampaignList: React.FC = () => {
           return 'Procesando';
         case 'fallida':
           return 'Fallida';
+        case 'pendiente':
+          return 'Pendiente';
         default:
           return 'Desconocido';
       }

@@ -160,6 +160,27 @@ const CampaignList: React.FC = () => {
   };
 
   const handleSendCampaign = (campaign: CampaignResponseDto) => {
+    const debugId = `auto_trigger_debug_${Date.now()}`;
+    const stack = new Error().stack;
+    console.log(`[AUTO-TRIGGER-DEBUG][${debugId}] 🚨 handleSendCampaign LLAMADO:`, {
+      campaignId: campaign.id,
+      campaignName: campaign.name,
+      timestamp: new Date().toISOString(),
+      stackTrace: stack?.split('\n').slice(1, 6) // Primeras 5 líneas del stack
+    });
+    
+    // 🚨 CRÍTICO: Verificar si es llamada automática o por usuario
+    if (!stack?.includes('onClick') && !stack?.includes('Button')) {
+      console.error(`[AUTO-TRIGGER-DEBUG][${debugId}] 🔥 LLAMADA AUTOMÁTICA DETECTADA!`);
+      console.error(`[AUTO-TRIGGER-DEBUG][${debugId}] 📋 Stack completo:`, stack);
+      
+      // TODO: Temporal - bloquear auto-trigger hasta encontrar root cause
+      console.warn(`[AUTO-TRIGGER-DEBUG][${debugId}] ⛔ BLOQUEANDO auto-trigger temporal`);
+      return;
+    }
+    
+    console.log(`[AUTO-TRIGGER-DEBUG][${debugId}] ✅ Llamada legítima por usuario (onClick detectado)`);
+    
     confirmDialog({
       message: `¿Está seguro de que desea enviar la campaña "${campaign.name}"? Esta acción iniciará el envío de mensajes a todos los contactos.`,
       header: 'Confirmar Envío de Campaña',

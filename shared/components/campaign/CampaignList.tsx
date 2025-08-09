@@ -100,28 +100,41 @@ const CampaignList: React.FC = () => {
     loadCampaigns();
   }, []); // Solo al mount
 
-  // 🔧 OPTIMIZED: Solo configurar polling una vez y usar ref para campaigns actuales
+  // 🔧 OPTIMIZED: useEffect para configurar polling inteligente (solo cuando hay campañas procesando)
   useEffect(() => {
     const debugId = `polling_setup_${Date.now()}`;
-    console.log(`[POLLING-DEBUG][${debugId}] 🔄 Configurando polling inicial`);
+    console.log(`[POLLING-DEBUG][${debugId}] 🔄 Configurando polling inteligente`);
     
-    // Solo configurar polling una vez al mount o cuando campaigns cambia de empty a populated
-    const hasInitialCampaigns = campaigns.length > 0;
+    // Verificar si hay campañas procesándose
+    const hasProcessingCampaigns = Array.from(campaignProgress.values()).some(
+      progress => progress.status === 'procesando'
+    );
     
-    if (hasInitialCampaigns && !progressUpdateInterval.current) {
-      console.log(`[POLLING-DEBUG][${debugId}] ⏰ Iniciando polling interval (cada 10s)`);
+    console.log(`[POLLING-DEBUG][${debugId}] 📊 Campañas procesando: ${hasProcessingCampaigns ? 'SÍ' : 'NO'}`);
+    console.log(`[POLLING-DEBUG][${debugId}] 📋 Total campañas: ${campaigns.length}, Progreso cargado: ${campaignProgress.size}`);
+    
+    // Solo iniciar polling si hay campañas procesándose
+    if (hasProcessingCampaigns && !progressUpdateInterval.current) {
+      console.log(`[POLLING-DEBUG][${debugId}] ⏰ Iniciando polling inteligente (cada 10s) - hay campañas procesando`);
       progressUpdateInterval.current = setInterval(() => {
         const intervalDebugId = `polling_interval_${Date.now()}`;
-        console.log(`[POLLING-DEBUG][${intervalDebugId}] ⏰ Ejecutando polling automático (cada 10s)`);
-        updateCampaignProgress(); // updateCampaignProgress ya tiene access a campaigns actualizados
+        console.log(`[POLLING-DEBUG][${intervalDebugId}] ⏰ Ejecutando polling automático - solo campañas procesando`);
+        updateCampaignProgress(); // Solo actualizar campañas que están procesando
       }, 10000);
+    }
+    
+    // Limpiar polling si NO hay campañas procesándose
+    if (!hasProcessingCampaigns && progressUpdateInterval.current) {
+      console.log(`[POLLING-DEBUG][${debugId}] ⏸️ Deteniendo polling - no hay campañas procesando`);
+      clearInterval(progressUpdateInterval.current);
+      progressUpdateInterval.current = null;
     }
     
     return () => {
       // Solo limpiar en unmount del componente
       console.log(`[POLLING-DEBUG][${debugId}] 🧹 Limpieza final del polling`);
     };
-  }, [campaigns.length > 0]); // 🔧 Solo trigger cuando hay/no hay campañas (boolean)
+  }, [campaigns.length, campaignProgress]); // 🔧 Trigger cuando cambien las campañas o su progreso
 
   const loadCampaigns = async () => {
     try {

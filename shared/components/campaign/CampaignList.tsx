@@ -133,8 +133,12 @@ const CampaignList: React.FC = () => {
             life: 3000,
           });
 
-          // Actualizar progreso solo de la campaña enviada
-          await updateCampaignProgress(campaign.id);
+          // 🔧 FIX: Esperar 3 segundos antes de consultar progreso para evitar race condition
+          console.log('[CAMPAIGN-TIMING-FIX] ⏱️ Esperando 3 segundos antes de consultar progreso...');
+          setTimeout(async () => {
+            console.log('[CAMPAIGN-TIMING-FIX] 📊 Consultando progreso después del delay...');
+            await updateCampaignProgress(campaign.id);
+          }, 3000);
           
         } catch (error: any) {
           console.error('Error sending campaign:', error);

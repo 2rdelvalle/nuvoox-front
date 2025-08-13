@@ -29,8 +29,19 @@ export const MENU_USER_COMPANY: MenuModel[] = [
       {
         label: "Campañas",
         icon: "pi pi-megaphone",
-        to: "/campaigns",
-        requiresPermission: "can_send_campaigns" // Campo condicional para validación
+        requiresPermission: "can_send_campaigns", // Campo condicional para validación
+        items: [
+          {
+            label: "Nueva Campaña",
+            icon: "pi pi-plus-circle",
+            to: "/campaigns/create"
+          },
+          {
+            label: "Gestionar campañas",
+            icon: "pi pi-list",
+            to: "/campaigns/list"
+          }
+        ]
       }
     ]
   }

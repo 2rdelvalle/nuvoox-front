@@ -25,6 +25,12 @@ export const MENU_USER_COMPANY: MenuModel[] = [
         label: "Envio Masivo",
         icon: "pi pi-send", // modificado
         to: "/masive-chat"
+      },
+      {
+        label: "Campañas",
+        icon: "pi pi-megaphone",
+        to: "/campaigns",
+        requiresPermission: "can_send_campaigns" // Campo condicional para validación
       }
     ]
   }

@@ -6,6 +6,7 @@ import { ColumnsType } from "@/shared/small-components/TableFilter/types/tableFi
 import { useRouter } from "next/navigation"
 import { Badge } from "primereact/badge"
 import { UserService as _user } from "@/shared/services/index"
+import { CampaignAccessSwitch } from "@/shared/components/user/CampaignAccessSwitch"
 
 type props = {
   callback : ()=> void
@@ -77,6 +78,26 @@ export const COLUMNS_USER = ({ callback, users, setUsers }: props) => {
       style: { width: "13%" },
       body: (rowData: UserCaratule) => (
         <Badge value={rowData.company.name} />
+      )
+    },
+    {
+      field: "can_send_campaigns",
+      header: "Campañas",
+      style: { width: "12%" },
+      body: (rowData: UserCaratule) => (
+        <CampaignAccessSwitch 
+          user={rowData} 
+          onUpdate={(updatedUser) => {
+            // Actualizar usuario en la lista si está disponible
+            if (users && setUsers) {
+              const updatedUsers = users.map(user => 
+                user.userId === updatedUser.userId ? updatedUser : user
+              );
+              setUsers(updatedUsers);
+            }
+            callback(); // Recargar datos
+          }}
+        />
       )
     },
     {

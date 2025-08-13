@@ -17,7 +17,8 @@ function getMenuWithRoleType (role : RoleCaratule, userPermissions?: any): MenuM
       const filteredItems = item.items ? item.items.filter(subItem => {
         // Si el item requiere un permiso específico, validarlo
         if (subItem.requiresPermission) {
-          const hasPermission = userPermissions && userPermissions[subItem.requiresPermission] === true;
+          const hasPermission = userPermissions && !!userPermissions[subItem.requiresPermission];
+          console.log(`[MENU-FILTER] Validando ${subItem.label}: requiresPermission=${subItem.requiresPermission}, value=${userPermissions[subItem.requiresPermission]}, hasPermission=${hasPermission}`);
           return hasPermission;
         }
         return true; // Si no requiere permiso, incluir el item

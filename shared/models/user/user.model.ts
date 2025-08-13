@@ -28,6 +28,7 @@ export interface UserCaratule {
   company: CompanyCaratule
   role: RoleCaratule;
   status?: string; // Campo opcional para estado del usuario (ACTIVE, INACTIVE, etc.)
+  can_send_campaigns?: boolean; // Campo opcional para acceso a campañas
 }
 
 export interface UserChangePassword {

@@ -41,17 +41,43 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<any>(null);
 
-  // Estados del formulario
-  const [formData, setFormData] = useState<CampaignFormData>({
-    name: '',
-    type: CampaignType.WHATSAPP,
-    description: '',
-    agentGroupTag: '',
-    templateId: null,
-    selectedAgentIds: [],
-    useAgentGroup: false,
-    ...initialData
+  // Estados del formulario con normalización del tipo
+  const [formData, setFormData] = useState<CampaignFormData>(() => {
+    const baseData = {
+      name: '',
+      type: CampaignType.WHATSAPP,
+      description: '',
+      agentGroupTag: '',
+      templateId: null,
+      selectedAgentIds: [],
+      useAgentGroup: false,
+    };
+
+    if (initialData) {
+      const normalizedData = { ...initialData };
+      
+      // Normalizar el tipo si viene del backend en formato diferente
+      if (normalizedData.type) {
+        const typeValue = normalizedData.type.toString().toLowerCase();
+        normalizedData.type = typeValue === 'whatsapp' ? CampaignType.WHATSAPP : CampaignType.WHATSAPP;
+      }
+      
+      return { ...baseData, ...normalizedData };
+    }
+    
+    return baseData;
   });
+
+  // Debug: Log para verificar initialData en modo edición
+  useEffect(() => {
+    if (isEdit && initialData) {
+      console.log('[DEBUG CAMPAIGN EDIT] initialData recibida:', initialData);
+      console.log('[DEBUG CAMPAIGN EDIT] initialData.type:', initialData.type);
+      console.log('[DEBUG CAMPAIGN EDIT] CampaignType.WHATSAPP:', CampaignType.WHATSAPP);
+      console.log('[DEBUG CAMPAIGN EDIT] Tipos coinciden:', initialData.type === CampaignType.WHATSAPP);
+      console.log('[DEBUG CAMPAIGN EDIT] formData.type actual:', formData.type);
+    }
+  }, [isEdit, initialData, formData.type]);
 
   // Estados para datos dinámicos
   const [templates, setTemplates] = useState<Template[]>([]);

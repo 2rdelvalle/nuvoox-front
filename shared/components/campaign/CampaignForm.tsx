@@ -56,10 +56,13 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
     if (initialData) {
       const normalizedData = { ...initialData };
       
-      // Normalizar el tipo si viene del backend en formato diferente
+      // Normalizar el tipo si viene del backend en formato diferente  
       if (normalizedData.type) {
         const typeValue = normalizedData.type.toString().toLowerCase();
-        normalizedData.type = typeValue === 'whatsapp' ? CampaignType.WHATSAPP : CampaignType.WHATSAPP;
+        // Convertir "WHATSAPP" o "whatsapp" a CampaignType.WHATSAPP
+        if (typeValue === 'whatsapp') {
+          normalizedData.type = CampaignType.WHATSAPP;
+        }
       }
       
       return { ...baseData, ...normalizedData };

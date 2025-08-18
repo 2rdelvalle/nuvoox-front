@@ -71,6 +71,15 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
     return baseData;
   });
 
+  // Estados para datos dinámicos - MOVER ANTES de useEffect que los referencian
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
+  const [selectedAgents, setSelectedAgents] = useState<Agent[]>([]);
+  const [agentGroups, setAgentGroups] = useState<string[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactsPreview, setContactsPreview] = useState<Contact[]>([]);
+
   // Debug: Log para verificar initialData en modo edición
   useEffect(() => {
     if (isEdit && initialData) {
@@ -107,14 +116,33 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
     }
   }, [isEdit, initialData?.contactsCsvData]);
 
-  // Estados para datos dinámicos
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
-  const [selectedAgents, setSelectedAgents] = useState<Agent[]>([]);
-  const [agentGroups, setAgentGroups] = useState<string[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [contactsPreview, setContactsPreview] = useState<Contact[]>([]);
+  // ✅ PRECARGAR AGENTES: Sincronizar PickList con selectedAgentIds en modo edición
+  useEffect(() => {
+    if (isEdit && initialData?.selectedAgentIds && initialData.selectedAgentIds.length > 0 && agents.length > 0) {
+      console.log('[DEBUG AGENTS] Precargando agentes seleccionados desde initialData.selectedAgentIds');
+      console.log('[DEBUG AGENTS] IDs de agentes a precargar:', initialData.selectedAgentIds);
+      console.log('[DEBUG AGENTS] Total agentes disponibles:', agents.length);
+      
+      // Encontrar agentes que deben estar seleccionados
+      const agentsToSelect = agents.filter(agent => 
+        initialData.selectedAgentIds!.includes(agent.id)
+      );
+      
+      // Encontrar agentes que deben estar disponibles (no seleccionados)
+      const agentsToKeepAvailable = agents.filter(agent => 
+        !initialData.selectedAgentIds!.includes(agent.id)
+      );
+      
+      console.log('[DEBUG AGENTS] Agentes a seleccionar:', agentsToSelect.length);
+      console.log('[DEBUG AGENTS] Agentes disponibles restantes:', agentsToKeepAvailable.length);
+      
+      // Actualizar estados del PickList
+      setSelectedAgents(agentsToSelect);
+      setAvailableAgents(agentsToKeepAvailable);
+      
+      console.log('[DEBUG AGENTS] ✅ Agentes precargados exitosamente en PickList');
+    }
+  }, [isEdit, initialData?.selectedAgentIds, agents]); // Depender de agents para ejecutar cuando estén cargados
 
   // Estados de validación
   const [errors, setErrors] = useState<Record<string, string>>({});

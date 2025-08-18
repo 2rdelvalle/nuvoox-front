@@ -9,6 +9,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { Button } from 'primereact/button';
 import { Checkbox } from 'primereact/checkbox';
 import { ListBox } from 'primereact/listbox';
+import { PickList } from 'primereact/picklist';
 import { FileUpload } from 'primereact/fileupload';
 import { Toast } from 'primereact/toast';
 import { ProgressSpinner } from 'primereact/progressspinner';
@@ -235,6 +236,20 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
     setFormData(prev => ({ ...prev, selectedAgentIds }));
     const selected = agents.filter(agent => selectedAgentIds.includes(agent.id));
     setSelectedAgents(selected);
+  };
+
+  // Nuevo manejador para PickList
+  const handlePickListChange = (event: any) => {
+    const sourceAgents = event.source;
+    const targetAgents = event.target;
+    
+    // Actualizar los estados de agentes disponibles y seleccionados
+    setAvailableAgents(sourceAgents);
+    setSelectedAgents(targetAgents);
+    
+    // Actualizar el estado del formulario con los IDs de agentes seleccionados
+    const selectedAgentIds = targetAgents.map((agent: Agent) => agent.id);
+    setFormData(prev => ({ ...prev, selectedAgentIds }));
   };
 
   const handleFileUpload = async (event: any) => {
@@ -616,38 +631,24 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
                     <label className="block text-900 font-medium mb-2">
                       Seleccionar Agentes *
                     </label>
-                    <div className="grid">
-                      <div className="col-12 md:col-6">
-                        <h6>Agentes Disponibles</h6>
-                        <ListBox
-                          value={formData.selectedAgentIds}
-                          options={availableAgents.map(agent => ({
-                            label: `${agent.name} (${agent.mail})`,
-                            value: agent.id
-                          }))}
-                          onChange={(e) => handleAgentSelection(e.value)}
-                          multiple
-                          className="w-full"
-                          style={{ height: '200px' }}
-                        />
-                      </div>
-                      <div className="col-12 md:col-6">
-                        <h6>Agentes Seleccionados ({selectedAgents.length})</h6>
-                        <div className="border-1 border-300 border-round p-2" style={{ height: '200px', overflowY: 'auto' }}>
-                          {selectedAgents.map(agent => (
-                            <div key={agent.id} className="p-2 border-bottom-1 border-300">
-                              <strong>{agent.name}</strong><br />
-                              <small>{agent.mail}</small>
-                            </div>
-                          ))}
-                          {selectedAgents.length === 0 && (
-                            <div className="text-center text-500 mt-4">
-                              No hay agentes seleccionados
-                            </div>
-                          )}
+                    <PickList
+                      source={availableAgents}
+                      target={selectedAgents}
+                      sourceHeader="Agentes Disponibles"
+                      targetHeader="Agentes Seleccionados"
+                      itemTemplate={(agent) => (
+                        <div className="p-2">
+                          <div className="font-medium">{agent.name}</div>
+                          <div className="text-sm text-500">{agent.mail}</div>
                         </div>
-                      </div>
-                    </div>
+                      )}
+                      onChange={handlePickListChange}
+                      sourceStyle={{ height: '300px' }}
+                      targetStyle={{ height: '300px' }}
+                      showTargetControls={false}
+                      showSourceControls={false}
+                      className={errors.selectedAgentIds ? 'p-invalid' : ''}
+                    />
                     {errors.selectedAgentIds && <small className="p-error">{errors.selectedAgentIds}</small>}
                   </div>
                 )}

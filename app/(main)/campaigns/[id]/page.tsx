@@ -37,7 +37,9 @@ const EditCampaignPage = () => {
         agentGroupTag: data.agentGroupTag || '',
         templateId: data.template.id,
         selectedAgentIds: data.selectedAgents.map(agent => agent.id),
-        useAgentGroup: !!data.agentGroupTag
+        useAgentGroup: !!data.agentGroupTag,
+        // ✅ AGREGAR: Incluir datos de contactos CSV para precarga
+        contactsCsvData: data.contactsCsvData
       };
       
       setInitialData(formData);

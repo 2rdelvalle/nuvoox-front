@@ -60,6 +60,7 @@ export interface CampaignFormData {
   templateId: number | null;
   selectedAgentIds: number[];
   useAgentGroup: boolean;
+  contactsCsvData?: string; // ✅ AGREGAR: Datos CSV para precarga en edición
 }
 
 export interface AgentGroup {

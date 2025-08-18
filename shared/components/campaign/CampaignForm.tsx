@@ -82,6 +82,31 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
     }
   }, [isEdit, initialData, formData.type]);
 
+  // ✅ PRECARGAR CONTACTOS: Procesar contactsCsvData en modo edición
+  useEffect(() => {
+    if (isEdit && initialData?.contactsCsvData) {
+      try {
+        console.log('[DEBUG CONTACTS] Precargando contactos desde initialData.contactsCsvData');
+        const csvData = initialData.contactsCsvData;
+        const parsedContacts: Contact[] = JSON.parse(csvData);
+        
+        console.log('[DEBUG CONTACTS] Contactos parseados:', parsedContacts.length);
+        console.log('[DEBUG CONTACTS] Muestra de contactos:', parsedContacts.slice(0, 2));
+        
+        // Actualizar estados de contactos
+        setContacts(parsedContacts);
+        setContactsPreview(parsedContacts.slice(0, 5)); // Mostrar primeros 5
+        
+        console.log('[DEBUG CONTACTS] ✅ Contactos precargados exitosamente');
+      } catch (error) {
+        console.error('[DEBUG CONTACTS] ❌ Error parseando contactsCsvData:', error);
+        // En caso de error, mantener estados vacíos
+        setContacts([]);
+        setContactsPreview([]);
+      }
+    }
+  }, [isEdit, initialData?.contactsCsvData]);
+
   // Estados para datos dinámicos
   const [templates, setTemplates] = useState<Template[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);

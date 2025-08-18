@@ -28,21 +28,24 @@ export interface CampaignResponseDto {
   name: string;
   type: string;
   description: string;
-  agentGroupTag: string;
-  contactsCsvPath: string;
+  agentGroupTag?: string;
+  contactsCsvPath?: string;
+  contactsCsvData?: string; // ✅ AGREGAR: Datos CSV para precarga en edición
+  totalContacts: number;
+  sentMessages: number;
   status: string;
   template: {
     id: number;
     name: string;
     textTemplate: string;
   };
-  selectedAgents: Array<{
+  selectedAgents: {
     id: number;
     name: string;
     mail: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
+  }[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ContactPreview {

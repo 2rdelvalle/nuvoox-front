@@ -126,13 +126,14 @@ export async function sendTemplateMessage (
     
     // Determinar si es una plantilla multimedia basándose en la respuesta del backend
     const templateData = backendResponse.data?.templateData || {};
-    const isMultimedia = templateData.categoryTemplateWhatsapp === 'image' || 
-                         templateData.categoryTemplateWhatsapp === 'video' || 
-                         templateData.categoryTemplateWhatsapp === 'document' || 
-                         templateData.categoryTemplateWhatsapp === 'audio' || 
-                         templateData.categoryTemplateWhatsapp === 'multimedia';
+    // CORREGIDO: Usar isMultimedia del backend en lugar de categoryTemplateWhatsapp
+    const isMultimedia = templateData.isMultimedia === true || templateData.isMultimedia === 'true';
     
-    console.log(`[DEBUG] Tipo de plantilla detectado: ${templateData.categoryTemplateWhatsapp || 'desconocido'}`);
+    console.log(`[DEBUG] Datos de plantilla del backend:`, {
+      isMultimedia: templateData.isMultimedia,
+      mediaType: templateData.mediaType,
+      categoryTemplateWhatsapp: templateData.categoryTemplateWhatsapp
+    });
     console.log(`[DEBUG] Es plantilla multimedia: ${isMultimedia ? 'SÍ' : 'NO'}`);
     
     // Paso 2: Preparar el nombre de la plantilla según su tipo
@@ -169,7 +170,8 @@ export async function sendTemplateMessage (
     
     // Usar la información multimedia que ya obtuvimos previamente
     let mediaUrl = templateData.mediaUrl;
-    const mediaType = templateData.categoryTemplateWhatsapp;
+    // CORREGIDO: Usar mediaType del backend, no categoryTemplateWhatsapp
+    const mediaType = templateData.mediaType;
     
     console.log(`[DEBUG] Información de plantilla: mediaUrl=${mediaUrl}, mediaType=${mediaType}`);
     
@@ -216,18 +218,36 @@ export async function sendTemplateMessage (
     if (isMultimedia && isMediaUrlValid && isHttpsUrl) {
       console.log(`[DEBUG] Agregando componentes multimedia para plantilla: ${finalTemplateName}`);
       
-      // Para plantillas de imagen, se requiere el componente header
+      // Construir el header según el tipo de media del backend
+      let headerParameter;
+      if (mediaType === 'image') {
+        headerParameter = {
+          type: "image",
+          image: { link: mediaUrl }
+        };
+      } else if (mediaType === 'video') {
+        headerParameter = {
+          type: "video",
+          video: { link: mediaUrl }
+        };
+      } else if (mediaType === 'document') {
+        headerParameter = {
+          type: "document", 
+          document: { link: mediaUrl }
+        };
+      } else {
+        // Fallback para tipos no reconocidos, asumir imagen
+        console.warn(`[WARN] Tipo de media no reconocido: ${mediaType}, usando image como fallback`);
+        headerParameter = {
+          type: "image",
+          image: { link: mediaUrl }
+        };
+      }
+      
       messageData.template.components = [
         {
           type: "header",
-          parameters: [
-            {
-              type: "image",
-              image: {
-                link: mediaUrl
-              }
-            }
-          ]
+          parameters: [headerParameter]
         }
       ];
       

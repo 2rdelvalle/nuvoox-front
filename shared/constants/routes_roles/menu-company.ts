@@ -71,7 +71,7 @@ export const MENU_COMPANY: MenuModel[] = [
       },
       {
         label: "Automatización",
-        icon: "pi pi-cog",
+        icon: "pi pi-sitemap",
         items: [
           {
             label: "Gestión de Flujos",

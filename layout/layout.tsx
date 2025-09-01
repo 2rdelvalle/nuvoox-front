@@ -233,7 +233,7 @@ const Layout = (props: ChildContainerProps) => {
                 <div className="layout-mask"></div>
                 <NotificationListener />
                 {/* Flow Engine Chatbox - Solo se renderiza si el feature flag está activo */}
-                {userData && (
+                {userData && process.env.NEXT_PUBLIC_ENABLE_CHATBOX === 'true' && (
                     <FlowChatbox
                         companyId={userData.companyId || 0}
                         userId={userData.id || 0}

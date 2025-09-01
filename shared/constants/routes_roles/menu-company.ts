@@ -68,6 +68,22 @@ export const MENU_COMPANY: MenuModel[] = [
             to: "/masive-chat"
           }
         ]
+      },
+      {
+        label: "Automatización",
+        icon: "pi pi-cog",
+        items: [
+          {
+            label: "Gestión de Flujos",
+            icon: "pi pi-sitemap",
+            to: "/flows/list"
+          },
+          {
+            label: "Crear Flujo",
+            icon: "pi pi-plus",
+            to: "/flows/create"
+          }
+        ]
       }
     ]
   }

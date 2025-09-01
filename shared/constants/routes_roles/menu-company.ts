@@ -75,7 +75,7 @@ export const MENU_COMPANY: MenuModel[] = [
         items: [
           {
             label: "Gestión de Flujos",
-            icon: "pi pi-sitemap",
+            icon: "pi pi-list",
             to: "/flows/list"
           },
           {

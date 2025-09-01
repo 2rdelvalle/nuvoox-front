@@ -9,7 +9,7 @@ import {
   useUnmountEffect
 } from "primereact/hooks"
 import { DomHandler, classNames } from "primereact/utils"
-import React, { useCallback, useContext, useEffect, useRef } from "react"
+import React, { useCallback, useContext, useEffect, useRef, useState } from "react"
 import AppBreadCrumb from "./AppBreadCrumb"
 import AppConfig from "./AppConfig"
 import AppProfileSidebar from "./AppProfileSidebar"
@@ -17,6 +17,8 @@ import AppSidebar from "./AppSidebar"
 import AppTopbar from "./AppTopbar"
 import { LayoutContext } from "./context/layoutcontext"
 import { NotificationListener } from "@/app/(main)/chat/whatsapp/components/NotificationListener"
+import { FlowChatbox } from "@/shared/components/chatbox"
+import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/sessionUtils"
 
 const Layout = (props: ChildContainerProps) => {
   const {
@@ -32,6 +34,21 @@ const Layout = (props: ChildContainerProps) => {
   const sidebarRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  
+  // Estado para datos del usuario actual
+  const [userData, setUserData] = useState<any>(null)
+  const [isChatboxOpen, setIsChatboxOpen] = useState(false)
+  
+  // Obtener datos del usuario del token JWT
+  useEffect(() => {
+    const token = getCookieToken()
+    if (token) {
+      const data = getDataFromToken(token)
+      if (data?.user) {
+        setUserData(data.user)
+      }
+    }
+  }, [])
   const [bindMenuOutsideClickListener, unbindMenuOutsideClickListener] =
         useEventListener({
           type: "click",
@@ -215,6 +232,17 @@ const Layout = (props: ChildContainerProps) => {
                 <AppConfig />
                 <div className="layout-mask"></div>
                 <NotificationListener />
+                {/* Flow Engine Chatbox - Solo se renderiza si el feature flag está activo */}
+                {userData && (
+                    <FlowChatbox
+                        companyId={userData.companyId || 0}
+                        userId={userData.id || 0}
+                        phoneNumber={userData.phone}
+                        isOpen={isChatboxOpen}
+                        onClose={() => setIsChatboxOpen(false)}
+                        position="bottom-right"
+                    />
+                )}
             </div>
         </React.Fragment>
   )

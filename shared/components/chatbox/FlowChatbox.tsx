@@ -9,8 +9,17 @@ import { Badge } from 'primereact/badge';
 import { Tooltip } from 'primereact/tooltip';
 import { ScrollPanel } from 'primereact/scrollpanel';
 import { io, Socket } from 'socket.io-client';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
+// Función helper para formatear tiempo relativo sin dependencias externas
+const formatTimeAgo = (timestamp: string): string => {
+  const now = new Date();
+  const messageTime = new Date(timestamp);
+  const diffInMinutes = Math.floor((now.getTime() - messageTime.getTime()) / (1000 * 60));
+  
+  if (diffInMinutes < 1) return 'ahora mismo';
+  if (diffInMinutes < 60) return `hace ${diffInMinutes}m`;
+  if (diffInMinutes < 1440) return `hace ${Math.floor(diffInMinutes / 60)}h`;
+  return `hace ${Math.floor(diffInMinutes / 1440)}d`;
+};
 
 interface Message {
   id: string;
@@ -272,10 +281,7 @@ export const FlowChatbox: React.FC<FlowChatboxProps> = ({
                         <div className={`text-xs mt-1 ${
                           msg.from === 'user' ? 'text-blue-100' : 'text-gray-400'
                         }`}>
-                          {formatDistanceToNow(new Date(parseInt(msg.timestamp)), { 
-                            addSuffix: true,
-                            locale: es 
-                          })}
+                          {formatTimeAgo(msg.timestamp)}
                           {msg.status === 'sending' && (
                             <i className="pi pi-clock ml-1"></i>
                           )}

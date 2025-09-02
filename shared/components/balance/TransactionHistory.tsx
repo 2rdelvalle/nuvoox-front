@@ -1,6 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Card, CardBody, CardHeader, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Pagination, Spinner, Chip } from '@nextui-org/react';
+import { Card } from 'primereact/card';
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+import { Paginator } from 'primereact/paginator';
+import { ProgressSpinner } from 'primereact/progressspinner';
+import { Tag } from 'primereact/tag';
 import { BalanceService } from '@/shared/services';
 import { BalanceTransactionDto, TransactionType } from '@/shared/services/balance/dtos/balance-transaction.dto';
 import DateRangeFilter, { DateRange } from '../filters/DateRangeFilter';
@@ -74,11 +79,26 @@ const TransactionHistory = ({ companyId, limit = 5, showPagination = true, class
   }, [companyId, page, limit, dateRange]);
   
   // Manejar cambio en el rango de fechas
-  const handleDateRangeChange = (range: DateRange) => {
+  const handleDateChange = (range: DateRange) => {
     setDateRange(range);
     // Resetear a la primera página cuando cambia el filtro de fechas
     setPage(1);
   };
+
+  // Formatear transacciones para DataTable
+  const formatTransactionForTable = (transaction: BalanceTransactionDto) => {
+    return {
+      ...transaction,
+      formattedDate: formatDate(transaction.createdAt),
+      typeChip: getTypeChip(transaction.type),
+      formattedAmount: formatAmount(transaction.amountUSD, transaction.type),
+      description: getDescription(transaction),
+      previousBalance: `$${transaction.amountUSD?.toFixed(2) || '0.00'} USD`,
+      newBalance: `$${transaction.amountUSD?.toFixed(2) || '0.00'} USD`
+    };
+  };
+
+  const formattedTransactions = transactions.map(formatTransactionForTable);
 
   // Formatear fechas para mostrar
   const formatDate = (date: Date | string): string => {
@@ -109,18 +129,16 @@ const TransactionHistory = ({ companyId, limit = 5, showPagination = true, class
   // Obtener el chip de tipo de transacción
   const getTypeChip = (type: TransactionType): JSX.Element => {
     const config = {
-      [TransactionType.RECHARGE]: { color: 'success' as const, label: 'Recarga' },
-      [TransactionType.CONSUMPTION]: { color: 'danger' as const, label: 'Consumo' }
+      [TransactionType.RECHARGE]: { severity: 'success' as const, label: 'Recarga' },
+      [TransactionType.CONSUMPTION]: { severity: 'danger' as const, label: 'Consumo' }
     };
     
     return (
-      <Chip 
-        size="sm" 
-        variant="flat" 
-        color={config[type].color}
-      >
-        {config[type].label}
-      </Chip>
+      <Tag 
+        severity={config[type].severity}
+        value={config[type].label}
+        rounded
+      />
     );
   };
 
@@ -135,9 +153,10 @@ const TransactionHistory = ({ companyId, limit = 5, showPagination = true, class
   if (loading && transactions.length === 0) {
     return (
       <Card className={`w-full shadow-md ${className}`}>
-        <CardBody className="flex items-center justify-center p-6 h-40">
-          <Spinner label="Cargando historial..." color="primary" />
-        </CardBody>
+        <div className="flex items-center justify-center p-6 h-40">
+          <ProgressSpinner style={{width: '40px', height: '40px'}} strokeWidth="6" />
+          <span className="ml-3 text-gray-600">Cargando historial...</span>
+        </div>
       </Card>
     );
   }
@@ -145,76 +164,54 @@ const TransactionHistory = ({ companyId, limit = 5, showPagination = true, class
   if (error && transactions.length === 0) {
     return (
       <Card className={`w-full shadow-md ${className}`}>
-        <CardBody className="p-6">
+        <div className="p-6">
           <div className="text-center text-red-500 mb-2">{error}</div>
-        </CardBody>
+        </div>
       </Card>
     );
   }
 
   return (
     <Card className={`w-full shadow-md ${className}`}>
-      <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 px-6 py-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 px-6 py-4">
         <h3 className="text-lg font-semibold">Historial de transacciones</h3>
         
-        {/* Filtro de fechas */}
         {showDateFilter && (
-          <DateRangeFilter 
-            onChange={handleDateRangeChange} 
-            className="ml-auto" 
-            showApplyButton={false}
-          />
-        )}
-      </CardHeader>
-      
-      <CardBody className="px-3 py-0">
-        <Table 
-          aria-label="Historial de transacciones de saldo"
-          removeWrapper
-          isStriped
-          isCompact
-        >
-          <TableHeader>
-            <TableColumn>FECHA</TableColumn>
-            <TableColumn>TIPO</TableColumn>
-            <TableColumn>DESCRIPCIÓN</TableColumn>
-            <TableColumn>MONTO</TableColumn>
-            <TableColumn>SALDO</TableColumn>
-          </TableHeader>
-          <TableBody 
-            emptyContent="No hay transacciones disponibles"
-            isLoading={loading}
-            loadingContent={<Spinner color="primary" />}
-          >
-            {transactions.map((transaction) => (
-              <TableRow key={transaction.id}>
-                <TableCell>{formatDate(transaction.createdAt)}</TableCell>
-                <TableCell>{getTypeChip(transaction.type)}</TableCell>
-                <TableCell>
-                  <div className="max-w-xs truncate" title={getDescription(transaction)}>
-                    {getDescription(transaction)}
-                  </div>
-                </TableCell>
-                <TableCell>{formatAmount(transaction.amountUSD, transaction.type)}</TableCell>
-                <TableCell className="font-medium">${transaction.balanceAfterUSD.toFixed(2)} USD</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        
-        {showPagination && (
-          <div className="flex justify-center my-4">
-            <Pagination
-              page={page}
-              total={totalPages}
-              onChange={setPage}
-              isDisabled={loading}
-              showControls
-              size="sm"
+          <div className="w-full sm:w-auto">
+            <DateRangeFilter
+              onChange={handleDateChange}
+              className="w-full"
             />
           </div>
         )}
-      </CardBody>
+      </div>
+      <div className="px-6 py-0">
+        <DataTable 
+          value={formattedTransactions}
+          loading={loading}
+          emptyMessage="No hay transacciones disponibles"
+          className="min-h-[200px]"
+          stripedRows
+        >
+          <Column field="formattedDate" header="FECHA" />
+          <Column field="typeChip" header="TIPO" body={(data) => data.typeChip} />
+          <Column field="description" header="DESCRIPCIÓN" className="max-w-xs truncate" />
+          <Column field="formattedAmount" header="MONTO" />
+          <Column field="previousBalance" header="SALDO ANTERIOR" />
+          <Column field="newBalance" header="SALDO ACTUAL" />
+        </DataTable>
+        
+        {showPagination && totalPages > 1 && (
+          <div className="flex justify-center py-4">
+            <Paginator
+              first={(page - 1) * (limit || 10)}
+              rows={limit || 10}
+              totalRecords={totalPages * (limit || 10)}
+              onPageChange={(e) => setPage(e.page + 1)}
+            />
+          </div>
+        )}
+      </div>
     </Card>
   );
 };

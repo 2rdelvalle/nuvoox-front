@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { Card } from 'primereact/card';
+import React, { useCallback, useState, useRef } from 'react';
 import { Button } from 'primereact/button';
 import { Toolbar } from 'primereact/toolbar';
-import { useFlowDesignerStore, FlowNode, FlowEdge } from '@/shared/stores/flow-designer-store';
+import { useFlowDesignerStore, FlowNode } from '@/shared/stores/flow-designer-store';
 
 interface FlowDesignerProps {
   flowId: number;
@@ -13,18 +12,18 @@ interface FlowDesignerProps {
 
 export const FlowDesigner: React.FC<FlowDesignerProps> = ({ 
   flowId, 
-  className = '' 
+  className 
 }) => {
-  const {
-    currentDesign,
-    selectedNode,
-    addNode,
-    setSelectedNode,
-    markDirty
+  const { 
+    currentDesign, 
+    selectedNode, 
+    setSelectedNode, 
+    addNode, 
+    markDirty 
   } = useFlowDesignerStore();
   
-  // Estados locales
   const [draggedNodeType, setDraggedNodeType] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   
   // Tipos de nodos disponibles
   const nodeTypes = [
@@ -52,6 +51,11 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
     markDirty();
   }, [addNode, setSelectedNode, markDirty]);
   
+  // Manejar clics en nodos
+  const handleNodeClick = useCallback((node: FlowNode) => {
+    setSelectedNode(node);
+  }, [setSelectedNode]);
+  
   // Manejar drop en canvas
   const handleCanvasDrop = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -67,6 +71,10 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
     handleCreateNode(draggedNodeType, position);
     setDraggedNodeType(null);
   }, [draggedNodeType, handleCreateNode]);
+  
+  const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
   
   // Toolbar de herramientas
   const toolbarLeft = (
@@ -105,85 +113,64 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
         className="mb-2"
       />
       
-      {/* Canvas principal */}
+      {/* Canvas Placeholder */}
       <div 
-        className="flow-canvas h-full border-1 border-300 border-round overflow-hidden position-relative"
-        style={{ 
-          minHeight: '500px',
-          background: 'linear-gradient(0deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%), linear-gradient(90deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%)',
-          backgroundSize: '20px 20px'
-        }}
+        ref={canvasRef}
+        className="flow-canvas h-full border border-gray-300 rounded overflow-hidden relative bg-gray-50" 
+        style={{ minHeight: '500px' }}
         onDrop={handleCanvasDrop}
-        onDragOver={(e) => e.preventDefault()}
+        onDragOver={handleCanvasDragOver}
       >
-        {/* Renderizado simple de nodos (placeholder para React Flow) */}
+        {/* Nodos renderizados */}
         {currentDesign?.nodes.map((node) => (
           <div
             key={node.id}
-            className={`absolute cursor-pointer border-round shadow-2 p-3 bg-white border-2 ${
-              selectedNode?.id === node.id ? 'border-primary' : 'border-300'
-            }`}
+            className="absolute bg-white border rounded shadow-sm p-3 cursor-pointer hover:shadow-md transition-shadow"
             style={{
               left: node.position.x,
               top: node.position.y,
               minWidth: '150px',
-              maxWidth: '200px'
+              border: selectedNode?.id === node.id ? '2px solid #3b82f6' : '1px solid #d1d5db',
+              background: selectedNode?.id === node.id ? '#e7f3ff' : '#ffffff'
             }}
-            onClick={() => setSelectedNode(node)}
+            onClick={() => handleNodeClick(node)}
           >
-            <div className="flex align-items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1">
               <i className={`pi ${
                 node.type === 'message' ? 'pi-comment' :
                 node.type === 'question' ? 'pi-question-circle' :
                 node.type === 'condition' ? 'pi-directions' :
                 node.type === 'action' ? 'pi-cog' : 'pi-clock'
-              } text-${
-                node.type === 'message' ? 'blue' :
-                node.type === 'question' ? 'green' :
-                node.type === 'condition' ? 'orange' :
-                node.type === 'action' ? 'purple' : 'gray'
-              }-500`}></i>
+              }`}></i>
               <span className="font-medium text-sm">{node.data.label}</span>
             </div>
-            
             {node.data.messageText && (
-              <p className="text-xs text-600 m-0 line-height-3">
-                {node.data.messageText.length > 50 
-                  ? node.data.messageText.substring(0, 50) + '...'
+              <p className="text-xs text-gray-600 m-0">
+                {node.data.messageText.length > 40 
+                  ? node.data.messageText.substring(0, 40) + '...'
                   : node.data.messageText
                 }
               </p>
             )}
-            
-            <div className="text-right mt-2">
-              <small className="text-400 uppercase">{node.type}</small>
-            </div>
           </div>
         ))}
         
         {/* Mensaje cuando no hay nodos */}
         {(!currentDesign?.nodes || currentDesign.nodes.length === 0) && (
-          <div className="flex justify-content-center align-items-center h-full">
-            <div className="text-center">
-              <i className="pi pi-sitemap text-6xl text-400 mb-3"></i>
-              <h4 className="text-600 mb-2">Canvas Vacío</h4>
-              <p className="text-500 mb-3">
-                Arrastra elementos desde la barra de herramientas para comenzar a diseñar tu flujo
-              </p>
-              <small className="text-400">
-                💡 Los nodos se conectarán automáticamente cuando instales React Flow
-              </small>
-            </div>
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <i className="pi pi-diagram text-4xl mb-4"></i>
+            <p className="text-lg font-medium mb-2">Canvas Vacío</p>
+            <p className="text-sm">Arrastra elementos desde la barra superior para comenzar</p>
           </div>
         )}
         
-        {/* Indicador de arrastre */}
+        {/* Overlay para arrastre */}
         {draggedNodeType && (
-          <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-            <div className="flex justify-content-center align-items-center h-full">
-              <div className="p-3 bg-white border-round shadow-4 border-2 border-dashed border-primary">
-                <i className="pi pi-plus text-primary mr-2"></i>
-                <span className="text-primary font-medium">
+          <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-50">
+            <div className="flex justify-center items-center h-full">
+              <div className="p-3 bg-white rounded shadow-lg border-2 border-dashed border-blue-500">
+                <i className="pi pi-plus text-blue-500 mr-2"></i>
+                <span className="text-blue-500 font-medium">
                   Suelta para crear {draggedNodeType}
                 </span>
               </div>

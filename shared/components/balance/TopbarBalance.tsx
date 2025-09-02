@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Tooltip } from 'primereact/tooltip';
-import { Spinner } from '@nextui-org/react';
+import { ProgressSpinner } from 'primereact/progressspinner';
 import { BalanceService } from '@/shared/services';
 import { TransactionType } from '@/shared/services/balance/dtos/balance-transaction.dto';
 import { getDataFromToken, getCookieToken } from '@/shared/utilities/functions/sessionUtils';
@@ -112,7 +112,7 @@ const TopbarBalance = () => {
   if (loading) {
     return (
       <div className="flex items-center mr-4">
-        <Spinner size="sm" color="primary" />
+        <ProgressSpinner style={{width: '20px', height: '20px'}} strokeWidth="8" />
       </div>
     );
   }

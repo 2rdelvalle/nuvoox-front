@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Card, CardBody, Button, Spinner, Tooltip } from '@nextui-org/react';
+import { Card } from 'primereact/card';
+import { Button } from 'primereact/button';
+import { ProgressSpinner } from 'primereact/progressspinner';
 import { BalanceService } from '@/shared/services';
 import { CompanyBalanceDto } from '@/shared/services/balance/dtos/company-balance.dto';
 import { IoReload } from 'react-icons/io5';
@@ -109,7 +111,8 @@ const BalanceDisplay = ({ companyId, refreshTrigger = 0, compact = false }: Bala
     return (
       <div className={compact ? "" : "w-full"}>
         <div className="flex justify-center py-4">
-          <Spinner color="primary" label="Cargando saldo..." />
+          <ProgressSpinner style={{width: '30px', height: '30px'}} strokeWidth="8" />
+          <span className="ml-2 text-sm text-gray-600">Cargando saldo...</span>
         </div>
       </div>
     );
@@ -118,22 +121,21 @@ const BalanceDisplay = ({ companyId, refreshTrigger = 0, compact = false }: Bala
   if (error) {
     return (
       <div className={compact ? "" : "w-full"}>
-        <Card className="border border-danger-300">
-          <CardBody>
-            <div className="text-danger text-center">
+        <Card className="border border-red-300">
+          <div className="p-4">
+            <div className="text-red-600 text-center">
               <p>{error}</p>
               <Button
-                size="sm"
-                color="primary"
-                variant="flat"
+                size="small"
+                severity="info"
                 className="mt-2"
-                onPress={handleRefresh}
-                isLoading={refreshing}
+                onClick={handleRefresh}
+                loading={refreshing}
               >
                 Reintentar
               </Button>
             </div>
-          </CardBody>
+          </div>
         </Card>
       </div>
     );
@@ -154,17 +156,15 @@ const BalanceDisplay = ({ companyId, refreshTrigger = 0, compact = false }: Bala
             )}
           </div>
           {!compact && (
-            <Tooltip content="Actualizar saldo">
-              <Button
-                isIconOnly
-                size="sm"
-                variant="light"
-                isLoading={refreshing}
-                onPress={handleRefresh}
-              >
-                <IoReload className="text-gray-500" />
-              </Button>
-            </Tooltip>
+            <Button
+              icon="pi pi-refresh"
+              size="small"
+              text
+              loading={refreshing}
+              onClick={handleRefresh}
+              tooltip="Actualizar saldo"
+              className="text-gray-500"
+            />
           )}
         </div>
         

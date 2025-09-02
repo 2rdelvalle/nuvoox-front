@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Card, CardBody, Spinner } from '@nextui-org/react';
+import { Card } from 'primereact/card';
+import { ProgressSpinner } from 'primereact/progressspinner';
 import dynamic from 'next/dynamic';
 import EmptyPage from '@/shared/small-components/EmptyPage/emptyPage';
 import { useUser } from '@/shared/hooks/useUser';
@@ -31,7 +32,8 @@ const DashboardPage = () => {
     return (
       <EmptyPage>
         <div className="flex justify-center items-center h-64">
-          <Spinner size="lg" label="Cargando información..." />
+          <ProgressSpinner style={{width: '50px', height: '50px'}} strokeWidth="8" />
+          <p className="ml-3 text-gray-600">Cargando información...</p>
         </div>
       </EmptyPage>
     );
@@ -41,11 +43,11 @@ const DashboardPage = () => {
     return (
       <EmptyPage>
         <Card className="w-full">
-          <CardBody>
+          <div className="p-4">
             <p className="text-center text-gray-500">
               No se encontró información de la empresa. Por favor, contacte al administrador.
             </p>
-          </CardBody>
+          </div>
         </Card>
       </EmptyPage>
     );

@@ -82,7 +82,12 @@ export const MENU_COMPANY: MenuModel[] = [
             label: "Crear Flujo",
             icon: "pi pi-plus",
             to: "/flows/create"
-          }
+          },
+          ...(process.env.NEXT_PUBLIC_ENABLE_FLOW_DESIGNER === 'true' ? [{
+            label: "Diseñador Visual",
+            icon: "pi pi-sitemap",
+            to: "/flows/1/designer"
+          }] : [])
         ]
       }
     ]

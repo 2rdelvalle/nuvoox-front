@@ -38,6 +38,8 @@ const FlowListPage: React.FC = () => {
   };
 
   const actionBodyTemplate = (rowData: any) => {
+    const isFlowDesignerEnabled = process.env.NEXT_PUBLIC_ENABLE_FLOW_DESIGNER === 'true';
+    
     return (
       <div className="flex gap-2">
         <Button
@@ -50,6 +52,14 @@ const FlowListPage: React.FC = () => {
           className="p-button-text p-button-sm"
           tooltip="Editar"
         />
+        {isFlowDesignerEnabled && (
+          <Button
+            icon="pi pi-sitemap"
+            className="p-button-text p-button-sm p-button-info"
+            tooltip="Diseñador Visual"
+            onClick={() => router.push(`/flows/${rowData.id}/designer`)}
+          />
+        )}
         <Button
           icon="pi pi-trash"
           className="p-button-text p-button-sm p-button-danger"

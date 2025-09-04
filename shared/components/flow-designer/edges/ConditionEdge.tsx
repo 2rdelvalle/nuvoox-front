@@ -119,7 +119,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
     });
   };
 
-  const handleKeyDown = (e: React.KeyEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       onCancel();
     }

@@ -1,10 +1,22 @@
 import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
+import { 
+  Node, 
+  Edge, 
+  Viewport, 
+  NodeChange, 
+  EdgeChange, 
+  Connection, 
+  applyNodeChanges, 
+  applyEdgeChanges,
+  addEdge
+} from 'reactflow';
+import { ValidationError } from '@/shared/utils/flow-validation';
 
 // Tipos para el diseñador de flujos
-export interface FlowNode {
-  id: string;
-  type: 'message' | 'question' | 'condition' | 'action' | 'wait';
-  position: { x: number; y: number };
+// ReactFlow compatible node type
+export type FlowNode = Node & {
+  type: 'message' | 'question' | 'condition' | 'action' | 'wait' | 'handoff' | 'end';
   data: {
     label: string;
     messageText?: string;
@@ -18,15 +30,14 @@ export interface FlowNode {
     actionConfig?: Record<string, any>;
     templateId?: number;
     timeoutSeconds?: number;
+    endType?: 'completed' | 'abandoned' | 'timeout';
+    handoffConfig?: Record<string, any>;
   };
 }
 
-export interface FlowEdge {
-  id: string;
-  source: string;
-  target: string;
+// ReactFlow compatible edge type  
+export type FlowEdge = Edge & {
   type?: 'default' | 'conditional';
-  label?: string;
   data?: {
     conditionType?: string;
     conditionValue?: string;
@@ -64,22 +75,28 @@ interface FlowDesignerStore {
   selectedEdge: FlowEdge | null;
   isInspectorOpen: boolean;
   
-  // Estado de guardado
+  // Estado de ReactFlow
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+  viewport: Viewport;
+  
+  // Estados adicionales
   isDirty: boolean;
   isSaving: boolean;
-  lastSaved: string | null;
-  
-  // Estados de validación
-  validationErrors: Array<{
-    nodeId?: string;
-    edgeId?: string;
-    message: string;
-    type: 'error' | 'warning';
-  }>;
+  isPublishing: boolean;
+  lastSaved: Date | null;
+  validationErrors: ValidationError[];
+  publishErrors: ValidationError[];
   
   // Acciones para manejar el diseño
   setCurrentDesign: (design: FlowDesign | null) => void;
   setFlowId: (id: number | null) => void;
+  
+  // Acciones ReactFlow sync
+  onNodesChange: (changes: NodeChange[]) => void;
+  onEdgesChange: (changes: EdgeChange[]) => void;
+  onConnect: (connection: Connection) => void;
+  setViewport: (viewport: Viewport) => void;
   
   // Acciones para nodos
   addNode: (node: FlowNode) => void;
@@ -100,16 +117,13 @@ interface FlowDesignerStore {
   // Acciones de guardado
   markDirty: () => void;
   markClean: () => void;
-  setSaving: (saving: boolean) => void;
-  setLastSaved: (timestamp: string) => void;
+  saveCanvas: (flowId: number) => Promise<boolean>;
+  publishFlow: (flowId: number, publishNotes?: string) => Promise<boolean>;
   
   // Acciones de validación
-  setValidationErrors: (errors: Array<{
-    nodeId?: string;
-    edgeId?: string;
-    message: string;
-    type: 'error' | 'warning';
-  }>) => void;
+  validateFlow: () => void;
+  setValidationErrors: (errors: ValidationError[]) => void;
+  setPublishErrors: (errors: ValidationError[]) => void;
   clearValidationErrors: () => void;
   
   // Acciones de limpieza
@@ -123,56 +137,87 @@ export const useFlowDesignerStore = create<FlowDesignerStore>((set, get) => ({
   selectedNode: null,
   selectedEdge: null,
   isInspectorOpen: false,
+  
+  // Estado ReactFlow inicial
+  nodes: [],
+  edges: [],
+  viewport: { x: 0, y: 0, zoom: 1 },
+  
+  // Estado de guardado
   isDirty: false,
   isSaving: false,
+  isPublishing: false,
   lastSaved: null,
   validationErrors: [],
+  publishErrors: [],
   
   // Implementaciones de acciones
-  setCurrentDesign: (design) => set({ currentDesign: design }),
+  setCurrentDesign: (design) => set((state) => ({ 
+    currentDesign: design,
+    nodes: design?.nodes || [],
+    edges: design?.edges || []
+  })),
   setFlowId: (id) => set({ flowId: id }),
   
-  // Gestión de nodos
-  addNode: (node) => set((state) => {
-    if (!state.currentDesign) return state;
-    
-    return {
-      currentDesign: {
-        ...state.currentDesign,
-        nodes: [...state.currentDesign.nodes, node]
-      },
-      isDirty: true
-    };
-  }),
+  // ReactFlow sync methods
+  onNodesChange: (changes) => set((state) => ({
+    nodes: applyNodeChanges(changes, state.nodes) as FlowNode[],
+    isDirty: true
+  })),
   
-  updateNode: (nodeId, updates) => set((state) => {
-    if (!state.currentDesign) return state;
-    
-    return {
-      currentDesign: {
-        ...state.currentDesign,
-        nodes: state.currentDesign.nodes.map(node =>
-          node.id === nodeId ? { ...node, ...updates } : node
-        )
-      },
-      isDirty: true
-    };
-  }),
+  onEdgesChange: (changes) => set((state) => ({
+    edges: applyEdgeChanges(changes, state.edges),
+    isDirty: true
+  })),
+  
+  onConnect: (connection) => set((state) => ({
+    edges: addEdge({
+      ...connection,
+      id: `edge-${connection.source}-${connection.target}-${Date.now()}`,
+      type: 'conditional'
+    } as FlowEdge, state.edges) as FlowEdge[],
+    isDirty: true
+  })),
+  
+  setViewport: (viewport) => set({ viewport }),
+  
+  // Gestión de nodos
+  addNode: (node) => set((state) => ({
+    nodes: [...state.nodes, node],
+    currentDesign: state.currentDesign ? {
+      ...state.currentDesign,
+      nodes: [...state.nodes, node]
+    } : null,
+    isDirty: true
+  })),
+  
+  updateNode: (nodeId, updates) => set((state) => ({
+    nodes: state.nodes.map(node =>
+      node.id === nodeId ? { ...node, ...updates } : node
+    ),
+    currentDesign: state.currentDesign ? {
+      ...state.currentDesign,
+      nodes: state.nodes.map(node =>
+        node.id === nodeId ? { ...node, ...updates } : node
+      )
+    } : null,
+    isDirty: true
+  })),
   
   deleteNode: (nodeId) => set((state) => {
-    if (!state.currentDesign) return state;
-    
-    // También eliminar edges conectados al nodo
-    const filteredEdges = state.currentDesign.edges.filter(
+    const filteredEdges = state.edges.filter(
       edge => edge.source !== nodeId && edge.target !== nodeId
     );
+    const filteredNodes = state.nodes.filter(node => node.id !== nodeId);
     
     return {
-      currentDesign: {
+      nodes: filteredNodes,
+      edges: filteredEdges,
+      currentDesign: state.currentDesign ? {
         ...state.currentDesign,
-        nodes: state.currentDesign.nodes.filter(node => node.id !== nodeId),
+        nodes: filteredNodes,
         edges: filteredEdges
-      },
+      } : null,
       selectedNode: state.selectedNode?.id === nodeId ? null : state.selectedNode,
       isDirty: true
     };
@@ -185,40 +230,37 @@ export const useFlowDesignerStore = create<FlowDesignerStore>((set, get) => ({
   }),
   
   // Gestión de edges
-  addEdge: (edge) => set((state) => {
-    if (!state.currentDesign) return state;
-    
-    return {
-      currentDesign: {
-        ...state.currentDesign,
-        edges: [...state.currentDesign.edges, edge]
-      },
-      isDirty: true
-    };
-  }),
+  addEdge: (edge) => set((state) => ({
+    edges: [...state.edges, edge],
+    currentDesign: state.currentDesign ? {
+      ...state.currentDesign,
+      edges: [...state.edges, edge]
+    } : null,
+    isDirty: true
+  })),
   
-  updateEdge: (edgeId, updates) => set((state) => {
-    if (!state.currentDesign) return state;
-    
-    return {
-      currentDesign: {
-        ...state.currentDesign,
-        edges: state.currentDesign.edges.map(edge =>
-          edge.id === edgeId ? { ...edge, ...updates } : edge
-        )
-      },
-      isDirty: true
-    };
-  }),
+  updateEdge: (edgeId, updates) => set((state) => ({
+    edges: state.edges.map(edge =>
+      edge.id === edgeId ? { ...edge, ...updates } : edge
+    ),
+    currentDesign: state.currentDesign ? {
+      ...state.currentDesign,
+      edges: state.edges.map(edge =>
+        edge.id === edgeId ? { ...edge, ...updates } : edge
+      )
+    } : null,
+    isDirty: true
+  })),
   
   deleteEdge: (edgeId) => set((state) => {
-    if (!state.currentDesign) return state;
+    const filteredEdges = state.edges.filter(edge => edge.id !== edgeId);
     
     return {
-      currentDesign: {
+      edges: filteredEdges,
+      currentDesign: state.currentDesign ? {
         ...state.currentDesign,
-        edges: state.currentDesign.edges.filter(edge => edge.id !== edgeId)
-      },
+        edges: filteredEdges
+      } : null,
       selectedEdge: state.selectedEdge?.id === edgeId ? null : state.selectedEdge,
       isDirty: true
     };
@@ -237,11 +279,83 @@ export const useFlowDesignerStore = create<FlowDesignerStore>((set, get) => ({
   // Guardado
   markDirty: () => set({ isDirty: true }),
   markClean: () => set({ isDirty: false }),
-  setSaving: (saving) => set({ isSaving: saving }),
-  setLastSaved: (timestamp) => set({ lastSaved: timestamp }),
+  setSaving: (saving: boolean) => set({ isSaving: saving }),
+  setLastSaved: (timestamp: Date | string) => set({ 
+    lastSaved: typeof timestamp === 'string' ? new Date(timestamp) : timestamp 
+  }),
   
+  // Persistencia
+  saveCanvas: async (flowId: number): Promise<boolean> => {
+    const state = get();
+    try {
+      set({ isSaving: true });
+      const { flowService } = await import('@/shared/services/flow/flow.service');
+      
+      await flowService.saveFlowCanvas(flowId, {
+        nodes: state.nodes,
+        edges: state.edges,
+        viewport: state.viewport,
+        lastModified: new Date().toISOString()
+      });
+      
+      set({ 
+        isDirty: false, 
+        lastSaved: new Date(),
+        isSaving: false 
+      });
+      return true;
+    } catch (error) {
+      console.error('Error saving canvas:', error);
+      set({ isSaving: false });
+      return false;
+    }
+  },
+
+  publishFlow: async (flowId: number, publishNotes?: string): Promise<boolean> => {
+    const state = get();
+    try {
+      set({ isPublishing: true, publishErrors: [] });
+      
+      // Validar antes de publicar
+      const { validateFlowCanvas, isFlowReadyToPublish } = await import('@/shared/utils/flow-validation');
+      const validationErrors = validateFlowCanvas(state.nodes, state.edges);
+      
+      if (!isFlowReadyToPublish(state.nodes, state.edges)) {
+        set({ 
+          publishErrors: validationErrors.filter(e => e.type === 'error'),
+          isPublishing: false 
+        });
+        return false;
+      }
+      
+      const { flowService } = await import('@/shared/services/flow/flow.service');
+      
+      await flowService.publishFlow(flowId, {
+        nodes: state.nodes,
+        edges: state.edges,
+        publishNotes
+      });
+      
+      set({ isPublishing: false });
+      return true;
+    } catch (error) {
+      console.error('Error publishing flow:', error);
+      set({ isPublishing: false });
+      return false;
+    }
+  },
+
+  validateFlow: () => {
+    const state = get();
+    import('@/shared/utils/flow-validation').then(({ validateFlowCanvas }) => {
+      const errors = validateFlowCanvas(state.nodes, state.edges);
+      set({ validationErrors: errors });
+    });
+  },
+
   // Validación
-  setValidationErrors: (errors) => set({ validationErrors: errors }),
+  setValidationErrors: (errors: ValidationError[]) => set({ validationErrors: errors }),
+  setPublishErrors: (errors: ValidationError[]) => set({ publishErrors: errors }),
   clearValidationErrors: () => set({ validationErrors: [] }),
   
   // Reset

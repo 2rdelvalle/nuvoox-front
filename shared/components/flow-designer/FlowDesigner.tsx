@@ -3,38 +3,113 @@
 import React, { useCallback, useState, useRef } from 'react';
 import { Button } from 'primereact/button';
 import { Toolbar } from 'primereact/toolbar';
-import { useFlowDesignerStore, FlowNode } from '@/shared/stores/flow-designer-store';
+import ReactFlow, { 
+  Controls, 
+  Background, 
+  MiniMap,
+  ConnectionMode,
+  Connection,
+  addEdge,
+  OnNodesChange,
+  OnEdgesChange,
+  OnConnect,
+  IsValidConnection
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+
+import { useFlowDesignerStore, FlowNode, FlowEdge } from '@/shared/stores/flow-designer-store';
+import { nodeTypes } from './nodes';
+import { ConditionEdge } from './edges/ConditionEdge';
 
 interface FlowDesignerProps {
   flowId: number;
   className?: string;
 }
 
+// Definir edge types
+const edgeTypes = {
+  conditional: ConditionEdge,
+};
+
 export const FlowDesigner: React.FC<FlowDesignerProps> = ({ 
   flowId, 
   className 
 }) => {
+  // Feature flag para habilitar el nuevo diseñador ReactFlow
+  const isNewDesignerEnabled = process.env.NEXT_PUBLIC_ENABLE_FLOW_DESIGNER === 'true';
   const { 
-    currentDesign, 
+    nodes,
+    edges,
+    viewport,
     selectedNode, 
     setSelectedNode, 
-    addNode, 
-    markDirty 
+    addNode,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    setViewport
   } = useFlowDesignerStore();
   
   const [draggedNodeType, setDraggedNodeType] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLDivElement>(null);
   
-  // Tipos de nodos disponibles
-  const nodeTypes = [
+  // Tipos de nodos disponibles para la palette
+  const nodeTypesData = [
     { type: 'message', label: 'Mensaje', icon: 'pi-comment', color: '#3B82F6' },
     { type: 'question', label: 'Pregunta', icon: 'pi-question-circle', color: '#10B981' },
     { type: 'condition', label: 'Condición', icon: 'pi-directions', color: '#F59E0B' },
     { type: 'action', label: 'Acción', icon: 'pi-cog', color: '#8B5CF6' },
-    { type: 'wait', label: 'Espera', icon: 'pi-clock', color: '#6B7280' }
+    { type: 'wait', label: 'Espera', icon: 'pi-clock', color: '#6B7280' },
+    { type: 'handoff', label: 'Transferir', icon: 'pi-user', color: '#EF4444' },
+    { type: 'end', label: 'Final', icon: 'pi-stop-circle', color: '#374151' }
   ];
   
-  // Crear nuevo nodo
+  // Función para validar conexiones
+  const isValidConnection = useCallback((connection: Connection) => {
+    // Prevenir auto-conexión
+    if (connection.source === connection.target) return false;
+    
+    // Buscar nodos source y target
+    const sourceNode = nodes.find(n => n.id === connection.source);
+    const targetNode = nodes.find(n => n.id === connection.target);
+    
+    if (!sourceNode || !targetNode) return false;
+    
+    // Reglas específicas por tipo de nodo:
+    
+    // EndNode no puede tener conexiones salientes (solo target)
+    if (sourceNode.type === 'end') return false;
+    
+    // Solo un nodo puede ser el start del flujo - prevenir múltiples entradas a nodos sin entrada previa
+    // (Esta validación se hará más compleja con Zod)
+    
+    // WaitNode debe usar handles específicos (timeout, next)
+    if (sourceNode.type === 'wait' && connection.sourceHandle) {
+      const validHandles = ['timeout', 'next'];
+      if (!validHandles.includes(connection.sourceHandle)) return false;
+    }
+    
+    // QuestionNode debe usar handles específicos según tipo
+    if (sourceNode.type === 'question' && connection.sourceHandle) {
+      const validHandles = ['yes', 'no', 'valid', 'invalid', 'option-1', 'option-2', 'option-3'];
+      if (!validHandles.includes(connection.sourceHandle)) return false;
+    }
+    
+    // ConditionNode debe usar handles true/false
+    if (sourceNode.type === 'condition' && connection.sourceHandle) {
+      const validHandles = ['true', 'false'];
+      if (!validHandles.includes(connection.sourceHandle)) return false;
+    }
+    
+    // HandoffNode debe usar handles específicos (success, operator_busy, failure)
+    if (sourceNode.type === 'handoff' && connection.sourceHandle) {
+      const validHandles = ['success', 'operator_busy', 'failure'];
+      if (!validHandles.includes(connection.sourceHandle)) return false;
+    }
+    
+    return true;
+  }, [nodes]);
+
+  // Crear nuevo nodo desde drag and drop
   const handleCreateNode = useCallback((type: string, position: { x: number; y: number }) => {
     const newNode: FlowNode = {
       id: `${type}-${Date.now()}`,
@@ -48,32 +123,35 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
     
     addNode(newNode);
     setSelectedNode(newNode);
-    markDirty();
-  }, [addNode, setSelectedNode, markDirty]);
-  
-  // Manejar clics en nodos
-  const handleNodeClick = useCallback((node: FlowNode) => {
-    setSelectedNode(node);
+  }, [addNode, setSelectedNode]);
+
+  // Manejar selección de nodos
+  const handleNodeClick = useCallback((_event: React.MouseEvent, node: any) => {
+    setSelectedNode(node as FlowNode);
   }, [setSelectedNode]);
-  
-  // Manejar drop en canvas
-  const handleCanvasDrop = useCallback((event: React.DragEvent) => {
+
+  // Manejar drop de nodos en el canvas
+  const onDrop = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     
     if (!draggedNodeType) return;
     
-    const canvasRect = event.currentTarget.getBoundingClientRect();
+    // Obtener posición relativa al ReactFlow viewport
+    const reactFlowBounds = (event.target as Element).closest('.react-flow')?.getBoundingClientRect();
+    if (!reactFlowBounds) return;
+    
     const position = {
-      x: event.clientX - canvasRect.left,
-      y: event.clientY - canvasRect.top
+      x: event.clientX - reactFlowBounds.left - viewport.x,
+      y: event.clientY - reactFlowBounds.top - viewport.y
     };
     
     handleCreateNode(draggedNodeType, position);
     setDraggedNodeType(null);
-  }, [draggedNodeType, handleCreateNode]);
-  
-  const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
+  }, [draggedNodeType, handleCreateNode, viewport]);
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
   }, []);
   
   // Toolbar de herramientas
@@ -85,7 +163,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
   
   const toolbarRight = (
     <div className="flex gap-1">
-      {nodeTypes.map((nodeType) => (
+      {nodeTypesData.map((nodeType) => (
         <Button
           key={nodeType.type}
           label={nodeType.label}
@@ -104,79 +182,70 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
     </div>
   );
   
+  // Renderizar diseñador basado en feature flag
+  if (isNewDesignerEnabled) {
+    return (
+      <div className={`flow-designer h-full ${className}`}>
+        {/* Toolbar de herramientas */}
+        <Toolbar 
+          left={toolbarLeft} 
+          right={toolbarRight}
+          className="mb-2"
+        />
+        
+        {/* ReactFlow Canvas */}
+        <div className="h-full" style={{ minHeight: '500px' }}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={handleNodeClick}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            isValidConnection={isValidConnection}
+            connectionMode={ConnectionMode.Loose}
+            fitView
+            fitViewOptions={{ padding: 0.2 }}
+            defaultViewport={viewport}
+            onMove={(_, viewport) => setViewport(viewport)}
+          >
+            {/* Controles de ReactFlow */}
+            <Controls />
+            
+            {/* Fondo con patrón */}
+            <Background 
+              gap={12} 
+              size={1} 
+              color="#94a3b8"
+            />
+            
+            {/* Minimapa */}
+            <MiniMap
+              nodeColor={(node) => {
+                const nodeTypeData = nodeTypesData.find(nt => nt.type === node.type);
+                return nodeTypeData?.color || '#6B7280';
+              }}
+              nodeStrokeWidth={3}
+              pannable
+              zoomable
+            />
+          </ReactFlow>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback al diseñador legacy (canvas custom)
   return (
     <div className={`flow-designer h-full ${className}`}>
-      {/* Toolbar de herramientas */}
-      <Toolbar 
-        left={toolbarLeft} 
-        right={toolbarRight}
-        className="mb-2"
-      />
-      
-      {/* Canvas Placeholder */}
-      <div 
-        ref={canvasRef}
-        className="flow-canvas h-full border border-gray-300 rounded overflow-hidden relative bg-gray-50" 
-        style={{ minHeight: '500px' }}
-        onDrop={handleCanvasDrop}
-        onDragOver={handleCanvasDragOver}
-      >
-        {/* Nodos renderizados */}
-        {currentDesign?.nodes.map((node) => (
-          <div
-            key={node.id}
-            className="absolute bg-white border rounded shadow-sm p-3 cursor-pointer hover:shadow-md transition-shadow"
-            style={{
-              left: node.position.x,
-              top: node.position.y,
-              minWidth: '150px',
-              border: selectedNode?.id === node.id ? '2px solid #3b82f6' : '1px solid #d1d5db',
-              background: selectedNode?.id === node.id ? '#e7f3ff' : '#ffffff'
-            }}
-            onClick={() => handleNodeClick(node)}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <i className={`pi ${
-                node.type === 'message' ? 'pi-comment' :
-                node.type === 'question' ? 'pi-question-circle' :
-                node.type === 'condition' ? 'pi-directions' :
-                node.type === 'action' ? 'pi-cog' : 'pi-clock'
-              }`}></i>
-              <span className="font-medium text-sm">{node.data.label}</span>
-            </div>
-            {node.data.messageText && (
-              <p className="text-xs text-gray-600 m-0">
-                {node.data.messageText.length > 40 
-                  ? node.data.messageText.substring(0, 40) + '...'
-                  : node.data.messageText
-                }
-              </p>
-            )}
-          </div>
-        ))}
-        
-        {/* Mensaje cuando no hay nodos */}
-        {(!currentDesign?.nodes || currentDesign.nodes.length === 0) && (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <i className="pi pi-diagram text-4xl mb-4"></i>
-            <p className="text-lg font-medium mb-2">Canvas Vacío</p>
-            <p className="text-sm">Arrastra elementos desde la barra superior para comenzar</p>
-          </div>
-        )}
-        
-        {/* Overlay para arrastre */}
-        {draggedNodeType && (
-          <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-50">
-            <div className="flex justify-center items-center h-full">
-              <div className="p-3 bg-white rounded shadow-lg border-2 border-dashed border-blue-500">
-                <i className="pi pi-plus text-blue-500 mr-2"></i>
-                <span className="text-blue-500 font-medium">
-                  Suelta para crear {draggedNodeType}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="text-center py-8 text-gray-500">
+        <i className="pi pi-info-circle text-2xl mb-2"></i>
+        <p>Diseñador ReactFlow no habilitado</p>
+        <p className="text-sm">Configura NEXT_PUBLIC_ENABLE_FLOW_DESIGNER=true para usar el nuevo diseñador</p>
       </div>
     </div>
   );

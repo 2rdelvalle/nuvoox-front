@@ -45,6 +45,35 @@ export interface FlowDesignDto {
   edges: any[];
 }
 
+export interface FlowCanvasDto {
+  nodes: any[];
+  edges: any[];
+  viewport?: {
+    x: number;
+    y: number;
+    zoom: number;
+  };
+  lastModified?: string;
+}
+
+export interface FlowPublishDto {
+  nodes: any[];
+  edges: any[];
+  version?: string;
+  publishNotes?: string;
+}
+
+export interface FlowVersion {
+  id: number;
+  flowId: number;
+  version: string;
+  isActive: boolean;
+  canvas: FlowCanvasDto;
+  publishedAt: string;
+  publishedBy: number;
+  publishNotes?: string;
+}
+
 export interface PaginatedFlowResponse {
   data: Flow[];
   total: number;
@@ -125,6 +154,54 @@ class FlowService {
     const response = await axiosInstance.post(`/flows/${id}/duplicate`, {
       name: newName
     });
+    return response.data;
+  }
+
+  /**
+   * Obtener canvas del flujo (versión de trabajo)
+   */
+  async getFlowCanvas(id: number): Promise<FlowCanvasDto> {
+    const response = await axiosInstance.get(`/flows/${id}/canvas`);
+    return response.data;
+  }
+
+  /**
+   * Guardar canvas del flujo (versión de trabajo) 
+   */
+  async saveFlowCanvas(id: number, canvas: FlowCanvasDto): Promise<{ success: boolean; lastModified: string }> {
+    const response = await axiosInstance.put(`/flows/${id}/canvas`, canvas);
+    return response.data;
+  }
+
+  /**
+   * Publicar flujo con validación y materialización
+   */
+  async publishFlow(id: number, publishData: FlowPublishDto): Promise<FlowVersion> {
+    const response = await axiosInstance.post(`/flows/${id}/publish`, publishData);
+    return response.data;
+  }
+
+  /**
+   * Obtener versiones del flujo
+   */
+  async getFlowVersions(id: number): Promise<FlowVersion[]> {
+    const response = await axiosInstance.get(`/flows/${id}/versions`);
+    return response.data;
+  }
+
+  /**
+   * Obtener versión específica del flujo
+   */
+  async getFlowVersion(id: number, versionId: number): Promise<FlowVersion> {
+    const response = await axiosInstance.get(`/flows/${id}/versions/${versionId}`);
+    return response.data;
+  }
+
+  /**
+   * Activar una versión específica
+   */
+  async activateFlowVersion(id: number, versionId: number): Promise<FlowVersion> {
+    const response = await axiosInstance.post(`/flows/${id}/versions/${versionId}/activate`);
     return response.data;
   }
 }

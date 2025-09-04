@@ -117,6 +117,8 @@ interface FlowDesignerStore {
   // Acciones de guardado
   markDirty: () => void;
   markClean: () => void;
+  setSaving: (saving: boolean) => void;
+  setLastSaved: (timestamp: Date | string) => void;
   saveCanvas: (flowId: number) => Promise<boolean>;
   publishFlow: (flowId: number, publishNotes?: string) => Promise<boolean>;
   
@@ -166,7 +168,7 @@ export const useFlowDesignerStore = create<FlowDesignerStore>((set, get) => ({
   })),
   
   onEdgesChange: (changes) => set((state) => ({
-    edges: applyEdgeChanges(changes, state.edges),
+    edges: applyEdgeChanges(changes, state.edges) as FlowEdge[],
     isDirty: true
   })),
   

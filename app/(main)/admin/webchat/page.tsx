@@ -86,6 +86,13 @@ export default function WebChatAdminPage() {
 
   // Feature flag check
   const isWebChatEnabled = process.env.NEXT_PUBLIC_ENABLE_WEBCHAT_ADMIN === 'true';
+  
+  // DEBUG: Log environment variables
+  console.log('🔍 DEBUG WebChat Env:', {
+    NEXT_PUBLIC_ENABLE_WEBCHAT_ADMIN: process.env.NEXT_PUBLIC_ENABLE_WEBCHAT_ADMIN,
+    NEXT_PUBLIC_ENABLE_WEBCHAT: process.env.NEXT_PUBLIC_ENABLE_WEBCHAT,
+    isWebChatEnabled
+  });
 
   useEffect(() => {
     if (isWebChatEnabled) {

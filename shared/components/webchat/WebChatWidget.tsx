@@ -70,7 +70,7 @@ export const WebChatWidget: React.FC<WebChatWidgetProps> = ({
 
   const loadConfig = async () => {
     try {
-      const response = await fetch(`/api/webchat/config`, {
+      const response = await fetch(`/web/nuvoox/api/webchat/config/${companyId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },

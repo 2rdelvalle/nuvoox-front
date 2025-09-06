@@ -67,6 +67,11 @@ export const MENU_ADMIN: MenuModel[] = [
             label: "Tipos de Documento",
             icon: "pi pi-file",
             to: "/admin/typeDocument/list"
+          },
+          {
+            label: "WebChat",
+            icon: "pi pi-comments",
+            to: "/admin/webchat"
           }
         ]
       }

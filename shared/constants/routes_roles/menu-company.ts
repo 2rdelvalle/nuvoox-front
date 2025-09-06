@@ -45,6 +45,11 @@ export const MENU_COMPANY: MenuModel[] = [
             label: "Plantillas",
             icon: "pi pi-send", // modificado
             to: "/template/list"
+          },
+          {
+            label: "WebChat",
+            icon: "pi pi-comments",
+            to: "/admin/webchat"
           }
         ]
       },

@@ -353,6 +353,7 @@ export default function WebChatAdminPage() {
               loading={isSaving}
               icon="pi pi-save"
               label="Guardar Configuración"
+              className="bg-blue-600 hover:bg-blue-700 border-blue-600"
             />
           </div>
         )}
@@ -669,6 +670,7 @@ export default function WebChatAdminPage() {
                   </div>
                   
                   {/* Widget Preview - Fixed position */}
+                  {config.is_active && (
                   <div 
                     className={`fixed bottom-6 right-10 
                                ${isWidgetMinimized ? 'w-16 h-16' : 'w-80'} bg-white rounded-lg shadow-xl 
@@ -749,6 +751,7 @@ export default function WebChatAdminPage() {
                       </div>
                     )}
                   </div>
+                  )}
                   
                   {/* Status indicator */}
                   <div className="absolute bottom-4 left-6">
@@ -756,16 +759,21 @@ export default function WebChatAdminPage() {
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${config.is_active ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                         <span className="text-xs text-gray-700 font-medium">
-                          Widget {config.is_active ? 'activo' : 'inactivo'} • 
-                          {isWidgetMinimized ? 'Minimizado' : 'Expandido'} • 
-                          Posición fija
+                          Widget {config.is_active ? 'activo' : 'inactivo'}
+                          {config.is_active && (
+                            <>
+                              {' • '}
+                              {isWidgetMinimized ? 'Minimizado' : 'Expandido'}
+                              {' • Posición fija'}
+                            </>
+                          )}
                         </span>
                       </div>
                     </div>
                   </div>
                   
                   {/* Click instruction */}
-                  {isWidgetMinimized && (
+                  {config.is_active && isWidgetMinimized && (
                     <div className="fixed bottom-20 right-10 bg-gray-800 text-white px-3 py-2 rounded-lg text-xs max-w-[200px] animate-bounce opacity-75 z-40">
                       <div className="relative">
                         <div className="flex items-center gap-2">

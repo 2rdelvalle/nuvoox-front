@@ -353,7 +353,6 @@ export default function WebChatAdminPage() {
               loading={isSaving}
               icon="pi pi-save"
               label="Guardar Configuración"
-              className="bg-blue-600 hover:bg-blue-700 border-blue-600"
             />
           </div>
         )}

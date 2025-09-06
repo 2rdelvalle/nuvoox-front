@@ -18,6 +18,7 @@ import AppTopbar from "./AppTopbar"
 import { LayoutContext } from "./context/layoutcontext"
 import { NotificationListener } from "@/app/(main)/chat/whatsapp/components/NotificationListener"
 import { FlowChatbox } from "@/shared/components/chatbox"
+import { WebChatWidget } from "@/shared/components/webchat/WebChatWidget"
 import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/sessionUtils"
 
 const Layout = (props: ChildContainerProps) => {
@@ -38,6 +39,7 @@ const Layout = (props: ChildContainerProps) => {
   // Estado para datos del usuario actual
   const [userData, setUserData] = useState<any>(null)
   const [isChatboxOpen, setIsChatboxOpen] = useState(false)
+  const [isWebChatOpen, setIsWebChatOpen] = useState(false)
   
   // Obtener datos del usuario del token JWT
   useEffect(() => {
@@ -241,6 +243,17 @@ const Layout = (props: ChildContainerProps) => {
                         isOpen={isChatboxOpen}
                         onClose={() => setIsChatboxOpen(false)}
                         position="bottom-right"
+                    />
+                )}
+                
+                {/* WebChat Widget - Solo se renderiza si el feature flag está activo */}
+                {userData && process.env.NEXT_PUBLIC_ENABLE_WEBCHAT === 'true' && (
+                    <WebChatWidget
+                        companyId={userData.companyId || 0}
+                        userId={userData.id || 0}
+                        position="bottom-left"
+                        isOpen={isWebChatOpen}
+                        onClose={() => setIsWebChatOpen(false)}
                     />
                 )}
             </div>

@@ -396,9 +396,9 @@ export default function WebChatAdminPage() {
 
       <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
         <TabPanel header="⚙️ Configuración" leftIcon="pi pi-cog">
-          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
             {/* Configuration Form */}
-            <div className="xl:col-span-2 space-y-6">
+            <div className="xl:col-span-4 space-y-6">
               {/* General Settings */}
               <Card 
                 title="⚙️ Configuración General"
@@ -569,42 +569,135 @@ export default function WebChatAdminPage() {
             </div>
 
             {/* Preview */}
-            <div className="xl:col-span-3 space-y-6">
+            <div className="xl:col-span-8 space-y-6">
               <Card 
                 title="👁️ Vista Previa"
                 className="p-4"
               >
-                <div className="bg-gradient-to-b from-blue-50 to-gray-100 p-6 rounded-lg min-h-[500px] relative overflow-hidden">
-                  {/* Simulated website content */}
-                  <div className="max-w-4xl mx-auto">
-                    <div className="text-center mb-8">
-                      <div className="inline-block px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium mb-4">
-                        Simulación de sitio web
+                <div className="bg-gradient-to-b from-blue-50 to-gray-100 rounded-lg min-h-[600px] relative overflow-hidden">
+                  {/* Browser mockup */}
+                  <div className="bg-white mx-4 mt-4 rounded-t-lg shadow-lg">
+                    {/* Browser header */}
+                    <div className="flex items-center gap-2 px-4 py-3 bg-gray-100 rounded-t-lg border-b">
+                      <div className="flex gap-1">
+                        <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                        <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                        <div className="w-3 h-3 bg-green-400 rounded-full"></div>
                       </div>
-                      <h1 className="text-2xl font-bold text-gray-800 mb-2">Mi Empresa</h1>
-                      <p className="text-gray-600">Bienvenido a nuestro sitio web empresarial</p>
+                      <div className="flex-1 mx-4">
+                        <div className="bg-white px-3 py-1 rounded text-xs text-gray-600">
+                          https://miempresa.com
+                        </div>
+                      </div>
                     </div>
                     
-                    {/* Sample content blocks */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                      <div className="bg-white p-4 rounded-lg shadow-sm">
-                        <div className="w-full h-32 bg-gray-200 rounded mb-3"></div>
-                        <h3 className="font-semibold text-gray-800 mb-2">Nuestros Servicios</h3>
-                        <p className="text-sm text-gray-600">Descripción de los servicios que ofrecemos...</p>
-                      </div>
-                      <div className="bg-white p-4 rounded-lg shadow-sm">
-                        <div className="w-full h-32 bg-gray-200 rounded mb-3"></div>
-                        <h3 className="font-semibold text-gray-800 mb-2">Sobre Nosotros</h3>
-                        <p className="text-sm text-gray-600">Información sobre nuestra empresa...</p>
+                    {/* Scrollable content area */}
+                    <div className="h-[500px] overflow-y-auto bg-white">
+                      <div className="p-6">
+                        <div className="text-center mb-8">
+                          <div className="inline-block px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium mb-4">
+                            Vista previa del sitio web
+                          </div>
+                          <h1 className="text-3xl font-bold text-gray-800 mb-2">Mi Empresa</h1>
+                          <p className="text-gray-600 text-lg">Bienvenido a nuestro sitio web empresarial</p>
+                        </div>
+                        
+                        {/* Navigation menu */}
+                        <nav className="flex justify-center gap-6 mb-12">
+                          <a href="#" className="text-blue-600 hover:text-blue-800 font-medium">Inicio</a>
+                          <a href="#" className="text-gray-600 hover:text-gray-800">Servicios</a>
+                          <a href="#" className="text-gray-600 hover:text-gray-800">Nosotros</a>
+                          <a href="#" className="text-gray-600 hover:text-gray-800">Contacto</a>
+                        </nav>
+                        
+                        {/* Hero section */}
+                        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-8 rounded-lg mb-8">
+                          <h2 className="text-2xl font-bold mb-4">Soluciones Empresariales</h2>
+                          <p className="mb-4">Impulsamos tu negocio con tecnología de vanguardia</p>
+                          <button className="bg-white text-blue-600 px-6 py-2 rounded font-medium">
+                            Conocer más
+                          </button>
+                        </div>
+                        
+                        {/* Services grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                          <div className="bg-gray-50 p-6 rounded-lg">
+                            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                              <i className="pi pi-cog text-blue-600"></i>
+                            </div>
+                            <h3 className="font-semibold text-gray-800 mb-2">Consulting</h3>
+                            <p className="text-sm text-gray-600">Asesoramiento estratégico para optimizar procesos</p>
+                          </div>
+                          <div className="bg-gray-50 p-6 rounded-lg">
+                            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                              <i className="pi pi-chart-line text-green-600"></i>
+                            </div>
+                            <h3 className="font-semibold text-gray-800 mb-2">Analytics</h3>
+                            <p className="text-sm text-gray-600">Análisis de datos para tomar mejores decisiones</p>
+                          </div>
+                          <div className="bg-gray-50 p-6 rounded-lg">
+                            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                              <i className="pi pi-shield text-purple-600"></i>
+                            </div>
+                            <h3 className="font-semibold text-gray-800 mb-2">Seguridad</h3>
+                            <p className="text-sm text-gray-600">Protección integral de tus sistemas</p>
+                          </div>
+                        </div>
+                        
+                        {/* More content to enable scrolling */}
+                        <div className="space-y-8">
+                          <div className="bg-white p-6 border rounded-lg">
+                            <h3 className="text-xl font-semibold mb-4">¿Por qué elegirnos?</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="flex items-start gap-3">
+                                <i className="pi pi-check-circle text-green-500 mt-1"></i>
+                                <div>
+                                  <h4 className="font-medium">Experiencia</h4>
+                                  <p className="text-sm text-gray-600">Más de 10 años en el mercado</p>
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-3">
+                                <i className="pi pi-check-circle text-green-500 mt-1"></i>
+                                <div>
+                                  <h4 className="font-medium">Soporte 24/7</h4>
+                                  <p className="text-sm text-gray-600">Atención cuando la necesites</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-gray-50 p-6 rounded-lg">
+                            <h3 className="text-xl font-semibold mb-4">Casos de Éxito</h3>
+                            <p className="text-gray-600 mb-4">Conoce cómo hemos ayudado a empresas como la tuya:</p>
+                            <div className="space-y-4">
+                              <div className="bg-white p-4 rounded border-l-4 border-blue-500">
+                                <p className="font-medium">Empresa A</p>
+                                <p className="text-sm text-gray-600">Incremento del 40% en eficiencia operativa</p>
+                              </div>
+                              <div className="bg-white p-4 rounded border-l-4 border-green-500">
+                                <p className="font-medium">Empresa B</p>
+                                <p className="text-sm text-gray-600">Reducción del 60% en costos de TI</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="text-center py-8">
+                            <h3 className="text-2xl font-semibold mb-4">¿Listo para comenzar?</h3>
+                            <p className="text-gray-600 mb-6">Contacta con nuestro equipo de expertos</p>
+                            <button className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium">
+                              Solicitar Consulta
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
                   
-                  {/* Widget Preview */}
+                  {/* Widget Preview - Fixed position */}
                   <div 
-                    className={`absolute bottom-6 ${config.position === 'right' ? 'right-6' : 'left-6'} 
+                    className={`fixed bottom-6 right-10 
                                ${isWidgetMinimized ? 'w-16 h-16' : 'w-80'} bg-white rounded-lg shadow-xl 
-                               transform transition-all duration-300 ease-in-out z-10`}
+                               transform transition-all duration-300 ease-in-out z-50`}
                   >
                     {isWidgetMinimized ? (
                       /* Minimized floating button */
@@ -682,37 +775,59 @@ export default function WebChatAdminPage() {
                     )}
                   </div>
                   
-                  <div className="absolute bottom-4 left-4">
-                    <div className="bg-white bg-opacity-90 backdrop-blur-sm px-3 py-1 rounded-full">
-                      <span className="text-xs text-gray-600 font-medium">
-                        Widget {config.is_active ? 'activo' : 'inactivo'} • 
-                        {isWidgetMinimized ? 'Minimizado' : 'Expandido'}
-                      </span>
+                  {/* Status indicator */}
+                  <div className="absolute bottom-4 left-6">
+                    <div className="bg-white bg-opacity-95 backdrop-blur-sm px-3 py-2 rounded-full shadow-sm border">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${config.is_active ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                        <span className="text-xs text-gray-700 font-medium">
+                          Widget {config.is_active ? 'activo' : 'inactivo'} • 
+                          {isWidgetMinimized ? 'Minimizado' : 'Expandido'} • 
+                          Posición fija
+                        </span>
+                      </div>
                     </div>
                   </div>
                   
                   {/* Click instruction */}
                   {isWidgetMinimized && (
-                    <div className={`absolute bottom-20 ${config.position === 'right' ? 'right-6' : 'left-6'} 
-                                   bg-gray-800 text-white px-3 py-2 rounded-lg text-xs max-w-[200px] 
-                                   animate-bounce opacity-75`}>
+                    <div className="fixed bottom-20 right-10 bg-gray-800 text-white px-3 py-2 rounded-lg text-xs max-w-[200px] animate-bounce opacity-75 z-40">
                       <div className="relative">
-                        Haz clic para expandir el chat
-                        <div className={`absolute top-full ${config.position === 'right' ? 'right-4' : 'left-4'} 
-                                       w-0 h-0 border-l-4 border-r-4 border-t-4 
-                                       border-l-transparent border-r-transparent border-t-gray-800`}></div>
+                        <div className="flex items-center gap-2">
+                          <i className="pi pi-hand-pointer"></i>
+                          Haz clic para expandir el chat
+                        </div>
+                        <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
                       </div>
                     </div>
                   )}
                 </div>
                 
-                <div className="mt-4 p-3 bg-blue-50 rounded">
-                  <p className="text-sm text-blue-700">
-                    <strong>Código de integración:</strong> Copia este código en tu sitio web
-                  </p>
-                  <code className="block mt-2 p-2 bg-white rounded text-xs font-mono">
-                    {`<script src="${window.location.origin}/api/v1/webchat.js" data-company-id="${config.company_id}"></script>`}
-                  </code>
+                <div className="mt-4 space-y-3">
+                  <div className="p-3 bg-blue-50 rounded">
+                    <p className="text-sm text-blue-700">
+                      <strong>Código de integración:</strong> Copia este código en tu sitio web
+                    </p>
+                    <code className="block mt-2 p-2 bg-white rounded text-xs font-mono">
+                      {`<script src="${window.location.origin}/api/v1/webchat.js" data-company-id="${config.company_id}"></script>`}
+                    </code>
+                  </div>
+                  
+                  <div className="p-3 bg-green-50 rounded">
+                    <div className="flex items-start gap-2">
+                      <i className="pi pi-info-circle text-green-600 mt-0.5"></i>
+                      <div>
+                        <p className="text-sm text-green-700 font-medium mb-1">Características del Widget:</p>
+                        <ul className="text-xs text-green-600 space-y-1">
+                          <li>• Posición fija en esquina inferior derecha</li>
+                          <li>• Minimizado por defecto (solo botón flotante)</li>
+                          <li>• Permanece visible durante scroll</li>
+                          <li>• Click para expandir/minimizar</li>
+                          <li>• Responsive y optimizado para móviles</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </Card>
             </div>

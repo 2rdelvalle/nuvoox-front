@@ -117,7 +117,7 @@ export default function WebChatAdminPage() {
   const loadConfig = async () => {
     setIsLoading(true);
     try {
-      const response = await axiosInstance.get(`/web/nuvoox/api/webchat/config/${config.company_id || 1}`);
+      const response = await axiosInstance.get(`/webchat/config/${config.company_id || 1}`);
 
       if (response.status === 200) {
         const data = response.data;
@@ -151,7 +151,7 @@ export default function WebChatAdminPage() {
   const saveConfig = async () => {
     setIsSaving(true);
     try {
-      const response = await axiosInstance.put(`/web/nuvoox/api/webchat/config/${config.company_id || 1}`, config);
+      const response = await axiosInstance.put(`/webchat/config/${config.company_id || 1}`, config);
 
       if (response.status === 200) {
         toast.current?.show({
@@ -197,7 +197,7 @@ export default function WebChatAdminPage() {
   const loadPendingHandoffs = async () => {
     setIsLoadingHandoffs(true);
     try {
-      const response = await axiosInstance.get(`/web/nuvoox/api/webchat/handoff/pending/${config.company_id}`);
+      const response = await axiosInstance.get(`/webchat/handoff/pending/${config.company_id}`);
 
       if (response.status === 200) {
         const result = response.data;
@@ -220,7 +220,7 @@ export default function WebChatAdminPage() {
 
   const loadAgents = async () => {
     try {
-      const response = await axiosInstance.get(`/web/nuvoox/api/webchat/agents/availability/${config.company_id}`);
+      const response = await axiosInstance.get(`/webchat/agents/availability/${config.company_id}`);
 
       if (response.status === 200) {
         const result = response.data;
@@ -241,7 +241,7 @@ export default function WebChatAdminPage() {
 
   const acceptHandoff = async (handoffId: number, agentId: number, agentName: string) => {
     try {
-      const response = await axiosInstance.post(`/web/nuvoox/api/webchat/handoff/accept/${handoffId}`, { agentId, agentName });
+      const response = await axiosInstance.post(`/webchat/handoff/accept/${handoffId}`, { agentId, agentName });
 
       if (response.status === 200) {
         toast.current?.show({
@@ -271,7 +271,7 @@ export default function WebChatAdminPage() {
 
   const completeHandoff = async (handoffId: number, returnToBot: boolean = false) => {
     try {
-      const response = await axiosInstance.post(`/web/nuvoox/api/webchat/handoff/complete/${handoffId}`, { returnToBot });
+      const response = await axiosInstance.post(`/webchat/handoff/complete/${handoffId}`, { returnToBot });
 
       if (response.status === 200) {
         toast.current?.show({

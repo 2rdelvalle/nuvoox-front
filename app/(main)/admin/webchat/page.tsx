@@ -336,7 +336,7 @@ export default function WebChatAdminPage() {
     <div className="container mx-auto p-6">
       <Toast ref={toast} />
       
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
             💬 WebChat Admin
@@ -345,8 +345,8 @@ export default function WebChatAdminPage() {
             Gestiona la configuración y handoffs del sistema de chat en vivo
           </p>
         </div>
-        {activeTab === 0 && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mt-1">
+          {activeTab === 0 && (
             <Button
               onClick={saveConfig}
               disabled={isSaving}
@@ -354,10 +354,8 @@ export default function WebChatAdminPage() {
               icon="pi pi-save"
               label="Guardar Configuración"
             />
-          </div>
-        )}
-        {activeTab === 1 && (
-          <div className="flex items-center gap-2">
+          )}
+          {activeTab === 1 && (
             <Button
               onClick={loadPendingHandoffs}
               disabled={isLoadingHandoffs}
@@ -365,8 +363,8 @@ export default function WebChatAdminPage() {
               icon="pi pi-refresh"
               label="Actualizar"
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Card } from 'primereact/card';
+import { axiosInstance } from '../../../../shared/instances/axios-instance';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
@@ -116,14 +117,10 @@ export default function WebChatAdminPage() {
   const loadConfig = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/web/nuvoox/api/webchat/config/${config.company_id || 1}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+      const response = await axiosInstance.get(`/web/nuvoox/api/webchat/config/${config.company_id || 1}`);
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200) {
+        const data = response.data;
         if (data) {
           setConfig({
             ...data,
@@ -154,16 +151,9 @@ export default function WebChatAdminPage() {
   const saveConfig = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch(`/web/nuvoox/api/webchat/config/${config.company_id || 1}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(config),
-      });
+      const response = await axiosInstance.put(`/web/nuvoox/api/webchat/config/${config.company_id || 1}`, config);
 
-      if (response.ok) {
+      if (response.status === 200) {
         toast.current?.show({
           severity: 'success',
           summary: 'Configuración guardada',
@@ -207,14 +197,10 @@ export default function WebChatAdminPage() {
   const loadPendingHandoffs = async () => {
     setIsLoadingHandoffs(true);
     try {
-      const response = await fetch(`/web/nuvoox/api/webchat/handoff/pending/${config.company_id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+      const response = await axiosInstance.get(`/web/nuvoox/api/webchat/handoff/pending/${config.company_id}`);
 
-      if (response.ok) {
-        const result = await response.json();
+      if (response.status === 200) {
+        const result = response.data;
         setPendingHandoffs(result.data?.handoffs || []);
       } else {
         throw new Error('Error loading handoffs');
@@ -234,14 +220,10 @@ export default function WebChatAdminPage() {
 
   const loadAgents = async () => {
     try {
-      const response = await fetch(`/web/nuvoox/api/webchat/agents/availability/${config.company_id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+      const response = await axiosInstance.get(`/web/nuvoox/api/webchat/agents/availability/${config.company_id}`);
 
-      if (response.ok) {
-        const result = await response.json();
+      if (response.status === 200) {
+        const result = response.data;
         setAgents(result.data?.agents || []);
       } else {
         throw new Error('Error loading agents');
@@ -259,16 +241,9 @@ export default function WebChatAdminPage() {
 
   const acceptHandoff = async (handoffId: number, agentId: number, agentName: string) => {
     try {
-      const response = await fetch(`/web/nuvoox/api/webchat/handoff/accept/${handoffId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ agentId, agentName }),
-      });
+      const response = await axiosInstance.post(`/web/nuvoox/api/webchat/handoff/accept/${handoffId}`, { agentId, agentName });
 
-      if (response.ok) {
+      if (response.status === 200) {
         toast.current?.show({
           severity: 'success',
           summary: 'Handoff Aceptado',
@@ -280,7 +255,7 @@ export default function WebChatAdminPage() {
         setSelectedHandoff(null);
         setSelectedAgent(null);
       } else {
-        const error = await response.json();
+        const error = response.data;
         throw new Error(error.message || 'Error accepting handoff');
       }
     } catch (error) {
@@ -296,16 +271,9 @@ export default function WebChatAdminPage() {
 
   const completeHandoff = async (handoffId: number, returnToBot: boolean = false) => {
     try {
-      const response = await fetch(`/web/nuvoox/api/webchat/handoff/complete/${handoffId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ returnToBot }),
-      });
+      const response = await axiosInstance.post(`/web/nuvoox/api/webchat/handoff/complete/${handoffId}`, { returnToBot });
 
-      if (response.ok) {
+      if (response.status === 200) {
         toast.current?.show({
           severity: 'success',
           summary: 'Handoff Completado',
@@ -314,7 +282,7 @@ export default function WebChatAdminPage() {
         });
         await loadPendingHandoffs(); // Refresh list
       } else {
-        const error = await response.json();
+        const error = response.data;
         throw new Error(error.message || 'Error completing handoff');
       }
     } catch (error) {

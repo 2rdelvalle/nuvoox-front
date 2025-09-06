@@ -82,6 +82,7 @@ export default function WebChatAdminPage() {
   const [selectedHandoff, setSelectedHandoff] = useState<HandoffRequest | null>(null);
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentInfo | null>(null);
+  const [isWidgetMinimized, setIsWidgetMinimized] = useState(true);
 
   // Feature flag check
   const isWebChatEnabled = process.env.NEXT_PUBLIC_ENABLE_WEBCHAT_ADMIN === 'true';
@@ -395,9 +396,9 @@ export default function WebChatAdminPage() {
 
       <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
         <TabPanel header="⚙️ Configuración" leftIcon="pi pi-cog">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
             {/* Configuration Form */}
-            <div className="space-y-6">
+            <div className="xl:col-span-2 space-y-6">
               {/* General Settings */}
               <Card 
                 title="⚙️ Configuración General"
@@ -568,73 +569,141 @@ export default function WebChatAdminPage() {
             </div>
 
             {/* Preview */}
-            <div className="space-y-6">
+            <div className="xl:col-span-3 space-y-6">
               <Card 
                 title="👁️ Vista Previa"
                 className="p-4"
               >
-                <div className="bg-gray-100 p-4 rounded-lg min-h-[400px] relative">
-                  <div className="text-center text-gray-500 mb-4">
-                    Simulación de sitio web
+                <div className="bg-gradient-to-b from-blue-50 to-gray-100 p-6 rounded-lg min-h-[500px] relative overflow-hidden">
+                  {/* Simulated website content */}
+                  <div className="max-w-4xl mx-auto">
+                    <div className="text-center mb-8">
+                      <div className="inline-block px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium mb-4">
+                        Simulación de sitio web
+                      </div>
+                      <h1 className="text-2xl font-bold text-gray-800 mb-2">Mi Empresa</h1>
+                      <p className="text-gray-600">Bienvenido a nuestro sitio web empresarial</p>
+                    </div>
+                    
+                    {/* Sample content blocks */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                      <div className="bg-white p-4 rounded-lg shadow-sm">
+                        <div className="w-full h-32 bg-gray-200 rounded mb-3"></div>
+                        <h3 className="font-semibold text-gray-800 mb-2">Nuestros Servicios</h3>
+                        <p className="text-sm text-gray-600">Descripción de los servicios que ofrecemos...</p>
+                      </div>
+                      <div className="bg-white p-4 rounded-lg shadow-sm">
+                        <div className="w-full h-32 bg-gray-200 rounded mb-3"></div>
+                        <h3 className="font-semibold text-gray-800 mb-2">Sobre Nosotros</h3>
+                        <p className="text-sm text-gray-600">Información sobre nuestra empresa...</p>
+                      </div>
+                    </div>
                   </div>
                   
                   {/* Widget Preview */}
                   <div 
-                    className={`fixed bottom-6 ${config.position === 'right' ? 'right-6' : 'left-6'} 
-                               w-80 bg-white rounded-lg shadow-lg overflow-hidden transform transition-all`}
-                    style={{ position: 'absolute' }}
+                    className={`absolute bottom-6 ${config.position === 'right' ? 'right-6' : 'left-6'} 
+                               ${isWidgetMinimized ? 'w-16 h-16' : 'w-80'} bg-white rounded-lg shadow-xl 
+                               transform transition-all duration-300 ease-in-out z-10`}
                   >
-                    {/* Widget Header */}
-                    <div 
-                      className="p-4 text-white flex items-center gap-3"
-                      style={{ backgroundColor: config.brand_primary, color: config.brand_text }}
-                    >
-                      {config.logo_url && (
-                        <img src={config.logo_url} alt="Logo" className="w-8 h-8 rounded" />
-                      )}
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-sm">Chat en Vivo</h3>
-                        <p className="text-xs opacity-90">¡Estamos aquí para ayudarte!</p>
-                      </div>
-                    </div>
-                    
-                    {/* Widget Body */}
-                    <div className="p-4 bg-white">
-                      <div className="space-y-3">
-                        <div className="flex gap-2">
-                          <div className="w-8 h-8 bg-gray-300 rounded-full flex-shrink-0"></div>
-                          <div className="bg-gray-100 rounded-lg p-3 max-w-xs">
-                            <p className="text-sm">{config.welcome_text}</p>
+                    {isWidgetMinimized ? (
+                      /* Minimized floating button */
+                      <button
+                        className="w-full h-full rounded-lg flex items-center justify-center text-white font-semibold text-2xl hover:scale-105 transition-transform cursor-pointer"
+                        style={{ backgroundColor: config.brand_primary, color: config.brand_text }}
+                        onClick={() => setIsWidgetMinimized(false)}
+                      >
+                        💬
+                      </button>
+                    ) : (
+                      /* Expanded widget */
+                      <div className="overflow-hidden rounded-lg">
+                        {/* Widget Header */}
+                        <div 
+                          className="p-4 text-white flex items-center gap-3"
+                          style={{ backgroundColor: config.brand_primary, color: config.brand_text }}
+                        >
+                          {config.logo_url && (
+                            <img src={config.logo_url} alt="Logo" className="w-8 h-8 rounded" />
+                          )}
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-sm">Chat en Vivo</h3>
+                            <p className="text-xs opacity-90">¡Estamos aquí para ayudarte!</p>
                           </div>
+                          <button
+                            onClick={() => setIsWidgetMinimized(true)}
+                            className="text-white hover:bg-black hover:bg-opacity-20 rounded p-1 transition-colors"
+                          >
+                            <i className="pi pi-minus text-xs"></i>
+                          </button>
                         </div>
                         
-                        <div className="flex gap-2 justify-end">
-                          <div className="bg-blue-500 text-white rounded-lg p-3 max-w-xs">
-                            <p className="text-sm">¡Hola! Necesito ayuda con...</p>
+                        {/* Widget Body */}
+                        <div className="p-4 bg-white max-h-80 flex flex-col">
+                          <div className="flex-1 space-y-3 overflow-y-auto mb-3">
+                            <div className="flex gap-2">
+                              <div className="w-8 h-8 bg-gray-300 rounded-full flex-shrink-0 flex items-center justify-center">
+                                <i className="pi pi-user text-xs text-gray-600"></i>
+                              </div>
+                              <div className="bg-gray-100 rounded-lg p-3 max-w-[240px]">
+                                <p className="text-sm">{config.welcome_text}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex gap-2 justify-end">
+                              <div className="bg-blue-500 text-white rounded-lg p-3 max-w-[240px]">
+                                <p className="text-sm">¡Hola! Necesito ayuda con...</p>
+                              </div>
+                              <div 
+                                className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs"
+                                style={{ backgroundColor: config.brand_primary }}
+                              >
+                                <i className="pi pi-user"></i>
+                              </div>
+                            </div>
                           </div>
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex-shrink-0"></div>
+                          
+                          <div className="flex gap-2 pt-2 border-t border-gray-100">
+                            <InputText
+                              placeholder="Escribe tu mensaje..."
+                              className="flex-1 text-sm"
+                              disabled
+                            />
+                            <Button
+                              icon="pi pi-send"
+                              size="small"
+                              disabled
+                              className="flex-shrink-0"
+                              style={{ backgroundColor: config.brand_primary, borderColor: config.brand_primary }}
+                            />
+                          </div>
                         </div>
                       </div>
-                      
-                      <div className="mt-4 flex gap-2">
-                        <InputText
-                          placeholder="Escribe tu mensaje..."
-                          className="flex-1 text-sm"
-                          disabled
-                        />
-                        <Button
-                          icon="pi pi-send"
-                          size="small"
-                          disabled
-                          style={{ backgroundColor: config.brand_primary }}
-                        />
-                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="absolute bottom-4 left-4">
+                    <div className="bg-white bg-opacity-90 backdrop-blur-sm px-3 py-1 rounded-full">
+                      <span className="text-xs text-gray-600 font-medium">
+                        Widget {config.is_active ? 'activo' : 'inactivo'} • 
+                        {isWidgetMinimized ? 'Minimizado' : 'Expandido'}
+                      </span>
                     </div>
                   </div>
                   
-                  <div className="absolute bottom-4 left-4 text-xs text-gray-400">
-                    Vista previa - Widget {config.is_active ? 'activo' : 'inactivo'}
-                  </div>
+                  {/* Click instruction */}
+                  {isWidgetMinimized && (
+                    <div className={`absolute bottom-20 ${config.position === 'right' ? 'right-6' : 'left-6'} 
+                                   bg-gray-800 text-white px-3 py-2 rounded-lg text-xs max-w-[200px] 
+                                   animate-bounce opacity-75`}>
+                      <div className="relative">
+                        Haz clic para expandir el chat
+                        <div className={`absolute top-full ${config.position === 'right' ? 'right-4' : 'left-4'} 
+                                       w-0 h-0 border-l-4 border-r-4 border-t-4 
+                                       border-l-transparent border-r-transparent border-t-gray-800`}></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="mt-4 p-3 bg-blue-50 rounded">

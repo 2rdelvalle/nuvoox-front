@@ -72,23 +72,45 @@ export const FlowInspector: React.FC<FlowInspectorProps> = ({ className = '' }) 
   }, [selectedEdge]);
   
   // Aplicar cambios al nodo
-  const applyNodeChanges = () => {
+  const applyNodeChanges = async () => {
     if (!selectedNode) return;
     
     updateNode(selectedNode.id, {
       data: { ...selectedNode.data, ...nodeForm }
     });
     markDirty();
+    
+    // Persistir cambios al servidor si tenemos flowId
+    const { flowId, saveCanvas } = useFlowDesignerStore.getState();
+    if (flowId) {
+      try {
+        await saveCanvas(flowId);
+        console.log('✅ Propiedades del nodo guardadas en servidor');
+      } catch (error) {
+        console.error('❌ Error al guardar propiedades del nodo:', error);
+      }
+    }
   };
   
   // Aplicar cambios al edge
-  const applyEdgeChanges = () => {
+  const applyEdgeChanges = async () => {
     if (!selectedEdge) return;
     
     updateEdge(selectedEdge.id, {
       data: { ...selectedEdge.data, ...edgeForm }
     });
     markDirty();
+    
+    // Persistir cambios al servidor si tenemos flowId
+    const { flowId, saveCanvas } = useFlowDesignerStore.getState();
+    if (flowId) {
+      try {
+        await saveCanvas(flowId);
+        console.log('✅ Propiedades de conexión guardadas en servidor');
+      } catch (error) {
+        console.error('❌ Error al guardar propiedades de conexión:', error);
+      }
+    }
   };
   
   // Eliminar nodo

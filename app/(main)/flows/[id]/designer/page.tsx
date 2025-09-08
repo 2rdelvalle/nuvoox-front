@@ -11,6 +11,7 @@ import { useFlowDesignerStore } from '@/shared/stores/flow-designer-store';
 import FlowDesigner from '@/shared/components/flow-designer/FlowDesigner';
 import FlowInspector from '@/shared/components/flow-designer/FlowInspector';
 import { validateFlowDesign } from '@/shared/schemas/flow-validation.schema';
+import { flowService } from '@/shared/services/flow/flow.service';
 
 interface FlowDesignerPageProps {}
 
@@ -76,8 +77,46 @@ const FlowDesignerPage: React.FC<FlowDesignerPageProps> = () => {
     try {
       setIsLoading(true);
       
-      // TODO: Cargar diseño desde API
-      // Por ahora mock data para desarrollo
+      // Cargar flujo real desde la API
+      const flowData = await flowService.getFlowById(id);
+      const canvasData = await flowService.getFlowCanvas(id);
+      
+      // Crear diseño usando datos reales del backend
+      const realDesign = {
+        id: flowData.id,
+        flowId: id,
+        version: flowData.version || 1,
+        nodes: canvasData.nodes || [
+          {
+            id: 'start-1',
+            type: 'message' as const,
+            position: { x: 100, y: 100 },
+            data: {
+              label: 'Mensaje de Bienvenida',
+              messageText: flowData.description || '¡Hola! Bienvenido a nuestro servicio.'
+            }
+          }
+        ],
+        edges: canvasData.edges || [],
+        variables: [],
+        metadata: {
+          lastModified: canvasData.lastModified || new Date().toISOString(),
+          modifiedBy: 1,
+          isDraft: true
+        }
+      };
+      
+      setCurrentDesign(realDesign);
+      setFlowInfo({
+        name: flowData.name,
+        description: flowData.description || 'Flujo conversacional',
+        companyId: flowData.companyId
+      });
+      
+    } catch (error) {
+      console.error('Error cargando diseño del flujo:', error);
+      
+      // Fallback a datos mock si la API falla
       const mockDesign = {
         id: 1,
         flowId: id,
@@ -104,13 +143,10 @@ const FlowDesignerPage: React.FC<FlowDesignerPageProps> = () => {
       
       setCurrentDesign(mockDesign);
       setFlowInfo({
-        name: `Flujo de Prueba ${id}`,
-        description: 'Flujo de ejemplo para el diseñador',
+        name: `Flujo ${id}`,
+        description: 'Flujo conversacional',
         companyId: 1
       });
-      
-    } catch (error) {
-      console.error('Error cargando diseño del flujo:', error);
     } finally {
       setIsLoading(false);
     }

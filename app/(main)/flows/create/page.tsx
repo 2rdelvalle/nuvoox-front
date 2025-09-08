@@ -8,6 +8,9 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
+import { flowService } from '@/shared/services/flow/flow.service';
+import { Toast } from 'primereact/toast';
+import { useRef } from 'react';
 
 interface FlowFormData {
   name: string;
@@ -18,6 +21,7 @@ interface FlowFormData {
 
 const CreateFlowPage: React.FC = () => {
   const router = useRouter();
+  const toast = useRef<Toast>(null);
   const [loading, setLoading] = useState(false);
 
   const {
@@ -49,24 +53,55 @@ const CreateFlowPage: React.FC = () => {
   const onSubmit = async (data: FlowFormData) => {
     setLoading(true);
     try {
-      // TODO: Implement API call to create flow
-      console.log('Creating flow:', data);
+      // Mapear tipos del frontend al backend
+      const triggerTypeMapping = {
+        'new_contact': 'welcome',
+        'message_received': 'default', 
+        'keyword': 'keyword',
+        'scheduled_time': 'template_response'
+      };
+
+      // Crear flujo real usando la API
+      const newFlow = await flowService.createFlow({
+        name: data.name,
+        description: data.description,
+        triggerType: (triggerTypeMapping[data.trigger as keyof typeof triggerTypeMapping] || 'default') as 'keyword' | 'template_response' | 'welcome' | 'default',
+        triggerValue: data.trigger === 'keyword' ? 'hola,ayuda,soporte' : undefined,
+        isActive: true,
+        priority: 1
+      });
+
+      toast.current?.show({
+        severity: 'success',
+        summary: 'Éxito',
+        detail: `Flujo "${newFlow.name}" creado correctamente`
+      });
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      router.push('/flows/list');
+      // Opcional: Redirigir directamente al diseñador visual
+      const isFlowDesignerEnabled = process.env.NEXT_PUBLIC_ENABLE_FLOW_DESIGNER === 'true';
+      if (isFlowDesignerEnabled) {
+        router.push(`/flows/${newFlow.id}/designer`);
+      } else {
+        router.push('/flows/list');
+      }
     } catch (error) {
       console.error('Error creating flow:', error);
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Error al crear el flujo. Intenta de nuevo.'
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="grid">
-      <div className="col-12">
-        <Card>
+    <>
+      <Toast ref={toast} />
+      <div className="grid">
+        <div className="col-12">
+          <Card>
           <div className="flex justify-content-between align-items-center mb-4">
             <h2 className="m-0">Crear Nuevo Flujo</h2>
             <Button
@@ -193,6 +228,7 @@ const CreateFlowPage: React.FC = () => {
         </Card>
       </div>
     </div>
+    </>
   );
 };
 

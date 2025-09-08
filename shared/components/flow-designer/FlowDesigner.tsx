@@ -111,13 +111,34 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
 
   // Crear nuevo nodo desde drag and drop
   const handleCreateNode = useCallback((type: string, position: { x: number; y: number }) => {
+    // Mapeo de nombres descriptivos por tipo
+    const descriptiveLabels = {
+      'message': 'Enviar Mensaje',
+      'question': 'Hacer Pregunta',
+      'condition': 'Evaluar Condición',
+      'action': 'Ejecutar Acción',
+      'wait': 'Esperar Respuesta',
+      'handoff': 'Transferir a Agente',
+      'end': 'Finalizar Conversación'
+    };
+
+    const defaultContent = {
+      'message': 'Escribe tu mensaje aquí...',
+      'question': '¿Cuál es tu pregunta?',
+      'condition': 'Condición a evaluar',
+      'action': 'Acción a ejecutar',
+      'wait': 'Esperando respuesta del usuario',
+      'handoff': 'Transfiriendo a un agente humano',
+      'end': 'Conversación finalizada'
+    };
+    
     const newNode: FlowNode = {
       id: `${type}-${Date.now()}`,
       type: type as any,
       position,
       data: {
-        label: `Nuevo ${type}`,
-        messageText: type === 'message' ? 'Escribe tu mensaje aquí...' : undefined
+        label: descriptiveLabels[type as keyof typeof descriptiveLabels] || `Nuevo ${type}`,
+        messageText: type === 'message' || type === 'question' ? defaultContent[type as keyof typeof defaultContent] : undefined
       }
     };
     

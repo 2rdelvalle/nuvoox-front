@@ -127,7 +127,14 @@ class FlowService {
    * Activar/desactivar un flujo
    */
   async toggleFlow(id: number): Promise<Flow> {
-    const response = await axiosInstance.put(`/flows/${id}/toggle`);
+    // Primero obtener el flujo actual para conocer su estado
+    const currentFlow = await this.getFlowById(id);
+    // Alternar el estado actual
+    const newStatus = !currentFlow.isActive;
+    
+    const response = await axiosInstance.put(`/flows/${id}/toggle`, {
+      isActive: newStatus
+    });
     return response.data;
   }
 

@@ -136,9 +136,9 @@ const FlowMetadataSchema = z.object({
 
 // Schema completo para el diseño del flujo
 export const FlowDesignSchema = z.object({
-  id: z.number().positive().optional(),
-  flowId: z.number().positive('ID de flujo requerido'),
-  version: z.number().positive('Versión debe ser mayor a 0'),
+  id: z.coerce.number().positive().optional(),
+  flowId: z.coerce.number().positive('ID de flujo requerido'),
+  version: z.coerce.number().positive('Versión debe ser mayor a 0'),
   nodes: z.array(FlowNodeSchema).min(1, 'El flujo debe tener al menos un nodo'),
   edges: z.array(FlowEdgeSchema),
   variables: z.array(FlowVariableSchema),

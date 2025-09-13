@@ -33,6 +33,7 @@ const FlowDesignerPage: React.FC<FlowDesignerPageProps> = () => {
     isSaving,
     lastSaved,
     validationErrors,
+    viewport,
     setFlowId,
     setCurrentDesign,
     setSelectedNode,
@@ -153,7 +154,7 @@ const FlowDesignerPage: React.FC<FlowDesignerPageProps> = () => {
   };
   
   const handleSave = async () => {
-    if (!currentDesign || !isDirty) return;
+    if (!currentDesign || !isDirty || !flowId) return;
     
     try {
       setSaving(true);
@@ -167,17 +168,26 @@ const FlowDesignerPage: React.FC<FlowDesignerPageProps> = () => {
         return;
       }
       
-      // TODO: Guardar en API
-      // const response = await flowService.saveDesign(validation.data);
+      // Preparar datos del canvas para la API
+      const canvasData = {
+        nodes: currentDesign.nodes || [],
+        edges: currentDesign.edges || [],
+        viewport: viewport || { x: 0, y: 0, zoom: 1 },
+        lastModified: new Date().toISOString()
+      };
       
-      // Mock save
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Guardar canvas en API real
+      const response = await flowService.saveFlowCanvas(flowId, canvasData);
       
-      setLastSaved(new Date().toISOString());
-      markClean();
+      if (response.success) {
+        setLastSaved(response.lastModified || new Date().toISOString());
+        markClean();
+        console.log('✅ Flujo guardado exitosamente');
+      }
       
     } catch (error) {
-      console.error('Error guardando flujo:', error);
+      console.error('❌ Error guardando flujo:', error);
+      // TODO: Mostrar error en Toast
     } finally {
       setSaving(false);
     }

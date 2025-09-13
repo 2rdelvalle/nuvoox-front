@@ -8,6 +8,7 @@ import { Sidebar } from 'primereact/sidebar';
 import { Toast } from 'primereact/toast';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { useFlowDesignerStore } from '@/shared/stores/flow-designer-store';
+import { useRef } from 'react';
 import FlowDesigner from '@/shared/components/flow-designer/FlowDesigner';
 import FlowInspector from '@/shared/components/flow-designer/FlowInspector';
 import { validateFlowDesign } from '@/shared/schemas/flow-validation.schema';
@@ -52,6 +53,7 @@ const FlowDesignerPage: React.FC<FlowDesignerPageProps> = () => {
     description: string;
     companyId: number;
   } | null>(null);
+  const toast = useRef<Toast>(null);
   
   // Feature flag guard - redirigir si no está habilitado
   useEffect(() => {
@@ -206,7 +208,12 @@ const FlowDesignerPage: React.FC<FlowDesignerPageProps> = () => {
           });
         });
         
-        // TODO: Mostrar errores en Toast
+        toast.current?.show({
+          severity: 'error',
+          summary: 'Error de Validación',
+          detail: `Se encontraron ${validation.errors?.length || 0} errores de validación. Revisa la consola para más detalles.`,
+          life: 5000
+        });
         console.log('❌ [SAVE] Guardado bloqueado por errores de validación');
         return;
       }
@@ -238,8 +245,20 @@ const FlowDesignerPage: React.FC<FlowDesignerPageProps> = () => {
       if (response.success) {
         setLastSaved(response.lastModified || new Date().toISOString());
         markClean();
+        toast.current?.show({
+          severity: 'success',
+          summary: 'Guardado Exitoso',
+          detail: 'El diseño del flujo se ha guardado correctamente',
+          life: 3000
+        });
         console.log('✅ [SAVE] Flujo guardado exitosamente');
       } else {
+        toast.current?.show({
+          severity: 'error',
+          summary: 'Error de Guardado',
+          detail: 'No se pudo guardar el diseño del flujo',
+          life: 5000
+        });
         console.error('❌ [API] Respuesta no exitosa:', response);
       }
       
@@ -249,7 +268,12 @@ const FlowDesignerPage: React.FC<FlowDesignerPageProps> = () => {
         console.error('❌ [SAVE] Stack trace:', error.stack);
         console.error('❌ [SAVE] Error message:', error.message);
       }
-      // TODO: Mostrar error en Toast
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Error Inesperado',
+        detail: error instanceof Error ? error.message : 'Error desconocido durante el guardado',
+        life: 5000
+      });
     } finally {
       setSaving(false);
       console.log('🔄 [SAVE] Estado de guardado desactivado');
@@ -278,7 +302,7 @@ const FlowDesignerPage: React.FC<FlowDesignerPageProps> = () => {
   
   return (
     <div className="grid" style={{ height: 'calc(100vh - 200px)' }}>
-      <Toast />
+      <Toast ref={toast} />
       
       {/* Header */}
       <div className="col-12">

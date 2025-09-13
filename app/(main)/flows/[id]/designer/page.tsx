@@ -154,19 +154,64 @@ const FlowDesignerPage: React.FC<FlowDesignerPageProps> = () => {
   };
   
   const handleSave = async () => {
-    if (!currentDesign || !isDirty || !flowId) return;
+    console.log('🔄 [SAVE] Iniciando proceso de guardado...');
+    console.log('🔍 [SAVE] Estado inicial:', {
+      hasCurrentDesign: !!currentDesign,
+      isDirty,
+      flowId,
+      nodesCount: currentDesign?.nodes?.length || 0,
+      edgesCount: currentDesign?.edges?.length || 0
+    });
+    
+    if (!currentDesign || !isDirty || !flowId) {
+      console.log('❌ [SAVE] Guardado cancelado - condiciones no cumplidas:', {
+        hasCurrentDesign: !!currentDesign,
+        isDirty,
+        flowId
+      });
+      return;
+    }
     
     try {
       setSaving(true);
+      console.log('🔄 [SAVE] Estado de guardado activado');
       
       // Validar diseño con Zod
+      console.log('🔍 [VALIDATION] Iniciando validación del diseño...');
+      console.log('🔍 [VALIDATION] Diseño a validar:', {
+        id: currentDesign.id,
+        flowId: currentDesign.flowId,
+        version: currentDesign.version,
+        nodesCount: currentDesign.nodes?.length || 0,
+        edgesCount: currentDesign.edges?.length || 0,
+        hasMetadata: !!currentDesign.metadata,
+        variablesCount: currentDesign.variables?.length || 0
+      });
+      
       const validation = validateFlowDesign(currentDesign);
       
+      console.log('🔍 [VALIDATION] Resultado de validación:', {
+        success: validation.success,
+        errorsCount: validation.success ? 0 : validation.errors?.length || 0
+      });
+      
       if (!validation.success) {
-        console.error('Errores de validación:', validation.errors);
+        console.error('❌ [VALIDATION] Errores de validación detallados:', validation.errors);
+        validation.errors?.forEach((error, index) => {
+          console.error(`❌ [VALIDATION] Error ${index + 1}:`, {
+            path: error.path,
+            message: error.message,
+            code: error.code,
+            errorData: error
+          });
+        });
+        
         // TODO: Mostrar errores en Toast
+        console.log('❌ [SAVE] Guardado bloqueado por errores de validación');
         return;
       }
+      
+      console.log('✅ [VALIDATION] Validación exitosa, procediendo con guardado...');
       
       // Preparar datos del canvas para la API
       const canvasData = {
@@ -176,20 +221,38 @@ const FlowDesignerPage: React.FC<FlowDesignerPageProps> = () => {
         lastModified: new Date().toISOString()
       };
       
+      console.log('📤 [API] Preparando petición a saveFlowCanvas:', {
+        flowId,
+        nodesCount: canvasData.nodes.length,
+        edgesCount: canvasData.edges.length,
+        viewport: canvasData.viewport,
+        lastModified: canvasData.lastModified
+      });
+      
       // Guardar canvas en API real
+      console.log('📤 [API] Enviando petición PUT /flows/:id/canvas...');
       const response = await flowService.saveFlowCanvas(flowId, canvasData);
+      
+      console.log('📥 [API] Respuesta recibida:', response);
       
       if (response.success) {
         setLastSaved(response.lastModified || new Date().toISOString());
         markClean();
-        console.log('✅ Flujo guardado exitosamente');
+        console.log('✅ [SAVE] Flujo guardado exitosamente');
+      } else {
+        console.error('❌ [API] Respuesta no exitosa:', response);
       }
       
     } catch (error) {
-      console.error('❌ Error guardando flujo:', error);
+      console.error('❌ [SAVE] Error durante el guardado:', error);
+      if (error instanceof Error) {
+        console.error('❌ [SAVE] Stack trace:', error.stack);
+        console.error('❌ [SAVE] Error message:', error.message);
+      }
       // TODO: Mostrar error en Toast
     } finally {
       setSaving(false);
+      console.log('🔄 [SAVE] Estado de guardado desactivado');
     }
   };
   

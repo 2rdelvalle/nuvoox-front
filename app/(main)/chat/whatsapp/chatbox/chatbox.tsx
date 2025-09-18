@@ -13,6 +13,8 @@ import { UserCaratule } from "@/shared/models/user"
 import { NumbersOfMaintanceCaratule } from "@/shared/models/company"
 import FileAttachment from "../components/FileAttachment"
 import MediaMessage from "../components/MediaMessage"
+import { InteractiveMessageComposer } from "../components/InteractiveMessageComposer"
+import { InteractiveMessageType } from "@/shared/models/interactive-message.model"
 import {
   TemplateService as _template
 }
@@ -559,14 +561,41 @@ useEffect(() => {
     quickResponseOp.current?.hide()
   }
 
-  // Estado para controlar la visibilidad del modal de transferencia
+  // Estado para controlar la visibilidad 
   const [showTransferDialog, setShowTransferDialog] = useState(false);
-  // Estado para la selección dentro del modal
-  const [transferOption, setTransferOption] = useState<'agent' | 'group' | 'bot' | null>(null);
-
+  const [loadingTransferOptions, setLoadingTransferOptions] = useState(false);
+  const [transferOption, setTransferOption] = useState<'agent' | 'group'>('agent');
   const [agents, setAgents] = useState<Agent[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [loadingTransferOptions, setLoadingTransferOptions] = useState(false);
+
+  // Estados para mensajes interactivos
+  const [showInteractiveComposer, setShowInteractiveComposer] = useState(false);
+
+  // Función para manejar mensajes interactivos enviados
+  const handleInteractiveMessageSent = useCallback((messageId: string, type: InteractiveMessageType) => {
+    console.log(`✅ Mensaje interactivo enviado: ${messageId}, tipo: ${type}`);
+    
+    // Crear un mensaje local para mostrar en el chat
+    if (activeConversation) {
+      const newMessage: MessageModel = {
+        content: `📱 Mensaje interactivo enviado (${type === 'quick_reply' ? 'Botones' : 'Lista'})`,
+        owner: MESSAGE_OWNER.AGENT,
+        sentAt: Date.now(),
+        type: MESSAGE_TYPE.TEXT,
+        conversationId: activeConversation.conversationid || 0,
+        id: Date.now(),
+        idWhatsapp: messageId,
+        from: actualNumberOfMaintanceSelected?.number || ''
+      };
+      
+      // Agregar el mensaje al store y al estado local
+      addMessage(newMessage);
+      setMessages([...storedMessages, newMessage]);
+    }
+    
+    showSuccess(`Mensaje interactivo enviado exitosamente`);
+  }, [activeConversation, actualNumberOfMaintanceSelected, addMessage, storedMessages, setMessages, showSuccess]);
+  const [loadingInteractiveOptions, setLoadingInteractiveOptions] = useState(false);
 
   useEffect(() => {
     if (companyId) {
@@ -681,7 +710,7 @@ useEffect(() => {
     } finally {
       // Cerrar el diálogo de transferencia
       setShowTransferDialog(false);
-      setTransferOption(null);
+      setTransferOption('agent');
     }
   };
 
@@ -1183,8 +1212,7 @@ useEffect(() => {
             )
           })}
         </div>
-        <div className="p-3 md:p-4 lg:p-6 flex flex-column sm:flex-row
-        align-items-center mt-auto border-top-1 surface-border gap-3">
+        <div className="p-3 md:p-4 lg:p-6 flex flex-column sm:flex-row align-items-center mt-auto border-top-1 surface-border gap-3">
           <Button
             className="justify-content-center text-xl"
             severity="secondary"
@@ -1211,6 +1239,15 @@ useEffect(() => {
             onClick={(event) => quickResponseOp.current?.toggle(event)}
             tooltip="Respuestas rápidas"
             tooltipOptions={{ position: 'top' }}
+          />
+          <Button
+            className="justify-content-center"
+            severity="info"
+            icon="pi pi-list"
+            onClick={() => setShowInteractiveComposer(true)}
+            tooltip="Mensaje interactivo"
+            tooltipOptions={{ position: 'top' }}
+            disabled={!activeConversation || !actualNumberOfMaintanceSelected}
           />
           <InputText
             id="message"
@@ -1394,7 +1431,7 @@ useEffect(() => {
                 <Button
                   icon="pi pi-arrow-left"
                   className="p-button-text"
-                  onClick={() => setTransferOption(null)}
+                  onClick={() => setTransferOption('agent')}
                 />
                 <h3>{transferOption === 'agent' ? 'Seleccione un agente' : 'Seleccione un grupo'}</h3>
               </div>
@@ -1422,6 +1459,16 @@ useEffect(() => {
           )
         )}
       </Dialog>
+
+      {/* Componente de mensajes interactivos */}
+      <InteractiveMessageComposer
+        isVisible={showInteractiveComposer}
+        onHide={() => setShowInteractiveComposer(false)}
+        recipientPhone={`+${activeConversation?.phone || ''}`}
+        accessToken={actualNumberOfMaintanceSelected?.IdAccountWB || ''}
+        phoneNumberId={actualNumberOfMaintanceSelected?.idNumberPhone || ''}
+        onMessageSent={handleInteractiveMessageSent}
+      />
     </React.Fragment>
   )
 }

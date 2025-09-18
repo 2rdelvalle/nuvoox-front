@@ -498,3 +498,259 @@ function base64ToBlob(base64: string, mimeType: string): Blob {
   
   return new Blob(byteArrays, { type: mimeType });
 }
+
+// ==========================================
+// 🔥 NUEVAS FUNCIONES PARA MENSAJES INTERACTIVOS
+// ==========================================
+
+/**
+ * Envía un mensaje Quick Reply (máximo 3 botones) a través de WhatsApp
+ * @param recipientPhone Número del destinatario (con +)
+ * @param bodyText Texto principal del mensaje
+ * @param buttons Array de botones (máx 3)
+ * @param accessToken Token de acceso de WhatsApp
+ * @param phoneNumberId ID del número de teléfono
+ * @returns Respuesta de la API de WhatsApp
+ */
+export async function sendQuickReply(
+  recipientPhone: string,
+  bodyText: string,
+  buttons: Array<{id: string, title: string}>,
+  accessToken: string,
+  phoneNumberId: string
+): Promise<WhatsAppResponseSendMessage> {
+  // Validaciones básicas
+  if (!recipientPhone || !recipientPhone.trim()) {
+    throw new Error("El número de teléfono del destinatario es requerido");
+  }
+  
+  if (!bodyText || !bodyText.trim()) {
+    throw new Error("El texto del mensaje es requerido");
+  }
+  
+  if (!buttons || !Array.isArray(buttons) || buttons.length === 0) {
+    throw new Error("Se requiere al menos un botón");
+  }
+  
+  if (buttons.length > 3) {
+    throw new Error("Máximo 3 botones permitidos para Quick Reply");
+  }
+  
+  if (!accessToken || !accessToken.trim()) {
+    throw new Error("Token de acceso requerido");
+  }
+  
+  if (!phoneNumberId || !phoneNumberId.trim()) {
+    throw new Error("ID del número de teléfono requerido");
+  }
+
+  // Validar botones
+  for (const button of buttons) {
+    if (!button.id || !button.id.trim()) {
+      throw new Error("Todos los botones deben tener un ID");
+    }
+    if (!button.title || !button.title.trim()) {
+      throw new Error("Todos los botones deben tener un título");
+    }
+    if (button.title.length > 20) {
+      throw new Error(`Título del botón muy largo: "${button.title}" (máx 20 caracteres)`);
+    }
+  }
+
+  // Asegurar formato del número
+  const formattedPhone = recipientPhone.startsWith('+') ? recipientPhone : `+${recipientPhone}`;
+
+  const apiUrl = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
+  
+  const messageData = {
+    messaging_product: "whatsapp",
+    to: formattedPhone,
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: {
+        text: bodyText
+      },
+      action: {
+        buttons: buttons.map(btn => ({
+          type: "reply",
+          reply: {
+            id: btn.id,
+            title: btn.title
+          }
+        }))
+      }
+    }
+  };
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(messageData)
+    });
+
+    const responseText = await response.text();
+    const responseData = responseText ? JSON.parse(responseText) : {};
+
+    if (!response.ok) {
+      console.error("Error enviando Quick Reply:", responseData);
+      throw responseData;
+    }
+
+    console.log(`✅ Quick Reply enviado exitosamente a ${formattedPhone}`, {
+      messageId: responseData.messages?.[0]?.id,
+      buttons: buttons.length
+    });
+
+    return responseData;
+  } catch (error) {
+    console.error("Error al enviar Quick Reply:", error);
+    throw error;
+  }
+}
+
+/**
+ * Envía un mensaje de Lista interactiva a través de WhatsApp
+ * @param recipientPhone Número del destinatario (con +)
+ * @param bodyText Texto principal del mensaje
+ * @param buttonText Texto del botón para abrir la lista
+ * @param sections Array de secciones con sus filas
+ * @param accessToken Token de acceso de WhatsApp
+ * @param phoneNumberId ID del número de teléfono
+ * @returns Respuesta de la API de WhatsApp
+ */
+export async function sendList(
+  recipientPhone: string,
+  bodyText: string,
+  buttonText: string,
+  sections: Array<{
+    title: string,
+    rows: Array<{id: string, title: string, description?: string}>
+  }>,
+  accessToken: string,
+  phoneNumberId: string
+): Promise<WhatsAppResponseSendMessage> {
+  // Validaciones básicas
+  if (!recipientPhone || !recipientPhone.trim()) {
+    throw new Error("El número de teléfono del destinatario es requerido");
+  }
+  
+  if (!bodyText || !bodyText.trim()) {
+    throw new Error("El texto del mensaje es requerido");
+  }
+  
+  if (!buttonText || !buttonText.trim()) {
+    throw new Error("El texto del botón es requerido");
+  }
+  
+  if (!sections || !Array.isArray(sections) || sections.length === 0) {
+    throw new Error("Se requiere al menos una sección");
+  }
+  
+  if (sections.length > 10) {
+    throw new Error("Máximo 10 secciones permitidas");
+  }
+  
+  if (!accessToken || !accessToken.trim()) {
+    throw new Error("Token de acceso requerido");
+  }
+  
+  if (!phoneNumberId || !phoneNumberId.trim()) {
+    throw new Error("ID del número de teléfono requerido");
+  }
+
+  // Validar secciones y conteo total de filas
+  let totalRows = 0;
+  for (const section of sections) {
+    if (!section.title || !section.title.trim()) {
+      throw new Error("Todas las secciones deben tener título");
+    }
+    
+    if (!section.rows || !Array.isArray(section.rows) || section.rows.length === 0) {
+      throw new Error("Todas las secciones deben tener al menos una fila");
+    }
+    
+    totalRows += section.rows.length;
+    
+    for (const row of section.rows) {
+      if (!row.id || !row.id.trim()) {
+        throw new Error("Todas las filas deben tener un ID");
+      }
+      if (!row.title || !row.title.trim()) {
+        throw new Error("Todas las filas deben tener un título");
+      }
+      if (row.title.length > 24) {
+        throw new Error(`Título de fila muy largo: "${row.title}" (máx 24 caracteres)`);
+      }
+      if (row.description && row.description.length > 72) {
+        throw new Error(`Descripción muy larga: "${row.description}" (máx 72 caracteres)`);
+      }
+    }
+  }
+
+  if (totalRows > 100) {
+    throw new Error(`Máximo 100 filas totales permitidas (actual: ${totalRows})`);
+  }
+
+  // Asegurar formato del número
+  const formattedPhone = recipientPhone.startsWith('+') ? recipientPhone : `+${recipientPhone}`;
+
+  const apiUrl = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
+  
+  const messageData = {
+    messaging_product: "whatsapp",
+    to: formattedPhone,
+    type: "interactive",
+    interactive: {
+      type: "list",
+      body: {
+        text: bodyText
+      },
+      action: {
+        button: buttonText,
+        sections: sections.map(section => ({
+          title: section.title,
+          rows: section.rows.map(row => ({
+            id: row.id,
+            title: row.title,
+            ...(row.description && { description: row.description })
+          }))
+        }))
+      }
+    }
+  };
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(messageData)
+    });
+
+    const responseText = await response.text();
+    const responseData = responseText ? JSON.parse(responseText) : {};
+
+    if (!response.ok) {
+      console.error("Error enviando Lista:", responseData);
+      throw responseData;
+    }
+
+    console.log(`✅ Lista enviada exitosamente a ${formattedPhone}`, {
+      messageId: responseData.messages?.[0]?.id,
+      sections: sections.length,
+      totalRows
+    });
+
+    return responseData;
+  } catch (error) {
+    console.error("Error al enviar Lista:", error);
+    throw error;
+  }
+}

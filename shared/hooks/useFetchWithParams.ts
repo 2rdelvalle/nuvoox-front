@@ -1,5 +1,5 @@
 "use client"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import { useToast } from "../context/toast/toastContext"
 import { getValidationErrors } from "../utilities/getValidationErrors/getValidationErrors"
 
@@ -10,12 +10,34 @@ export const useFetchWithParams = <T, >(
   const [isLoading, setIsLoading] = useState(false)
   const { showError } = useToast()
 
+  // Contador para detectar llamadas excesivas y prevenir loops
+  const callCountRef = useRef(0)
+  const lastCallTimeRef = useRef(0)
+
   const fetchData = useCallback(async (params: T) => {
-    // DEBUG: Identificar qué archivo está haciendo la llamada
-    const stack = new Error().stack?.split('\n')[2] || 'desconocido'
-    const caller = stack.includes('page.tsx') ? stack.split('/').pop()?.split(':')[0] || 'unknown' : 'unknown'
+    const now = Date.now()
+    const timeSinceLastCall = now - lastCallTimeRef.current
     
-    console.log(`🔄 [useFetchWithParams] Iniciando petición desde: ${caller}`)
+    // Reiniciar contador si han pasado más de 5 segundos
+    if (timeSinceLastCall > 5000) {
+      callCountRef.current = 0
+    }
+    
+    callCountRef.current++
+    lastCallTimeRef.current = now
+    
+    // PROTECCIÓN CONTRA LOOPS: Bloquear si hay más de 3 llamadas en 5 segundos
+    if (callCountRef.current > 3 && timeSinceLastCall < 5000) {
+      console.error(`🚫 [useFetchWithParams] LOOP DETECTADO Y BLOQUEADO - ${callCountRef.current} llamadas en ${timeSinceLastCall}ms`)
+      console.error('🔍 [useFetchWithParams] Stack trace:', new Error().stack)
+      return
+    }
+    
+    // DEBUG: Identificar qué archivo está haciendo la llamada
+    const stack = new Error().stack?.split('\n') || []
+    const caller = stack.find(line => line.includes('.tsx') || line.includes('.ts'))?.split('/').pop()?.split(':')[0] || 'unknown'
+    
+    console.log(`🔄 [useFetchWithParams] Petición #${callCountRef.current} desde: ${caller}`)
     console.log(`📤 [useFetchWithParams] Parámetros:`, params)
     console.log(`🕐 [useFetchWithParams] Timestamp:`, new Date().toISOString())
     

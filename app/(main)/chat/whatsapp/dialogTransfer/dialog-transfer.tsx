@@ -1,5 +1,5 @@
 "use client"
-import { useFetchWithParams } from "@/shared/hooks/useFetchWithParams"
+import { useFetchWithConditionalParams } from "@/shared/hooks/useFetchWithParams"
 import { GroupAgentService as _gas, ConversationService as _conversation } from "@/shared/services/index"
 import ActionButton from "@/shared/small-components/ActionButtons/actionbutton"
 import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/sessionUtils"
@@ -18,7 +18,6 @@ const DialogTransfer = () => {
   const { showError, showSuccess } = useToast()
   const { dialogTransfer, setDialogTransfer, activeConversation, resetAll } = useChatStore()
 
-  const { responseData: groups, isLoading, fetchData } = useFetchWithParams<any>(_gas.getGroupAgentsWithUsers)
   const [expandedRows, setExpandedRows] = useState<DataTableExpandedRows | DataTableValueArray | undefined>(undefined)
 
   // Obtén el dataToken - usando useMemo para evitar recálculos innecesarios
@@ -28,11 +27,14 @@ const DialogTransfer = () => {
     return tokenData?.user
   }, [])
 
-  useEffect(() => {
-    if (dataToken?.company?.companyId) {
-      fetchData(dataToken.company.companyId)
-    }
-  }, [dataToken?.company?.companyId, fetchData])
+  // Usa el nuevo hook condicional que elimina el loop
+  const { responseData: groups, isLoading, fetchData } = useFetchWithConditionalParams<any>(
+    _gas.getGroupAgentsWithUsers,
+    !!dataToken?.company?.companyId, // Condición: solo cuando hay companyId
+    dataToken?.company?.companyId    // Parámetros: el companyId
+  )
+
+  // ✅ YA NO NECESITAMOS useEffect - el hook maneja la carga automáticamente
 
   // Expande todas las filas
   const expandAll = () => {

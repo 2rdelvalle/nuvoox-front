@@ -1,6 +1,6 @@
 "use client"
 import { useToast } from "@/shared/context/toast/toastContext"
-import { useFetchWithParams } from "@/shared/hooks/useFetchWithParams"
+import { useFetchWithConditionalParams } from "@/shared/hooks/useFetchWithParams"
 import { usePush } from "@/shared/hooks/usePush"
 import { ADMIN_ROUTES } from "@/shared/routes/admin.routes"
 import { UserService as _users } from "@/shared/services/index"
@@ -11,7 +11,7 @@ import InfoMessage from "@/shared/small-components/InfoMessage/infoMessage"
 import TableFilter from "@/shared/small-components/TableFilter/tableFilter"
 import { downloadExcel } from "@/shared/utilities/excel/exportExcel"
 import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/sessionUtils"
-import { useEffect, useMemo } from "react"
+import { useMemo } from "react"
 
 const UserPage = () => {
   const { showError } = useToast()
@@ -24,8 +24,12 @@ const UserPage = () => {
     return tokenData?.user
   }, [])
 
-  // Usa el nuevo hook
-  const { responseData: users, isLoading, fetchData, setResponseData } = useFetchWithParams(_users.getCaratulesFromUserCompany)
+  // Usa el nuevo hook condicional que elimina el loop
+  const { responseData: users, isLoading, fetchData, setResponseData } = useFetchWithConditionalParams(
+    _users.getCaratulesFromUserCompany,
+    !!dataToken, // Condición: solo cuando hay dataToken
+    dataToken    // Parámetros: el dataToken
+  )
 
   // Configura las columnas y el callback
   const { columns } = COLUMNS_USER({ 
@@ -38,21 +42,8 @@ const UserPage = () => {
     setUsers: setResponseData
   })
 
-  // Llama a fetchData al cargar la página
-  useEffect(() => {
-    console.log('🔄 [UserPage] useEffect ejecutándose', {
-      dataToken: !!dataToken,
-      dataTokenUserId: dataToken?.userId,
-      timestamp: new Date().toISOString()
-    })
-    
-    if (dataToken) {
-      console.log('📤 [UserPage] Llamando fetchData con dataToken:', dataToken)
-      fetchData(dataToken)
-    } else {
-      console.log('❌ [UserPage] No hay dataToken disponible')
-    }
-  }, [dataToken, fetchData])
+  // ✅ YA NO NECESITAMOS useEffect - el hook maneja la carga automáticamente
+  // El hook condicional se encarga de cargar cuando dataToken esté disponible
 
   // Filtrar usuarios activos (status !== "I")
   const activeUsers = Array.isArray(users) 

@@ -11,11 +11,21 @@ export const useFetchWithParams = <T, >(
   const { showError } = useToast()
 
   const fetchData = useCallback(async (params: T) => {
+    // DEBUG: Identificar qué archivo está haciendo la llamada
+    const stack = new Error().stack?.split('\n')[2] || 'desconocido'
+    const caller = stack.includes('page.tsx') ? stack.split('/').pop()?.split(':')[0] || 'unknown' : 'unknown'
+    
+    console.log(`🔄 [useFetchWithParams] Iniciando petición desde: ${caller}`)
+    console.log(`📤 [useFetchWithParams] Parámetros:`, params)
+    console.log(`🕐 [useFetchWithParams] Timestamp:`, new Date().toISOString())
+    
     setIsLoading(true)
     try {
       const { data } = await method(params)
+      console.log(`✅ [useFetchWithParams] Éxito desde: ${caller}`, data?.length || 0, 'elementos')
       setResponseData(data)
     } catch (error: any) {
+      console.error(`❌ [useFetchWithParams] ERROR desde: ${caller}`)
       console.error("=== ERROR EN SOLICITUD ===")
       console.error("URL:", error?.config?.url)
       console.error("Método:", error?.config?.method)
@@ -26,6 +36,7 @@ export const useFetchWithParams = <T, >(
       showError(getValidationErrors(error?.response?.status || error.code))
     } finally {
       setIsLoading(false)
+      console.log(`🏁 [useFetchWithParams] Finalizando petición desde: ${caller}`)
     }
   }, [method, showError])
 

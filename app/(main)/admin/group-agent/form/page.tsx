@@ -21,7 +21,7 @@ import { Divider } from "primereact/divider"
 import { InputText } from "primereact/inputtext"
 import { Message } from "primereact/message"
 import { Panel } from "primereact/panel"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { SubmitHandler, useForm } from "react-hook-form"
 import { useSearchParams } from "next/navigation"
 
@@ -91,9 +91,12 @@ const GroupAgentForm = ({ searchParams }: { searchParams: { id?: string } }) => 
     mode: "onChange" // se pueden agregar más opciones según se requiera
   })
 
-  // Obtén el dataToken
-  const tokenData = getDataFromToken(getCookieToken() || "")
-  const dataToken = tokenData?.user
+  // Obtén el dataToken - usando useMemo para evitar recálculos innecesarios
+  const dataToken = useMemo(() => {
+    console.log('🔑 [GroupAgentForm] Recalculando dataToken')
+    const tokenData = getDataFromToken(getCookieToken() || "")
+    return tokenData?.user
+  }, [])
 
   const onSubmit: SubmitHandler<GroupAgent> = async (data) => {
     if (!dataToken) return alert("No se pudo obtener el token")

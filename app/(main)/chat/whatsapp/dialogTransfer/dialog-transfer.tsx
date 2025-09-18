@@ -8,7 +8,7 @@ import { Column } from "primereact/column"
 import { DataTable, DataTableExpandedRows, DataTableValueArray } from "primereact/datatable"
 import { Dialog } from "primereact/dialog"
 import { Tag } from "primereact/tag"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useChatStore } from "../store/chat-store"
 import { TransferChat } from "@/shared/models/conversation/transferChat"
 import { useToast } from "@/shared/context/toast/toastContext"
@@ -21,9 +21,12 @@ const DialogTransfer = () => {
   const { responseData: groups, isLoading, fetchData } = useFetchWithParams<any>(_gas.getGroupAgentsWithUsers)
   const [expandedRows, setExpandedRows] = useState<DataTableExpandedRows | DataTableValueArray | undefined>(undefined)
 
-  // Obtén el dataToken
-  const tokenData = getDataFromToken(getCookieToken() || "")
-  const dataToken = tokenData?.user
+  // Obtén el dataToken - usando useMemo para evitar recálculos innecesarios
+  const dataToken = useMemo(() => {
+    console.log('🔑 [DialogTransfer] Recalculando dataToken')
+    const tokenData = getDataFromToken(getCookieToken() || "")
+    return tokenData?.user
+  }, [])
 
   useEffect(() => {
     if (dataToken?.company?.companyId) {

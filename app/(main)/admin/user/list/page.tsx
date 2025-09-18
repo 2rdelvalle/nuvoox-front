@@ -11,15 +11,18 @@ import InfoMessage from "@/shared/small-components/InfoMessage/infoMessage"
 import TableFilter from "@/shared/small-components/TableFilter/tableFilter"
 import { downloadExcel } from "@/shared/utilities/excel/exportExcel"
 import { getCookieToken, getDataFromToken } from "@/shared/utilities/functions/sessionUtils"
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
 
 const UserPage = () => {
   const { showError } = useToast()
   const { onClickAction } = usePush(ADMIN_ROUTES.USER.CREATE)
 
-  // Obtén el dataToken
-  const tokenData = getDataFromToken(getCookieToken() || "")
-  const dataToken = tokenData?.user
+  // Obtén el dataToken - usando useMemo para evitar recálculos innecesarios
+  const dataToken = useMemo(() => {
+    console.log('🔑 [UserPage] Recalculando dataToken')
+    const tokenData = getDataFromToken(getCookieToken() || "")
+    return tokenData?.user
+  }, [])
 
   // Usa el nuevo hook
   const { responseData: users, isLoading, fetchData, setResponseData } = useFetchWithParams(_users.getCaratulesFromUserCompany)
@@ -37,8 +40,17 @@ const UserPage = () => {
 
   // Llama a fetchData al cargar la página
   useEffect(() => {
+    console.log('🔄 [UserPage] useEffect ejecutándose', {
+      dataToken: !!dataToken,
+      dataTokenUserId: dataToken?.userId,
+      timestamp: new Date().toISOString()
+    })
+    
     if (dataToken) {
+      console.log('📤 [UserPage] Llamando fetchData con dataToken:', dataToken)
       fetchData(dataToken)
+    } else {
+      console.log('❌ [UserPage] No hay dataToken disponible')
     }
   }, [dataToken, fetchData])
 

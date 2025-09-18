@@ -5,7 +5,12 @@ const userEndpoint = `${process.env.NEXT_PUBLIC_URL_SIRA_BACK}/users`
 const userService = {
   getCaratules: () => axios.get<UserCaratule[]>(`${userEndpoint}/caratule`),
   getNumbersOfMaintanceFromUserId: (userId: string) => axios.get<UserCaratule[]>(`${userEndpoint}/numbers/${userId}`),
-  getCaratulesFromUserCompany: (user: UserCaratule) => axios.post<UserCaratule[]>(`${userEndpoint}/caratule`, user),
+  getCaratulesFromUserCompany: (user: UserCaratule) => {
+    console.log(`📋 [userService] getCaratulesFromUserCompany llamado con:`, user)
+    console.log(`🌐 [userService] URL:`, `${userEndpoint}/caratule`)
+    console.log(`🕐 [userService] Timestamp:`, new Date().toISOString())
+    return axios.post<UserCaratule[]>(`${userEndpoint}/caratule`, user)
+  },
   create: (user: UserFormModel) => axios.post<UserFormModel>(userEndpoint, user),
   update: (user: UserFormModel) => axios.put<UserFormModel>(userEndpoint, user),
   findById: (userId: string) => axios.get<UserFormModel>(`${userEndpoint}/findByID/${userId}`),

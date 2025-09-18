@@ -40,7 +40,7 @@ const UserPage = () => {
     if (dataToken) {
       fetchData(dataToken)
     }
-  }, [])
+  }, [dataToken, fetchData])
 
   // Filtrar usuarios activos (status !== "I")
   const activeUsers = Array.isArray(users) 

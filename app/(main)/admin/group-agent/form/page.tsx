@@ -271,8 +271,7 @@ const GroupAgentForm = ({ searchParams }: { searchParams: { id?: string } }) => 
     }
     
     fetchDataAsync()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Solo se ejecuta una vez al montar el componente
+  }, [dataToken, fetchData, isEditMode, groupId, setValue, showError, onClickAction]) // Dependencias correctas
 
   const handleRemoveUser = (index: number) => {
     setUsersSelected(usersSelected.filter((_, i) => i !== index))

@@ -29,7 +29,7 @@ const DialogTransfer = () => {
     if (dataToken?.company?.companyId) {
       fetchData(dataToken.company.companyId)
     }
-  }, [])
+  }, [dataToken?.company?.companyId, fetchData])
 
   // Expande todas las filas
   const expandAll = () => {

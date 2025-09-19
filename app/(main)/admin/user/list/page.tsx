@@ -17,46 +17,80 @@ const UserPage = () => {
   const { showError } = useToast()
   const { onClickAction } = usePush(ADMIN_ROUTES.USER.CREATE)
 
-  // Obtén el dataToken - usando useMemo para evitar recálculos innecesarios
+  // 🔧 Función para generar payloads alternativos si la API sigue fallando
+  const generateAlternativePayload = (user: any, attempt: number = 1) => {
+    console.log(`🧪 [UserPage] Generando payload alternativo #${attempt}`)
+    
+    switch (attempt) {
+      case 1:
+        // Intento 1: Solo campos esenciales
+        return {
+          userId: user.userId,
+          name: user.name,
+          mail: user.mail,
+          company: user.company,
+          role: user.role
+        }
+      case 2:
+        // Intento 2: Con status pero sin can_send_campaigns
+        return {
+          userId: user.userId,
+          name: user.name,
+          mail: user.mail,
+          company: user.company,
+          role: user.role,
+          status: user.status
+        }
+      case 3:
+        // Intento 3: Solo IDs de relaciones
+        return {
+          userId: user.userId,
+          name: user.name,
+          mail: user.mail,
+          companyId: user.company?.companyId,
+          roleId: user.role?.roleId
+        }
+      default:
+        return null
+    }
+  }
+
+  // 🧪 MODO DEBUG: Token simplificado - el retry service probará diferentes estructuras
   const dataToken = useMemo(() => {
-    console.log('🔑 [UserPage] Recalculando dataToken')
+    console.log('🔑 [UserPage] MODO DEBUG - Recalculando dataToken')
     const tokenData = getDataFromToken(getCookieToken() || "")
     
-    // 🔧 SOLUCION: Mapear solo los campos que acepta el API getCaratulesFromUserCompany
     if (tokenData?.user) {
-      const userForApi: any = {
+      // Pasar el usuario completo al servicio con retry - él probará diferentes combinaciones
+      const userForRetry = {
         userId: tokenData.user.userId,
         name: tokenData.user.name,
         mail: tokenData.user.mail,
         company: tokenData.user.company,
         role: tokenData.user.role,
         status: tokenData.user.status,
-        // 🔧 EXPERIMENTO: Convertir can_send_campaigns a boolean y manejar undefined
-        can_send_campaigns: Boolean(tokenData.user.can_send_campaigns)
+        can_send_campaigns: tokenData.user.can_send_campaigns // Valor original
       }
-      console.log('🔄 [UserPage] Datos mapeados para API:', userForApi)
-      console.log('🔍 [UserPage] Campos originales eliminados:', {
-        password: '***eliminado***',
-        phone: (tokenData.user as any).phone || 'no presente',
-        document: (tokenData.user as any).document || 'no presente'
+      
+      console.log('🧪 [UserPage] DATOS PARA RETRY SERVICE:', userForRetry)
+      console.log('🔬 [UserPage] CAMPOS DISPONIBLES:', {
+        can_send_campaigns_valor: tokenData.user.can_send_campaigns,
+        can_send_campaigns_tipo: typeof tokenData.user.can_send_campaigns,
+        company_id: tokenData.user.company?.companyId,
+        role_id: tokenData.user.role?.roleId
       })
-      console.log('🔬 [UserPage] EXPERIMENTO - Cambios de tipo:', {
-        can_send_campaigns_original: tokenData.user.can_send_campaigns,
-        can_send_campaigns_tipo_original: typeof tokenData.user.can_send_campaigns,
-        can_send_campaigns_nuevo: userForApi.can_send_campaigns,
-        can_send_campaigns_tipo_nuevo: typeof userForApi.can_send_campaigns
-      })
-      return userForApi
+      
+      return userForRetry
     }
     
     return null
   }, [])
 
-  // Usa el nuevo hook condicional que elimina el loop
+  // 🧪 MODO DEBUG: Usando servicio con retry automático para identificar payload correcto
   const { responseData: users, isLoading, fetchData, setResponseData } = useFetchWithConditionalParams(
-    _users.getCaratulesFromUserCompany,
+    _users.getCaratulesFromUserCompanyWithRetry, // ← SERVICIO CON RETRY
     !!dataToken, // Condición: solo cuando hay dataToken
-    dataToken    // Parámetros: el dataToken
+    dataToken as any    // Parámetros: el dataToken (modo debug)
   )
 
   // 🔧 Función wrapper para setUsers que maneja el tipo correcto

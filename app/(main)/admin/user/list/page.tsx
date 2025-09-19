@@ -31,13 +31,20 @@ const UserPage = () => {
         company: tokenData.user.company,
         role: tokenData.user.role,
         status: tokenData.user.status,
-        can_send_campaigns: tokenData.user.can_send_campaigns
+        // 🔧 EXPERIMENTO: Convertir can_send_campaigns a boolean y manejar undefined
+        can_send_campaigns: Boolean(tokenData.user.can_send_campaigns)
       }
       console.log('🔄 [UserPage] Datos mapeados para API:', userForApi)
       console.log('🔍 [UserPage] Campos originales eliminados:', {
         password: '***eliminado***',
         phone: (tokenData.user as any).phone || 'no presente',
         document: (tokenData.user as any).document || 'no presente'
+      })
+      console.log('🔬 [UserPage] EXPERIMENTO - Cambios de tipo:', {
+        can_send_campaigns_original: tokenData.user.can_send_campaigns,
+        can_send_campaigns_tipo_original: typeof tokenData.user.can_send_campaigns,
+        can_send_campaigns_nuevo: userForApi.can_send_campaigns,
+        can_send_campaigns_tipo_nuevo: typeof userForApi.can_send_campaigns
       })
       return userForApi
     }

@@ -31,6 +31,11 @@ const UserPage = () => {
     dataToken    // Parámetros: el dataToken
   )
 
+  // 🔧 Función wrapper para setUsers que maneja el tipo correcto
+  const setUsers = (newUsers: any[]) => {
+    setResponseData(newUsers)
+  }
+
   // Configura las columnas y el callback
   const { columns } = COLUMNS_USER({ 
     callback: () => {
@@ -39,7 +44,7 @@ const UserPage = () => {
       }
     },
     users: Array.isArray(users) ? users : [],
-    setUsers: setResponseData
+    setUsers: setUsers
   })
 
   // ✅ YA NO NECESITAMOS useEffect - el hook maneja la carga automáticamente
@@ -47,11 +52,11 @@ const UserPage = () => {
 
   // Filtrar usuarios activos (status !== "I")
   const activeUsers = Array.isArray(users) 
-    ? users.filter(user => user.status !== "I") 
+    ? users.filter((user: any) => user.status !== "I") 
     : [];
 
   // Registrar en consola para depuración
-  console.log(`[INFO] Total usuarios: ${users?.length || 0}, Usuarios activos: ${activeUsers.length}`);
+  console.log(`[INFO] Total usuarios: ${Array.isArray(users) ? users.length : 0}, Usuarios activos: ${activeUsers.length}`);
 
   return (
     <EmptyPage>

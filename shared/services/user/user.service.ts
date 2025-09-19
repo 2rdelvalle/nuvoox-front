@@ -27,8 +27,8 @@ const userService = {
 
   // 🔧 PRODUCCION SEGURA: Servicio inteligente con fallback automático
   getCaratulesFromUserCompanyWithRetry: async (user: UserCaratule) => {
-    // 🎯 SOLUCIONADO: can_send_campaigns debe ser Number (0/1), no Boolean (true/false)
-    const isDebugMode = false // PROBLEMA RESUELTO - VOLVER A PRODUCCIÓN
+    // 🚨 INVESTIGACIÓN: Campos faltantes en payload - activar debug
+    const isDebugMode = true // ACTIVAR DEBUG - CAMPOS NO LLEGAN AL PAYLOAD
     
     console.log(`🔧 [userService] NODE_ENV: ${process.env.NODE_ENV}`)
     console.log(`🔧 [userService] DEBUG_API: ${process.env.DEBUG_API}`)
@@ -59,16 +59,35 @@ const userService = {
     // 🧪 MODO DESARROLLO: Sistema de retry para debugging
     console.log(`🔄 [userService] MODO DEBUG - Iniciando retry sistemático`)
     
+    // 🔍 INVESTIGACIÓN: ¿QUÉ CAMPOS TIENE REALMENTE EL OBJETO USER?
+    console.log(`🔍 [userService] OBJETO USER COMPLETO:`, JSON.stringify(user, null, 2))
+    console.log(`🔍 [userService] CLAVES DISPONIBLES:`, Object.keys(user))
+    
+    // 🧪 VERIFICAR CAMPOS ESPECÍFICOS FALTANTES:
+    const userAny = user as any
+    console.log(`🧪 [userService] password:`, userAny.password)
+    console.log(`🧪 [userService] phone:`, userAny.phone)
+    console.log(`🧪 [userService] document:`, userAny.document)
+    console.log(`🧪 [userService] typeDocument:`, userAny.typeDocument)
+    console.log(`🧪 [userService] canEditAll:`, userAny.canEditAll)
+    console.log(`🧪 [userService] canEditCompany:`, userAny.canEditCompany)
+    
     const payloads = [
-      // Payload 1: Completo con NÚMERO (0/1) como esperaba feature/chatbox
+      // Payload 1: FORMATO EXACTO que funcionaba en feature/chatbox
       {
-        userId: user.userId,
-        name: user.name,
-        mail: user.mail,
-        company: user.company,
-        role: user.role,
-        status: user.status,
-        can_send_campaigns: Number(user.can_send_campaigns)
+        name: userAny.name || user.name,
+        mail: userAny.mail || user.mail,
+        password: userAny.password || "encrypted",
+        phone: userAny.phone || "3007750031",
+        document: userAny.document || "232222",
+        status: userAny.status || user.status,
+        role: userAny.role || user.role,
+        typeDocument: userAny.typeDocument || { name: "Cedula de Extranjeria", typeDocumentId: 4 },
+        company: userAny.company || user.company,
+        can_send_campaigns: Number(userAny.can_send_campaigns || user.can_send_campaigns),
+        userId: userAny.userId || user.userId,
+        canEditAll: userAny.canEditAll !== undefined ? userAny.canEditAll : false,
+        canEditCompany: userAny.canEditCompany !== undefined ? userAny.canEditCompany : true
       },
       // Payload 2: Solo campos esenciales
       {

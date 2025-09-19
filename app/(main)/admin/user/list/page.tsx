@@ -21,7 +21,28 @@ const UserPage = () => {
   const dataToken = useMemo(() => {
     console.log('🔑 [UserPage] Recalculando dataToken')
     const tokenData = getDataFromToken(getCookieToken() || "")
-    return tokenData?.user
+    
+    // 🔧 SOLUCION: Mapear solo los campos que acepta el API getCaratulesFromUserCompany
+    if (tokenData?.user) {
+      const userForApi: any = {
+        userId: tokenData.user.userId,
+        name: tokenData.user.name,
+        mail: tokenData.user.mail,
+        company: tokenData.user.company,
+        role: tokenData.user.role,
+        status: tokenData.user.status,
+        can_send_campaigns: tokenData.user.can_send_campaigns
+      }
+      console.log('🔄 [UserPage] Datos mapeados para API:', userForApi)
+      console.log('🔍 [UserPage] Campos originales eliminados:', {
+        password: '***eliminado***',
+        phone: (tokenData.user as any).phone || 'no presente',
+        document: (tokenData.user as any).document || 'no presente'
+      })
+      return userForApi
+    }
+    
+    return null
   }, [])
 
   // Usa el nuevo hook condicional que elimina el loop

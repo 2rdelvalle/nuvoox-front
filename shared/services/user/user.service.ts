@@ -22,6 +22,86 @@ const userService = {
    * @returns Promise with list of agents
    */
   getAgentsByCompany: (companyId: number) => 
-    axios.get(`${userEndpoint}/${companyId}/company`)
+    axios.get(`${userEndpoint}/${companyId}/company`),
+
+  // 🔧 PRODUCCION SEGURA: Servicio inteligente con fallback automático
+  getCaratulesFromUserCompanyWithRetry: async (user: UserCaratule) => {
+    // 🛡️ MEJORES PRÁCTICAS: Solo debug mode en desarrollo
+    const isDebugMode = process.env.NODE_ENV === 'development' || process.env.DEBUG_API === 'true'
+    
+    if (!isDebugMode) {
+      // 🏭 MODO PRODUCCIÓN: Usar payload optimizado basado en testing
+      const productionPayload = {
+        userId: user.userId,
+        name: user.name,
+        mail: user.mail,
+        company: user.company,
+        role: user.role,
+        status: user.status,
+        can_send_campaigns: Boolean(user.can_send_campaigns)
+      }
+      console.log(`🏭 [userService] MODO PRODUCCIÓN - Payload optimizado`)
+      return axios.post<UserCaratule[]>(`${userEndpoint}/caratule`, productionPayload)
+    }
+
+    // 🧪 MODO DESARROLLO: Sistema de retry para debugging
+    console.log(`🔄 [userService] MODO DEBUG - Iniciando retry sistemático`)
+    
+    const payloads = [
+      // Payload 1: Completo con boolean conversion
+      {
+        userId: user.userId,
+        name: user.name,
+        mail: user.mail,
+        company: user.company,
+        role: user.role,
+        status: user.status,
+        can_send_campaigns: Boolean(user.can_send_campaigns)
+      },
+      // Payload 2: Solo campos esenciales
+      {
+        userId: user.userId,
+        name: user.name,
+        mail: user.mail,
+        company: user.company,
+        role: user.role
+      },
+      // Payload 3: Con status pero sin can_send_campaigns
+      {
+        userId: user.userId,
+        name: user.name,
+        mail: user.mail,
+        company: user.company,
+        role: user.role,
+        status: user.status
+      },
+      // Payload 4: Solo IDs de relaciones
+      {
+        userId: user.userId,
+        name: user.name,
+        mail: user.mail,
+        companyId: user.company?.companyId,
+        roleId: user.role?.roleId
+      }
+    ]
+
+    for (let i = 0; i < payloads.length; i++) {
+      const payload = payloads[i]
+      console.log(`🧪 [userService] INTENTO ${i + 1}/${payloads.length}:`, payload)
+      
+      try {
+        const response = await axios.post<UserCaratule[]>(`${userEndpoint}/caratule`, payload)
+        console.log(`✅ [userService] ÉXITO en intento ${i + 1} con payload:`, payload)
+        return response
+      } catch (error: any) {
+        console.log(`❌ [userService] FALLO en intento ${i + 1}:`, error?.response?.status, error?.response?.data)
+        
+        if (i === payloads.length - 1) {
+          console.log(`🚫 [userService] TODOS LOS INTENTOS FALLARON`)
+          throw error
+        }
+      }
+    }
+  }
 }
 export default userService

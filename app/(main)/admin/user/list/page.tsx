@@ -84,10 +84,17 @@ const UserPage = () => {
 
   // ✅ SIMPLIFICADO: Auto-carga al montar, igual que feature/chatbox
 
-  // Filtrar usuarios activos (status !== "I")
-  const activeUsers = Array.isArray(users) 
-    ? users.filter((user: any) => user.status !== "I") 
+  // 🎯 FILTRAR: Solo agentes de la empresa del usuario logueado
+  const activeUsers = Array.isArray(users) && dataToken?.company?.companyId
+    ? users.filter((user: any) => 
+        user.status !== "I" && // Activos
+        user.role?.roleId === 3 && // Solo AGENTES
+        user.company?.companyId === dataToken.company.companyId // Misma empresa
+      )
     : [];
+    
+  console.log(`🔍 [UserPage] Empresa actual: ${dataToken?.company?.name} (ID: ${dataToken?.company?.companyId})`);
+  console.log(`🔍 [UserPage] Agentes encontrados: ${activeUsers.length}`);
 
   // Registrar en consola para depuración
   console.log(`[INFO] Total usuarios: ${Array.isArray(users) ? users.length : 0}, Usuarios activos: ${activeUsers.length}`);
@@ -110,14 +117,14 @@ const UserPage = () => {
         headerTableName={() => (
           <InfoMessage
             message={
-              "A continuación se listan los usuarios activos en el sistema. Los usuarios desactivados no aparecen en esta lista."
+              `A continuación se listan los agentes de ${dataToken?.company?.name || 'su empresa'}. Solo se muestran agentes activos de su compañía.`
             }
           />
         )}
         columns={columns}
-        emptyMessage={"No se encontraron usuarios activos"}
+        emptyMessage={"No se encontraron agentes en su empresa"}
         loading={isLoading}
-        headerCardName={"Listado de Usuarios Activos"}
+        headerCardName={"Listado de Agentes de la Empresa"}
       />
     </EmptyPage>
   )

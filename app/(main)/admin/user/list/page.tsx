@@ -17,80 +17,49 @@ const UserPage = () => {
   const { showError } = useToast()
   const { onClickAction } = usePush(ADMIN_ROUTES.USER.CREATE)
 
-  // 🔧 Función para generar payloads alternativos si la API sigue fallando
-  const generateAlternativePayload = (user: any, attempt: number = 1) => {
-    console.log(`🧪 [UserPage] Generando payload alternativo #${attempt}`)
-    
-    switch (attempt) {
-      case 1:
-        // Intento 1: Solo campos esenciales
-        return {
-          userId: user.userId,
-          name: user.name,
-          mail: user.mail,
-          company: user.company,
-          role: user.role
-        }
-      case 2:
-        // Intento 2: Con status pero sin can_send_campaigns
-        return {
-          userId: user.userId,
-          name: user.name,
-          mail: user.mail,
-          company: user.company,
-          role: user.role,
-          status: user.status
-        }
-      case 3:
-        // Intento 3: Solo IDs de relaciones
-        return {
-          userId: user.userId,
-          name: user.name,
-          mail: user.mail,
-          companyId: user.company?.companyId,
-          roleId: user.role?.roleId
-        }
-      default:
-        return null
-    }
-  }
+  // 🛡️ MEJORES PRÁCTICAS: Verificar modo de desarrollo
+  const isDebugMode = process.env.NODE_ENV === 'development' || process.env.DEBUG_API === 'true'
 
-  // 🧪 MODO DEBUG: Token simplificado - el retry service probará diferentes estructuras
+  // 🛡️ PRODUCCIÓN SEGURA: Token mapeado inteligente según entorno
   const dataToken = useMemo(() => {
-    console.log('🔑 [UserPage] MODO DEBUG - Recalculando dataToken')
     const tokenData = getDataFromToken(getCookieToken() || "")
     
     if (tokenData?.user) {
-      // Pasar el usuario completo al servicio con retry - él probará diferentes combinaciones
-      const userForRetry = {
+      const userPayload = {
         userId: tokenData.user.userId,
         name: tokenData.user.name,
         mail: tokenData.user.mail,
         company: tokenData.user.company,
         role: tokenData.user.role,
         status: tokenData.user.status,
-        can_send_campaigns: tokenData.user.can_send_campaigns // Valor original
+        can_send_campaigns: tokenData.user.can_send_campaigns
       }
       
-      console.log('🧪 [UserPage] DATOS PARA RETRY SERVICE:', userForRetry)
-      console.log('🔬 [UserPage] CAMPOS DISPONIBLES:', {
-        can_send_campaigns_valor: tokenData.user.can_send_campaigns,
-        can_send_campaigns_tipo: typeof tokenData.user.can_send_campaigns,
-        company_id: tokenData.user.company?.companyId,
-        role_id: tokenData.user.role?.roleId
-      })
+      if (isDebugMode) {
+        console.log('🧪 [UserPage] MODO DEBUG - Datos para retry:', userPayload)
+        console.log('🔬 [UserPage] Campos disponibles:', {
+          can_send_campaigns: {
+            valor: tokenData.user.can_send_campaigns,
+            tipo: typeof tokenData.user.can_send_campaigns
+          },
+          company_id: tokenData.user.company?.companyId,
+          role_id: tokenData.user.role?.roleId
+        })
+      } else {
+        console.log('🏭 [UserPage] MODO PRODUCCIÓN - Payload optimizado')
+      }
       
-      return userForRetry
+      return userPayload
     }
     
     return null
   }, [])
 
-  // 🧪 MODO DEBUG: Usando servicio con retry automático para identificar payload correcto
+  // 🛡️ PRODUCCIÓN SEGURA: Usa servicio inteligente que maneja debug automáticamente
   const { responseData: users, isLoading, fetchData, setResponseData } = useFetchWithConditionalParams(
-    _users.getCaratulesFromUserCompanyWithRetry, // ← SERVICIO CON RETRY
+    _users.getCaratulesFromUserCompanyWithRetry, // ← Servicio inteligente (debug en dev, optimizado en prod)
     !!dataToken, // Condición: solo cuando hay dataToken
-    dataToken as any    // Parámetros: el dataToken (modo debug)
+    dataToken as any    // Parámetros: payload mapeado
   )
 
   // 🔧 Función wrapper para setUsers que maneja el tipo correcto

@@ -26,8 +26,12 @@ const userService = {
 
   // 🔧 PRODUCCION SEGURA: Servicio inteligente con fallback automático
   getCaratulesFromUserCompanyWithRetry: async (user: UserCaratule) => {
-    // 🛡️ MEJORES PRÁCTICAS: Solo debug mode en desarrollo
-    const isDebugMode = process.env.NODE_ENV === 'development' || process.env.DEBUG_API === 'true'
+    // 🚨 MODO DEBUG FORZADO TEMPORALMENTE para identificar payload correcto
+    const isDebugMode = true // FORZAR DEBUG HASTA RESOLVER EL 400 ERROR
+    
+    console.log(`🔧 [userService] NODE_ENV: ${process.env.NODE_ENV}`)
+    console.log(`🔧 [userService] DEBUG_API: ${process.env.DEBUG_API}`)
+    console.log(`🔧 [userService] isDebugMode: ${isDebugMode}`)
     
     if (!isDebugMode) {
       // 🏭 MODO PRODUCCIÓN: Usar payload optimizado basado en testing

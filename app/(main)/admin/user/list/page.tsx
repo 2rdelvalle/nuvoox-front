@@ -55,9 +55,14 @@ const UserPage = () => {
     return null
   }, [])
 
-  // 🎉 MÉTODO SIMPLIFICADO: Hook directo con auto-carga como feature/chatbox
+  // 🎉 MÉTODO SIMPLIFICADO: Hook con extracción de datos correcta
   const { responseData: users, isLoading, fetchData, setResponseData } = useFetchWithParams(
-    () => _users.getCaratules(), // ← Wrapper sin parámetros
+    async () => {
+      const response = await _users.getCaratules()
+      console.log('🔍 [UserPage] Respuesta completa:', response)
+      console.log('🔍 [UserPage] Datos extraídos:', response.data)
+      return response.data // ← Extraer solo los datos del array
+    },
     { autoFetch: true, initialParams: {} } // Auto-cargar al montar
   )
 
@@ -68,9 +73,10 @@ const UserPage = () => {
 
   // Configura las columnas y el callback
   const { columns } = COLUMNS_USER({ 
-    callback: () => {
-      // 🔄 Recargar datos con objeto vacío
-      fetchData({})
+    callback: async () => {
+      // 🔄 Recargar datos extrayendo response.data
+      const response = await _users.getCaratules()
+      setResponseData(response.data)
     },
     users: Array.isArray(users) ? users : [],
     setUsers: setUsers

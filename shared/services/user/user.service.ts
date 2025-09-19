@@ -1,20 +1,21 @@
 import { UserCaratule, UserFormModel } from "@/shared/models"
 import axios from "axios"
+import { axiosInstance } from "@/shared/instances/axios-instance"
 
 const userEndpoint = `${process.env.NEXT_PUBLIC_URL_SIRA_BACK}/users`
 const userService = {
-  getCaratules: () => axios.get<UserCaratule[]>(`${userEndpoint}/caratule`),
-  getNumbersOfMaintanceFromUserId: (userId: string) => axios.get<UserCaratule[]>(`${userEndpoint}/numbers/${userId}`),
+  getCaratules: () => axiosInstance.get<UserCaratule[]>(`${userEndpoint}/caratule`),
+  getNumbersOfMaintanceFromUserId: (userId: string) => axiosInstance.get<UserCaratule[]>(`${userEndpoint}/numbers/${userId}`),
   getCaratulesFromUserCompany: (user: UserCaratule) => {
     console.log(`📋 [userService] getCaratulesFromUserCompany llamado con:`, user)
     console.log(`🌐 [userService] URL:`, `${userEndpoint}/caratule`)
     console.log(`🕐 [userService] Timestamp:`, new Date().toISOString())
-    return axios.post<UserCaratule[]>(`${userEndpoint}/caratule`, user)
+    return axiosInstance.post<UserCaratule[]>(`${userEndpoint}/caratule`, user)
   },
-  create: (user: UserFormModel) => axios.post<UserFormModel>(userEndpoint, user),
-  update: (user: UserFormModel) => axios.put<UserFormModel>(userEndpoint, user),
-  findById: (userId: string) => axios.get<UserFormModel>(`${userEndpoint}/findByID/${userId}`),
-  deleteById: (userId: string) => axios.delete<UserFormModel>(`${userEndpoint}/${userId}`),
+  create: (user: UserFormModel) => axiosInstance.post<UserFormModel>(userEndpoint, user),
+  update: (user: UserFormModel) => axiosInstance.put<UserFormModel>(userEndpoint, user),
+  findById: (userId: string) => axiosInstance.get<UserFormModel>(`${userEndpoint}/findByID/${userId}`),
+  deleteById: (userId: string) => axiosInstance.delete<UserFormModel>(`${userEndpoint}/${userId}`),
   
   /**
    * Get agents by company ID
@@ -22,7 +23,7 @@ const userService = {
    * @returns Promise with list of agents
    */
   getAgentsByCompany: (companyId: number) => 
-    axios.get(`${userEndpoint}/${companyId}/company`),
+    axiosInstance.get(`${userEndpoint}/${companyId}/company`),
 
   // 🔧 PRODUCCION SEGURA: Servicio inteligente con fallback automático
   getCaratulesFromUserCompanyWithRetry: async (user: UserCaratule) => {
@@ -45,7 +46,7 @@ const userService = {
         can_send_campaigns: Boolean(user.can_send_campaigns)
       }
       console.log(`🏭 [userService] MODO PRODUCCIÓN - Payload optimizado`)
-      return axios.post<UserCaratule[]>(`${userEndpoint}/caratule`, productionPayload)
+      return axiosInstance.post<UserCaratule[]>(`${userEndpoint}/caratule`, productionPayload)
     }
 
     // 🧪 MODO DESARROLLO: Sistema de retry para debugging
@@ -94,7 +95,7 @@ const userService = {
       console.log(`🧪 [userService] INTENTO ${i + 1}/${payloads.length}:`, payload)
       
       try {
-        const response = await axios.post<UserCaratule[]>(`${userEndpoint}/caratule`, payload)
+        const response = await axiosInstance.post<UserCaratule[]>(`${userEndpoint}/caratule`, payload)
         console.log(`✅ [userService] ÉXITO en intento ${i + 1} con payload:`, payload)
         return response
       } catch (error: any) {

@@ -27,8 +27,8 @@ const userService = {
 
   // 🔧 PRODUCCION SEGURA: Servicio inteligente con fallback automático
   getCaratulesFromUserCompanyWithRetry: async (user: UserCaratule) => {
-    // 🚨 MODO DEBUG FORZADO TEMPORALMENTE para identificar payload correcto
-    const isDebugMode = true // FORZAR DEBUG HASTA RESOLVER EL 400 ERROR
+    // 🎯 SOLUCIONADO: can_send_campaigns debe ser Number (0/1), no Boolean (true/false)
+    const isDebugMode = false // PROBLEMA RESUELTO - VOLVER A PRODUCCIÓN
     
     console.log(`🔧 [userService] NODE_ENV: ${process.env.NODE_ENV}`)
     console.log(`🔧 [userService] DEBUG_API: ${process.env.DEBUG_API}`)
@@ -43,7 +43,7 @@ const userService = {
         company: user.company,
         role: user.role,
         status: user.status,
-        can_send_campaigns: Boolean(user.can_send_campaigns)
+        can_send_campaigns: Number(user.can_send_campaigns)
       }
       console.log(`🏭 [userService] MODO PRODUCCIÓN - Payload optimizado`)
       return axiosInstance.post<UserCaratule[]>(`${userEndpoint}/caratule`, productionPayload)
@@ -53,7 +53,7 @@ const userService = {
     console.log(`🔄 [userService] MODO DEBUG - Iniciando retry sistemático`)
     
     const payloads = [
-      // Payload 1: Completo con boolean conversion
+      // Payload 1: Completo con NÚMERO (0/1) como esperaba feature/chatbox
       {
         userId: user.userId,
         name: user.name,
@@ -61,7 +61,7 @@ const userService = {
         company: user.company,
         role: user.role,
         status: user.status,
-        can_send_campaigns: Boolean(user.can_send_campaigns)
+        can_send_campaigns: Number(user.can_send_campaigns)
       },
       // Payload 2: Solo campos esenciales
       {
@@ -90,6 +90,37 @@ const userService = {
       }
     ]
 
+    // 🧪 EXPERIMENTO: Probar diferentes métodos HTTP
+    const experiments = [
+      // Experimento 1: GET sin parámetros (como getCaratules básico)
+      async () => {
+        console.log(`🧪 [userService] EXPERIMENTO 1/6: GET sin parámetros`)
+        return await axiosInstance.get<UserCaratule[]>(`${userEndpoint}/caratule`)
+      },
+      // Experimento 2: GET con query params
+      async () => {
+        console.log(`🧪 [userService] EXPERIMENTO 2/6: GET con query params`)
+        const params = new URLSearchParams({
+          userId: user.userId?.toString() || '',
+          companyId: user.company?.companyId?.toString() || '',
+          roleId: user.role?.roleId?.toString() || ''
+        })
+        return await axiosInstance.get<UserCaratule[]>(`${userEndpoint}/caratule?${params}`)
+      }
+    ]
+    
+    // Probar experimentos primero
+    for (let i = 0; i < experiments.length; i++) {
+      try {
+        const response = await experiments[i]()
+        console.log(`✅ [userService] ÉXITO en EXPERIMENTO ${i + 1}`)
+        return response
+      } catch (error: any) {
+        console.log(`❌ [userService] FALLO EXPERIMENTO ${i + 1}:`, error?.response?.status, error?.response?.data)
+      }
+    }
+    
+    // Si los experimentos fallan, probar payloads originales
     for (let i = 0; i < payloads.length; i++) {
       const payload = payloads[i]
       console.log(`🧪 [userService] INTENTO ${i + 1}/${payloads.length}:`, payload)

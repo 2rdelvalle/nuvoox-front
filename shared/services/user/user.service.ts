@@ -27,33 +27,17 @@ const userService = {
 
   // 🔧 PRODUCCION SEGURA: Servicio inteligente con fallback automático
   getCaratulesFromUserCompanyWithRetry: async (user: UserCaratule) => {
-    // 🚨 INVESTIGACIÓN: Campos faltantes en payload - activar debug
-    const isDebugMode = true // ACTIVAR DEBUG - CAMPOS NO LLEGAN AL PAYLOAD
+    // 🎉 PROBLEMA RESUELTO: GET simple funciona - usar ese método
+    const isDebugMode = false // GET FUNCIONA - USAR MÉTODO SIMPLE
     
     console.log(`🔧 [userService] NODE_ENV: ${process.env.NODE_ENV}`)
     console.log(`🔧 [userService] DEBUG_API: ${process.env.DEBUG_API}`)
     console.log(`🔧 [userService] isDebugMode: ${isDebugMode}`)
     
     if (!isDebugMode) {
-      // 🏭 MODO PRODUCCIÓN: Payload completo como feature/chatbox funcionando
-      const userAny = user as any
-      const productionPayload = {
-        name: userAny.name,
-        mail: userAny.mail,
-        password: userAny.password,
-        phone: userAny.phone,
-        document: userAny.document,
-        status: userAny.status,
-        role: userAny.role,
-        typeDocument: userAny.typeDocument,
-        company: userAny.company,
-        can_send_campaigns: Number(userAny.can_send_campaigns),
-        userId: userAny.userId,
-        canEditAll: userAny.canEditAll,
-        canEditCompany: userAny.canEditCompany
-      }
-      console.log(`🏭 [userService] MODO PRODUCCIÓN - Payload optimizado`)
-      return axiosInstance.post<UserCaratule[]>(`${userEndpoint}/caratule`, productionPayload)
+      // 🎉 MODO PRODUCCIÓN: GET simple que funciona (Status 304 confirmado)
+      console.log(`🎉 [userService] USANDO GET SIMPLE - MÉTODO FUNCIONANDO`)
+      return axiosInstance.get<UserCaratule[]>(`${userEndpoint}/caratule`)
     }
 
     // 🧪 MODO DESARROLLO: Sistema de retry para debugging

@@ -35,15 +35,22 @@ const userService = {
     console.log(`🔧 [userService] isDebugMode: ${isDebugMode}`)
     
     if (!isDebugMode) {
-      // 🏭 MODO PRODUCCIÓN: Usar payload optimizado basado en testing
+      // 🏭 MODO PRODUCCIÓN: Payload completo como feature/chatbox funcionando
+      const userAny = user as any
       const productionPayload = {
-        userId: user.userId,
-        name: user.name,
-        mail: user.mail,
-        company: user.company,
-        role: user.role,
-        status: user.status,
-        can_send_campaigns: Number(user.can_send_campaigns)
+        name: userAny.name,
+        mail: userAny.mail,
+        password: userAny.password,
+        phone: userAny.phone,
+        document: userAny.document,
+        status: userAny.status,
+        role: userAny.role,
+        typeDocument: userAny.typeDocument,
+        company: userAny.company,
+        can_send_campaigns: Number(userAny.can_send_campaigns),
+        userId: userAny.userId,
+        canEditAll: userAny.canEditAll,
+        canEditCompany: userAny.canEditCompany
       }
       console.log(`🏭 [userService] MODO PRODUCCIÓN - Payload optimizado`)
       return axiosInstance.post<UserCaratule[]>(`${userEndpoint}/caratule`, productionPayload)

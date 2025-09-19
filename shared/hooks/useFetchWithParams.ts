@@ -103,14 +103,9 @@ export const useFetchWithConditionalParams = <T, >(
   condition: boolean,
   params?: T
 ) => {
-  const { responseData, setResponseData, isLoading, fetchData } = useFetchWithParams(method)
-  
-  useEffect(() => {
-    if (condition && params) {
-      console.log('🔄 [useFetchWithConditionalParams] Condición cumplida, ejecutando fetch')
-      fetchData(params)
-    }
-  }, [condition, params]) // ⭐ Dependencias específicas y controladas
-  
-  return { responseData, setResponseData, isLoading, fetchData }
+  // Usa el hook principal con carga automática condicional
+  return useFetchWithParams(method, {
+    initialParams: condition && params ? params : undefined,
+    autoFetch: condition && !!params
+  })
 }

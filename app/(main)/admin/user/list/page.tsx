@@ -1,6 +1,6 @@
 "use client"
 import { useToast } from "@/shared/context/toast/toastContext"
-import { useFetchWithConditionalParams } from "@/shared/hooks/useFetchWithParams"
+import { useFetchWithParams } from "@/shared/hooks/useFetchWithParams"
 import { usePush } from "@/shared/hooks/usePush"
 import { ADMIN_ROUTES } from "@/shared/routes/admin.routes"
 import { UserService as _users } from "@/shared/services/index"
@@ -55,11 +55,10 @@ const UserPage = () => {
     return null
   }, [])
 
-  // 🛡️ PRODUCCIÓN SEGURA: Usa servicio inteligente que maneja debug automáticamente
-  const { responseData: users, isLoading, fetchData, setResponseData } = useFetchWithConditionalParams(
-    _users.getCaratulesFromUserCompanyWithRetry, // ← Servicio inteligente (debug en dev, optimizado en prod)
-    !!dataToken, // Condición: solo cuando hay dataToken
-    dataToken as any    // Parámetros: payload mapeado
+  // 🎉 MÉTODO SIMPLIFICADO: Hook directo con auto-carga como feature/chatbox
+  const { responseData: users, isLoading, fetchData, setResponseData } = useFetchWithParams(
+    () => _users.getCaratules(), // ← Wrapper sin parámetros
+    { autoFetch: true, initialParams: {} } // Auto-cargar al montar
   )
 
   // 🔧 Función wrapper para setUsers que maneja el tipo correcto
@@ -70,16 +69,14 @@ const UserPage = () => {
   // Configura las columnas y el callback
   const { columns } = COLUMNS_USER({ 
     callback: () => {
-      if (dataToken) {
-        fetchData(dataToken)
-      }
+      // 🔄 Recargar datos con objeto vacío
+      fetchData({})
     },
     users: Array.isArray(users) ? users : [],
     setUsers: setUsers
   })
 
-  // ✅ YA NO NECESITAMOS useEffect - el hook maneja la carga automáticamente
-  // El hook condicional se encarga de cargar cuando dataToken esté disponible
+  // ✅ SIMPLIFICADO: Auto-carga al montar, igual que feature/chatbox
 
   // Filtrar usuarios activos (status !== "I")
   const activeUsers = Array.isArray(users) 

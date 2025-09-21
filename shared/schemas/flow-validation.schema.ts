@@ -70,6 +70,15 @@ const WaitNodeDataSchema = NodeDataBaseSchema.extend({
   timeoutSeconds: z.number().positive().max(3600, 'El timeout máximo es 3600 segundos (1 hora)')
 });
 
+const HandoffNodeDataSchema = NodeDataBaseSchema.extend({
+  messageText: z.string().min(1, 'El mensaje de handoff es requerido'),
+  handoffConfig: z.record(z.any()).optional()
+});
+
+const EndNodeDataSchema = NodeDataBaseSchema.extend({
+  endType: z.enum(['completed', 'abandoned', 'timeout']).optional()
+});
+
 // Schema para nodos con discriminated union
 export const FlowNodeSchema = z.discriminatedUnion('type', [
   z.object({
@@ -101,6 +110,18 @@ export const FlowNodeSchema = z.discriminatedUnion('type', [
     type: z.literal('wait'),
     position: PositionSchema,
     data: WaitNodeDataSchema
+  }),
+  z.object({
+    id: z.string().min(1, 'ID de nodo requerido'),
+    type: z.literal('handoff'),
+    position: PositionSchema,
+    data: HandoffNodeDataSchema
+  }),
+  z.object({
+    id: z.string().min(1, 'ID de nodo requerido'),
+    type: z.literal('end'),
+    position: PositionSchema,
+    data: EndNodeDataSchema
   })
 ]);
 

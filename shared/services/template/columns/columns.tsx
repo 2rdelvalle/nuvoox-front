@@ -149,12 +149,7 @@ const PreviewTemplate: React.FC<PreviewTemplateProps> = ({ template, visible, on
             <div className="whatsapp-preview p-3 border-round" style={{ backgroundColor: '#e5ddd5' }}>
               <div className="message-bubble p-3 border-round" style={{ backgroundColor: '#ffffff', maxWidth: '80%', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
                 <div className="font-medium">
-                  {/* TEMP DEBUG LOG - REMOVE AFTER FIXING */}
-                  {(() => {
-                    console.log('DEBUG PreviewTemplate: templateContent raw:', templateContent, typeof templateContent);
-                    console.log('DEBUG PreviewTemplate: template.textTemplate raw:', template?.textTemplate, typeof template?.textTemplate);
-                    return templateContent;
-                  })()}
+                  {templateContent}
                 </div>
                 
                 {template.mediaUrl && (

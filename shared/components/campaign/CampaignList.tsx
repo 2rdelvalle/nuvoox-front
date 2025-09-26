@@ -306,11 +306,15 @@ const CampaignList: React.FC = () => {
   };
 
   const templateBodyTemplate = (rowData: CampaignResponseDto) => {
+    const safeTextTemplate = rowData.template?.textTemplate && typeof rowData.template.textTemplate === 'string' 
+      ? rowData.template.textTemplate 
+      : '(Sin contenido)';
+    
     return (
       <div>
         <div className="font-medium">{rowData.template.name}</div>
         <div className="text-sm text-500 mt-1">
-          {rowData.template.textTemplate.substring(0, 50)}...
+          {safeTextTemplate.substring(0, 50)}...
         </div>
       </div>
     );

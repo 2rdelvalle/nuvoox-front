@@ -767,10 +767,6 @@ useEffect(() => {
           }
           
           try {
-            // TEMP DEBUG LOG - REMOVE AFTER FIXING
-            console.log('DEBUG sendTemplateMessage: dataToken.user.company.name raw:', dataToken?.user?.company?.name, typeof dataToken?.user?.company?.name);
-            console.log('DEBUG sendTemplateMessage: selectedTemplate.name:', selectedTemplate?.name);
-            
             // Llama al servicio para enviar el template
             const ok = await sendTemplateMessage(
               recipientPhone,

@@ -112,8 +112,8 @@ export const templateFormSchema = z
       .string({ required_error: 'El nombre es obligatorio' })
       .min(1, 'El nombre es obligatorio'),
     textTemplate: z
-      .string({ required_error: 'El contenido es obligatorio' })
-      .min(1, 'El contenido es obligatorio'),
+      .string()
+      .default(''),
     interactive: templateInteractiveSchema,
   })
   .superRefine((data, ctx) => {

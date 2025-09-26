@@ -21,13 +21,14 @@ const interactiveTypeLabels: Record<TemplateInteractiveType, string> = {
 }
 
 const QuickReplyPreview = ({ buttons }: { buttons: TemplateInteractiveFormValues["quickReplies"] }) => {
-  if (!buttons.length) {
+  const safeButtons = Array.isArray(buttons) ? buttons : []
+  if (!safeButtons.length) {
     return <span className="text-sm text-600">Agrega botones quick reply para previsualizarlos.</span>
   }
 
   return (
     <div className="flex gap-2 flex-wrap">
-      {buttons.map((button) => (
+      {safeButtons.map((button) => (
         <Chip key={button.id} label={button.title} className="py-2 px-3 bg-blue-50 border-round" />
       ))}
     </div>
@@ -35,13 +36,14 @@ const QuickReplyPreview = ({ buttons }: { buttons: TemplateInteractiveFormValues
 }
 
 const CtaButtonsPreview = ({ buttons }: { buttons: TemplateInteractiveFormValues["ctaButtons"] }) => {
-  if (!buttons.length) {
+  const safeButtons = Array.isArray(buttons) ? buttons : []
+  if (!safeButtons.length) {
     return <span className="text-sm text-600">Agrega botones CTA para ver la previsualización.</span>
   }
 
   return (
     <div className="flex flex-column gap-2">
-      {buttons.map((button, index) => (
+      {safeButtons.map((button, index) => (
         <Button
           key={`${button.type}-${index}`}
           label={button.title || (button.type === "call" ? "Llamar" : "Visitar URL")}
@@ -62,7 +64,8 @@ const ListPreview = ({
   button?: TemplateInteractiveFormValues["listButton"]
   sections: TemplateInteractiveFormValues["listSections"]
 }) => {
-  if (!sections.length) {
+  const safeSections = Array.isArray(sections) ? sections : []
+  if (!safeSections.length) {
     return <span className="text-sm text-600">Agrega secciones para previsualizar el mensaje de lista.</span>
   }
 
@@ -76,7 +79,7 @@ const ListPreview = ({
         outlined
       />
       <div className="flex flex-column gap-2">
-        {sections.map((section, sectionIndex) => (
+        {safeSections.map((section, sectionIndex) => (
           <Card key={`section-${sectionIndex}`} className="border-200 border-1">
             {section.title && (
               <div className="font-medium text-800 mb-2">{section.title}</div>
@@ -98,16 +101,18 @@ const ListPreview = ({
 }
 
 const MessagePreview = ({ text }: { text?: string }) => {
-  if (!text) {
+  const safeText = typeof text === 'string' ? text : ''
+  if (!safeText.trim()) {
     return <span className="text-sm text-600">Escribe el cuerpo del mensaje para visualizarlo aquí.</span>
   }
 
-  return <p className="text-base text-900 whitespace-pre-line">{text}</p>
+  return <p className="text-base text-900 whitespace-pre-line">{safeText}</p>
 }
 
 export default function InteractivePreview() {
   const { watch } = useFormContext<TemplateFormValues>()
-  const templateText = watch("textTemplate") || ""
+  const templateText = watch("textTemplate")
+  const safeTemplateText = typeof templateText === 'string' ? templateText : ''
   const interactive = watch("interactive") ?? defaultInteractiveValues
 
   const sectionsWithRows = useMemo(
@@ -122,7 +127,7 @@ export default function InteractivePreview() {
 
         <Card className="bg-gray-100 border-round-2xl p-4">
           <div className="flex flex-column gap-3">
-            <MessagePreview text={templateText} />
+            <MessagePreview text={safeTemplateText} />
 
             <Divider type="dashed" align="left">
               <span className="text-xs text-700 uppercase tracking-wider">

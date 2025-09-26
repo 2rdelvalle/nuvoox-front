@@ -35,7 +35,12 @@ const TemplateForm = () => {
     register, 
     handleSubmit, 
     formState: { errors: basicErrors, isValid: basicIsValid, isDirty: basicIsDirty } 
-  } = useForm<TemplateModel>()
+  } = useForm<TemplateModel>({
+    defaultValues: {
+      nameTemplate: '',
+      textTemplate: ''
+    }
+  })
 
   // Formulario para plantillas multimedia
   const { 
@@ -45,7 +50,18 @@ const TemplateForm = () => {
     setValue,
     // watch, // No utilizado actualmente
     formState: { errors: multimediaErrors, isValid: multimediaIsValid, isDirty: multimediaIsDirty } 
-  } = useForm<MultimediaTemplateModel>()
+  } = useForm<MultimediaTemplateModel>({
+    defaultValues: {
+      name: '',
+      text: '',
+      mediaType: TemplateMediaType.NONE,
+      mediaUrl: '',
+      mediaCaption: '',
+      mediaFilename: '',
+      category: 'MARKETING',
+      language: 'es'
+    }
+  })
   
   const [blocked, setBlocked] = useState(false)
   const [activeTab, setActiveTab] = useState(0)
@@ -105,8 +121,8 @@ const TemplateForm = () => {
       companyID: companyId,
       // Asignamos el mismo valor de nameTemplate al campo name requerido
       name: data.nameTemplate || '', // Aseguramos que siempre haya un valor
-      nameTemplate: data.nameTemplate,
-      textTemplate: data.textTemplate
+      nameTemplate: data.nameTemplate || '',
+      textTemplate: data.textTemplate || ''
     }
 
     await save(templateToSumbit)

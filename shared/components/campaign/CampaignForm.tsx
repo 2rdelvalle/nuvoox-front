@@ -236,7 +236,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({
       const mappedTemplates: Template[] = approvedTemplates.map(template => ({
         id: template.id!,  // Usamos ! porque ya validamos que no es undefined
         name: template.name || 'Sin nombre',
-        textTemplate: template.textTemplate || '',
+        textTemplate: typeof template.textTemplate === 'string' ? template.textTemplate : '',
         statusTemplateWhatsapp: template.statusTemplateWhatsapp || 'APPROVED'
       }));
       

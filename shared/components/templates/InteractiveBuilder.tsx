@@ -203,11 +203,6 @@ export default function InteractiveBuilder() {
   const interactive = watch("interactive") ?? defaultInteractiveValues
   const interactiveErrors = errors.interactive as InteractiveErrors
 
-  // TEMP DEBUG LOGS - REMOVE AFTER FIXING
-  console.log('DEBUG InteractiveBuilder: interactive raw:', watch("interactive"), typeof watch("interactive"))
-  console.log('DEBUG InteractiveBuilder: listSections:', interactive?.listSections, typeof interactive?.listSections)
-  console.log('DEBUG InteractiveBuilder: totalRows calculation attempt:', Array.isArray(interactive?.listSections) ? 'OK' : 'FAIL')
-
   const quickRepliesArray = useFieldArray({
     control,
     name: "interactive.quickReplies",

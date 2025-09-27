@@ -1,11 +1,17 @@
+'use client';
 import { useToast } from "@/shared/context/toast/toastContext"
 import type { AppTopbarRef } from "@/types"
 import { Button } from "primereact/button"
 import { InputText } from "primereact/inputtext"
-import { forwardRef, useContext, useImperativeHandle, useRef } from "react"
+import { forwardRef, useContext, useImperativeHandle, useRef, useState, useEffect } from "react"
+import dynamic from 'next/dynamic'
 import AppBreadcrumb from "./AppBreadCrumb"
 import { LayoutContext } from "./context/layoutcontext"
 import Clock from "@/shared/components/clock/clock"
+
+// Importación dinámica para evitar errores de hidratación
+// Usar el componente ultra-simplificado para maxima compatibilidad
+const SimpleBalance = dynamic(() => import('@/shared/components/balance/SimpleBalance'), { ssr: false });
 
 const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
   const { onMenuToggle, showProfileSidebar, showConfigSidebar } =
@@ -36,8 +42,14 @@ const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
 
                 <AppBreadcrumb className="topbar-breadcrumb"></AppBreadcrumb>
             </div>
-            <div className="ml-3 mr-3">
-                <Clock />
+            <div className="flex items-center">
+                <div className="ml-3 mr-3">
+                    <Clock />
+                </div>
+                {/* Componente ultra-simplificado para mostrar el saldo - solo visible para empresas */}
+                <div className="topbar-balance-container ml-2">
+                    <SimpleBalance />
+                </div>
             </div>
             <div className="topbar-end">
                 <ul className="topbar-menu">

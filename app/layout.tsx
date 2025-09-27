@@ -1,12 +1,9 @@
-"use client"
-import { ToastProvider } from "@/shared/context/toast/toastContext"
 import "primeflex/primeflex.css"
 import "primeicons/primeicons.css"
-import { PrimeReactProvider } from "primereact/api"
 import "primereact/resources/primereact.css"
 import * as React from "react"
-import { LayoutProvider } from "../layout/context/layoutcontext"
 import "../styles/layout/layout.scss"
+import ClientProviders from "./client-providers"
 
 interface RootLayoutProps {
     children: React.ReactNode;
@@ -23,13 +20,9 @@ export default function RootLayout ({ children }: RootLayoutProps) {
                 ></link>
             </head>
             <body>
-                <PrimeReactProvider>
-                    <LayoutProvider>
-                        <ToastProvider>
-                            {children}
-                        </ToastProvider>
-                    </LayoutProvider>
-                </PrimeReactProvider>
+                <ClientProviders>
+                    {children}
+                </ClientProviders>
             </body>
         </html>
   )

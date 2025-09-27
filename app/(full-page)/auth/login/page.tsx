@@ -3,7 +3,7 @@
 import { Button } from "primereact/button"
 import { Checkbox } from "primereact/checkbox"
 import { InputText } from "primereact/inputtext"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { SubmitHandler, useForm } from "react-hook-form"
 import {
   AuthService as _auth
@@ -39,16 +39,25 @@ const ES_LOGIN = {
 }
 
 const Login = () => {
-  const [showPass, setshowPass] = useState(false)
-  const { showSuccessMany, showError, showSuccess } = useToast()
-  const { onClickAction } = usePush(ADMIN_ROUTES.DASHBOARD)
-
+  // Todos los hooks deben estar en el nivel superior
+  const [mounted, setMounted] = useState(false);
+  const [showPass, setshowPass] = useState(false);
+  const { showSuccessMany, showError, showSuccess } = useToast();
+  const { onClickAction } = usePush(ADMIN_ROUTES.DASHBOARD);
   const { register, handleSubmit, formState: { errors }, getValues } = useForm<any>({
     defaultValues: {
       email: "",
       password: ""
     }
-  })
+  });
+
+  // Efecto para manejar la hidratación
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Retorno condicional después de todos los hooks
+  if (!mounted) return null;
 
   const onSubmit: SubmitHandler<any> = async (data) => {
     try {

@@ -47,6 +47,48 @@ export const MENU_COMPANY: MenuModel[] = [
             to: "/template/list"
           }
         ]
+      },
+      {
+        label: "Campañas",
+        icon: "pi pi-megaphone", // modificado
+        items: [
+          {
+            label: "Nuevas campañas",
+            icon: "pi pi-plus-circle",
+            to: "/campaigns/create"
+          },
+          {
+            label: "Gestionar campañas",
+            icon: "pi pi-list",
+            to: "/campaigns/list"
+          },
+          {
+            label: "Envio Masivos",
+            icon: "pi pi-send", // modificado
+            to: "/masive-chat"
+          }
+        ]
+      },
+      {
+        label: "Automatización",
+        icon: "pi pi-sitemap",
+        items: [
+          {
+            label: "Gestión de Flujos",
+            icon: "pi pi-list",
+            to: "/flows/list"
+          },
+          {
+            label: "Crear Flujo",
+            icon: "pi pi-plus",
+            to: "/flows/create"
+          },
+          ...(process.env.NEXT_PUBLIC_ENABLE_FLOW_DESIGNER === 'true' ? [{
+            label: "Diseñador Visual",
+            icon: "pi pi-sitemap",
+            to: "/flows/1/designer"
+          }] : [])
+        ]
       }
     ]
   }

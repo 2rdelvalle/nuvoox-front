@@ -1,10 +1,14 @@
 import { useChatStore } from "@/app/(main)/chat/whatsapp/store/chat-store"
+import { useMessageStore } from "@/app/(main)/chat/whatsapp/store/message-store"
+import { getLastMessage } from "@/app/(main)/chat/whatsapp/service/messageServices"
 import { useToast } from "@/shared/context/toast/toastContext"
 import { axiosInstance } from "@/shared/instances/axios-instance"
 import { ConversationCaratule } from "@/shared/models/conversation/conversation.model"
+import { MessageModel } from "@/shared/models/conversation/messages.model"
 import { confirmDialog } from "primereact/confirmdialog"
 import { classNames } from "primereact/utils"
-import React from "react"
+import React, { useEffect, useState, useRef } from "react"
+import { MESSAGE_OWNER } from "@/shared/models/conversation/messages.model"
 
 interface props {
   conversation: ConversationCaratule
@@ -17,33 +21,269 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
     setActiveConversation,
     setSidebarConversationVisible,
     setselectedSidebarConversationInfo,
-    user
+    activeConversation,
+    user,
+    resetUnreadCount
   } = useChatStore()
 
+  const { messages } = useMessageStore()
+  
+  // Estados simples sin referencias ni claves de localStorage
+  const [lastMessageTime, setLastMessageTime] = useState<string>("") 
+  const [unreadCount, setUnreadCount] = useState<number>(0)
+  
+  // Ya no mantenemos referencias a localStorage para evitar persistencia no deseada
+  // Solo para los mensajes no leídos mantenemos la clave
+  const unreadMessagesKey = `unread_${conversation.conversationid}`
+  
   const { showError, showSuccess } = useToast()
+  
+  // Referencia simple para mantener el ID de conversación
+  const conversationRef = useRef<number>(conversation.conversationid);
+  
+  // Efecto para actualizar el contador de mensajes no leídos directamente desde el store global
+  useEffect(() => {
+    // Función para obtener y actualizar el contador
+    const updateUnreadCount = () => {
+      try {
+        // Si es la conversación activa, resetear contador
+        if (activeConversation?.conversationid === conversation.conversationid) {
+          if (unreadCount !== 0) {
+            setUnreadCount(0);
+            // Ya no llamamos a resetUnreadCount aquí para evitar actualizaciones cíclicas
+            // El contador se resetea directamente en el store cuando cambia la conversación activa
+          }
+          return;
+        }
 
+        // Si no es la conversación activa, obtener contador del estado global
+        const conversations = useChatStore.getState().conversations;
+        const conversationData = conversations.find(
+          c => c.conversationid === conversation.conversationid
+        );
+        
+        if (conversationData && typeof conversationData.unreadCount === 'number') {
+          // Actualizar solo si el contador ha cambiado (optimización de renderizado)
+          if (unreadCount !== conversationData.unreadCount) {
+            setUnreadCount(conversationData.unreadCount);
+          }
+        }
+      } catch (error) {
+        // Evitamos logs en producción
+      }
+    };
+    
+    // Verificar inmediatamente
+    updateUnreadCount();
+    
+    // Crear una suscripción al store de chat para actualizar cuando cambie el estado
+    const unsubscribe = useChatStore.subscribe((state) => {
+      // Solo actualizamos si cambian las conversaciones
+      updateUnreadCount();
+      return state;
+    });
+    
+    // Limpiar suscripción al desmontar
+    return () => unsubscribe();
+  }, [conversation.conversationid, activeConversation, unreadCount]);
+
+  /**
+   * Obtener y formatear la hora del último mensaje
+   * Método simple y compatible con diferentes formatos de timestamp
+   * @param timestamp - Timestamp en cualquier formato
+   * @returns Hora formateada en formato HH:MM o cadena vacía si el timestamp es inválido
+   */
+  const parseDate = (timestamp: any): string => {
+    // Si no hay timestamp, retornar cadena vacía
+    if (!timestamp) return "";
+    
+    try {
+      // Usamos un enfoque universal para manejar cualquier formato de timestamp
+      let date: Date;
+      
+      // Caso 1: Es un objeto Date
+      if (timestamp instanceof Date) {
+        date = timestamp;
+      }
+      // Caso 2: Es un número (UNIX timestamp en segundos o milisegundos)
+      else if (typeof timestamp === 'number' || (typeof timestamp === 'string' && !isNaN(Number(timestamp)))) {
+        const numericTimestamp = typeof timestamp === 'number' ? timestamp : Number(timestamp);
+        // Si el timestamp es menor que cierto umbral, asumimos que está en segundos
+        if (numericTimestamp < 10000000000) {
+          date = new Date(numericTimestamp * 1000);
+        } else {
+          date = new Date(numericTimestamp);
+        }
+      }
+      // Caso 3: Es una cadena en formato ISO o similar
+      else if (typeof timestamp === 'string') {
+        date = new Date(timestamp);
+      }
+      // Caso 4: Cualquier otro caso, retornar cadena vacía
+      else {
+        return "";
+      }
+      
+      // Si la fecha es inválida, retornar cadena vacía
+      if (isNaN(date.getTime())) {
+        return "";
+      }
+      
+      // Formatear a HH:MM usando métodos nativos
+      const hours = date.getHours().toString().padStart(2, "0");
+      const minutes = date.getMinutes().toString().padStart(2, "0");
+      return `${hours}:${minutes}`;
+    } catch (error) {
+      console.error("Error al parsear fecha:", error);
+      return "";
+    }
+  }
+  
+  /**
+   * Formatea una marca de tiempo en formato HH:MM
+   * Función simplificada sin persistencia
+   * @param timestamp - Timestamp a formatear (puede ser number o string)
+   * @returns Hora formateada (HH:MM)
+   */
+  const formatTime = (timestamp: number | string | undefined): string => {
+    if (!timestamp) return "--:--";
+    
+    try {
+      // Normalizar a milisegundos
+      let timeMs: number;
+      
+      if (typeof timestamp === 'string') {
+        const parsed = parseInt(timestamp, 10);
+        if (isNaN(parsed)) {
+          // Intentar como fecha ISO
+          timeMs = new Date(timestamp).getTime();
+        } else {
+          // Es un número en string
+          timeMs = parsed < 10000000000 ? parsed * 1000 : parsed;
+        }
+      } else if (typeof timestamp === 'number') {
+        // Es directamente un número
+        timeMs = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
+      } else {
+        return "--:--";
+      }
+      
+      // Verificar que sea válido
+      if (isNaN(timeMs)) return "--:--";
+      
+      // Crear objeto Date y formatear
+      const date = new Date(timeMs);
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${hours}:${minutes}`;
+    } catch (error) {
+      console.error('Error al formatear hora:', error);
+      return "--:--";
+    }
+  };
+  
+  // Efecto simplificado para mantener actualizado el tiempo del último mensaje
+  useEffect(() => {
+    // Función que actualiza la hora usando los mensajes del store global
+    const updateLastMessageTime = () => {
+      // Obtener todos los mensajes de la tienda global
+      const msgs = useMessageStore.getState().messages;
+      
+      // Filtrar solo los mensajes de esta conversación
+      const conversationMsgs = msgs.filter(m => 
+        m.conversationId === conversation.conversationid
+      );
+      
+      // Si no hay mensajes, salir
+      if (conversationMsgs.length === 0) return;
+      
+      // Ordenar por timestamp de más reciente a más antiguo
+      const sortedMsgs = [...conversationMsgs].sort((a, b) => {
+        // Normalizar timestamps a números
+        const timeA = typeof a.sentAt === 'number' ? a.sentAt : parseInt(String(a.sentAt), 10) || 0;
+        const timeB = typeof b.sentAt === 'number' ? b.sentAt : parseInt(String(b.sentAt), 10) || 0;
+        return timeB - timeA; // Orden descendente (más reciente primero)
+      });
+      
+      // Tomar el primer mensaje (el más reciente)
+      const mostRecentMsg = sortedMsgs[0];
+      
+      // Formatear la hora y actualizar el estado
+      if (mostRecentMsg?.sentAt) {
+        const formattedTime = formatTime(mostRecentMsg.sentAt);
+        // Actualizar el estado directamente sin persistencia
+        setLastMessageTime(formattedTime);
+      }
+    };
+    
+    // Ejecutar inmediatamente al montar/cambiar la conversación
+    updateLastMessageTime();
+    
+    // Crear un intervalo para verificar cambios constantemente
+    const checkInterval = setInterval(updateLastMessageTime, 1000);
+    
+    // Crear una suscripción al store de mensajes para actualizar cuando cambie
+    const unsubscribe = useMessageStore.subscribe(state => {
+      // Solo actualizar, ya que en la función de actualización
+      // obtenemos los mensajes más recientes del store
+      updateLastMessageTime();
+    });
+    
+    // Limpiar recursos al desmontar
+    return () => {
+      clearInterval(checkInterval);
+      unsubscribe();
+    };
+  }, [conversation.conversationid]); // Solo dependemos del ID de conversación
+  
   const changeView = () => {
+    // Track the click to help debug any infinite loop issues
+    console.log(`ConversationCard clicked for conversation ${conversation.conversationid}`);
+    
     if (isNotAssigned) {
       confirmDialog({
         message: "¿Desea aceptar esta conversación?",
         header: "Confirmación",
         icon: "pi pi-exclamation-triangle",
         accept: async () => {
-          await axiosInstance.get(`conversation/acceptConversation/${conversation.conversationid}/${user.userId}`)
-            .then(() => {
-              showSuccess("Conversación aceptada")
-              setActiveConversation(conversation)
-              refetchConversations && refetchConversations()
-            })
-            .catch((error) => {
-              showError("Error al aceptar la conversación")
-              console.error("Error al aceptar la conversación:", error)
-            })
+          try {
+            // Accept the conversation through the API
+            await axiosInstance.get(`conversation/acceptConversation/${conversation.conversationid}/${user.userId}`);
+            
+            showSuccess("Conversación aceptada");
+            
+            // Set as active conversation, store will handle preventing duplicate sets
+            setActiveConversation({
+              ...conversation,
+              // We could add additional metadata here if needed
+            });
+            
+            // Refresh the conversations list if needed
+            if (refetchConversations) {
+              await refetchConversations();
+            }
+          } catch (error) {
+            showError("Error al aceptar la conversación");
+            console.error("Error al aceptar la conversación:", error);
+          }
         },
-        reject: () => {}
-      })
+        reject: () => {
+          // No action needed on rejection
+        }
+      });
     } else {
-      setActiveConversation(conversation)
+      // Check if already active to prevent unnecessary state updates
+      const activeId = useChatStore.getState().activeConversation?.conversationid;
+      if (activeId === conversation.conversationid) {
+        // This conversation is already active, no need to update
+        console.log(`Conversation ${conversation.conversationid} is already active, skipping selection`);
+        return;
+      }
+      
+      // Set as active conversation through the store
+      // The enhanced store will handle preventing duplicate API calls
+      setActiveConversation(conversation);
     }
   }
 
@@ -54,38 +294,85 @@ const ConversationCard: React.FC<props> = ({ conversation, isNotAssigned, refetc
   }
 
   return (
-    <div
-      className="flex flex-nowrap justify-content-between align-items-center border-1 surface-border border-round p-3 cursor-pointer
-      select-none hover:surface-hover transition-colors transition-duration-150"
-      onClick={changeView}
-      tabIndex={0}
-    >
+    <>
+      {/* Estilos CSS para la animación del badge */}
+      <style jsx global>{`
+        @keyframes pulse {
+          0% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+      `}</style>
+      
+      <div
+        className="flex flex-nowrap justify-content-between align-items-center border-1 surface-border border-round p-3 cursor-pointer
+        select-none hover:surface-hover transition-colors transition-duration-150"
+        onClick={changeView}
+        tabIndex={0}
+      >
       <div className="flex align-items-center">
         <div className="relative md:mr-3">
-          <img
-            src="/demo/images/avatar/circle/avatar_blank.webp"
-            alt="avatar"
-            className="w-3rem h-3rem border-circle shadow-4 cursor-pointer"
-            onClick={openSidebar}
-          />
-          <span
-            className={classNames(
-              "w-1rem h-1rem border-circle border-2 surface-border absolute",
-              {
-                "bg-green-400": "active"
-              }
-            )}
-            style={{ bottom: "2px", right: "2px" }}
-          ></span>
+          <div className="relative">
+            <img
+              src="/demo/images/avatar/circle/avatar_blank.webp"
+              alt="avatar"
+              className="w-3rem h-3rem border-circle shadow-4 cursor-pointer"
+              onClick={openSidebar}
+            />
+            <span
+              className={classNames(
+                "w-1rem h-1rem border-circle border-2 surface-border absolute",
+                {
+                  "bg-green-400": "active"
+                }
+              )}
+              style={{ bottom: "2px", right: "2px" }}
+            ></span>
+            
+            {/* Badge de notificación para mensajes no leídos - siempre visible */}
+            <span 
+              className={`absolute flex align-items-center justify-content-center border-circle ${unreadCount > 0 ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'} font-bold`}
+              style={{
+                top: '-5px',
+                right: '-5px',
+                width: unreadCount > 99 ? '22px' : unreadCount > 9 ? '20px' : '18px',
+                height: unreadCount > 99 ? '22px' : unreadCount > 9 ? '20px' : '18px',
+                fontSize: unreadCount > 99 ? '10px' : '11px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                zIndex: 2,
+                animation: unreadCount > 0 ? 'pulse 1.5s infinite ease-in-out' : 'none',
+                transformOrigin: 'center',
+                border: unreadCount === 0 ? '1px solid #ddd' : 'none'
+              }}
+              title={unreadCount > 0 ? 
+                `${unreadCount} mensaje${unreadCount > 1 ? 's' : ''} sin leer` : 
+                'No hay mensajes sin leer'}
+            >
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          </div>
         </div>
         <div className="flex-column hidden md:flex">
-          <span className="text-900 font-semibold block">
-            +{conversation.indicative + " " + conversation.destination_number}
-          </span>
+          <div className="flex justify-content-between align-items-center w-full">
+            <span className="text-900 font-semibold block">
+              +{conversation.indicative + " " + conversation.destination_number}
+            </span>
+            {/* Mostrar la hora del último mensaje (se actualiza automáticamente) */}
+            <span className="text-500 text-sm ml-3" title="Hora del último mensaje">
+              {lastMessageTime || "--:--"}
+            </span>
+          </div>
         </div>
       </div>
     </div>
+    </>
   )
 }
 
-export default ConversationCard
+export default ConversationCard;

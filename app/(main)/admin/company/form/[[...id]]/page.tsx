@@ -115,7 +115,21 @@ const CompanyFormPage = () => {
           onClickAction()
         })
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* Justificación: Omitimos params, updateFormToEdit, showError y onClickAction como dependencias
+     * para evitar múltiples llamadas a la API cuando estos valores cambien. Este efecto está
+     * diseñado para ejecutarse solo una vez al cargar el componente, ya que su propósito es
+     * inicializar el formulario con datos existentes cuando se está en modo de edición.
+     *
+     * Si se incluyeran estas dependencias (params.id, updateFormToEdit, showError y onClickAction),
+     * cada cambio en ellas podría desencadenar solicitudes innecesarias a la API o ciclos
+     * de renderizado no deseados. Específicamente:
+     * - params.id: Sólo necesitamos verificar una vez al inicio
+     * - updateFormToEdit: Es estable durante la vida del componente
+     * - showError: Está ligado al contexto del toast y no queremos reaccionar a sus cambios
+     * - onClickAction: Es estable y sólo se usa en caso de error
+     */
+  }, []) // Solo se ejecuta una vez al montar el componente
 
   const onCancel: () => void = () => onClickAction()
 

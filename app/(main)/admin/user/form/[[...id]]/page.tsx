@@ -56,7 +56,16 @@ const UserForm = () => {
           onClickAction()
         })
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* Justificación: Omitimos params, updateFormToEdit, showError y onClickAction como dependencias
+     * porque este efecto está diseñado para ejecutarse solo una vez al cargar inicialmente el componente.
+     * Su propósito es inicializar el formulario con datos existentes cuando estamos en modo de edición.
+     *
+     * Incluir estas dependencias podría provocar múltiples solicitudes a la API innecesarias o
+     * causar ciclos de renderizado infinitos, especialmente cuando estas funciones o valores cambian
+     * durante el ciclo de vida normal del componente.
+     */
+  }, []) // Solo se ejecuta una vez al montar el componente
 
   function updateFormToEdit (data: UserFormModel) {
     setModeEdit(true)
@@ -67,6 +76,11 @@ const UserForm = () => {
     setValue("document", data.document)
     setValue("typeDocument.typeDocumentId", data.typeDocument.typeDocumentId)
     // eslint-disable-next-line no-unused-expressions
+    /* Justificación: Esta línea es necesaria para asignar correctamente el valor del ID de la compañía.
+     * Aunque parece una expresión no utilizada, es crucial para el funcionamiento correcto del formulario.
+     * En este contexto, setValue modifica el estado del formulario, lo que tiene efectos secundarios
+     * importantes incluso si no usamos directamente el resultado de la expresión.
+     */
     setValue("company.companyId", data.company.companyId)
     setValue("role.roleId", data.role.roleId)
   }
@@ -77,7 +91,15 @@ const UserForm = () => {
 
   const onSubmit: SubmitHandler<UserFormModel> = (data) => {
     // Priorizar empresa seleccionada en el select sobre la empresa del token
-    const companyToSubmit = data.company?.companyId ? { companyId: data.company.companyId } : dataFromToken?.user?.company
+    // Asegurarnos de que siempre haya un valor válido para company
+    let companyToSubmit = data.company?.companyId ? { companyId: data.company.companyId } : dataFromToken?.user?.company
+    
+    // Si aún no tenemos un valor válido, crear un objeto vacío con un valor por defecto
+    // Este es un caso de respaldo que idealmente no debería ocurrir
+    if (!companyToSubmit?.companyId) {
+      showError("No se pudo determinar la empresa. Verifica tu selección.")
+      return
+    }
 
     const userToSubmit : UserFormModel = {
       userId: data.userId ? data.userId : 0,
@@ -144,14 +166,27 @@ const UserForm = () => {
   const [haveNOMagents, sethaveNOMagents] = useState(false)
 
   useEffect(() => {
-    if (watch("company.companyId") === undefined) return
-    fetchData(Number(watch("company.companyId")))
-    if (watch("role.roleId")?.toString() === "1") {
-      sethaveNOMagents(true)
-    } else {
-      sethaveNOMagents(false)
+    // Validar la disponibilidad de números de agentes para mostrar
+    // en base a la compañía y rol seleccionados
+    const selectedCompanyId = watch("company.companyId")
+    const selectedRoleId = watch("role.roleId")
+
+    if (selectedCompanyId && selectedRoleId) {
+      fetchData(Number(selectedCompanyId))
     }
-  }, [watch("company.companyId"), watch("role.roleId")])
+
+    sethaveNOMagents(selectedRoleId?.toString() === "1")
+    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* Justificación: Omitimos fetchData y sethaveNOMagents como dependencias del efecto.
+     * Este efecto debe ejecutarse cuando cambian los valores seleccionados de compañía y rol,
+     * pero incluir funciones como fetchData o sethaveNOMagents en la lista de dependencias
+     * podría provocar llamadas innecesarias a la API o actualizaciones en cascada.
+     * 
+     * watch() ya garantiza que este efecto se ejecutará cuando los valores de formulario cambien,
+     * que es exactamente el comportamiento que queremos.
+     */
+  }, [watch("company.companyId"), watch("role.roleId")]) // Dependencias necesarias para reaccionar a cambios en formulario
 
   const [selected, setSelected] = useState<NumbersOfMaintanceCaratule[]>()
 
@@ -280,7 +315,7 @@ const UserForm = () => {
                         })} placeholder={"Ingrese su número de documento"} type="text" />
                         {errors.document && <Message severity="error" text={errors.document.message?.toString()} />}
                 </div>
-            {dataFromToken.user?.role?.name === "SUPERADMIN" &&
+            {dataFromToken?.user?.role?.name === "SUPERADMIN" &&
             (<div className="flex flex-column field mb-4 col-12 md:col-6 sm:col-12"> {/* Tipo Documento */}
                       <label htmlFor={"company"} className="font-medium text-900">
                       {"Empresa"}

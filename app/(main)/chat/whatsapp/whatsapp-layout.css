@@ -1,0 +1,52 @@
+/* Estilos para componentes específicos del chat de WhatsApp */
+
+/* Ajustes del layout general */
+.layout-content-wrapper.whatsapp-chat-active {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.layout-content.whatsapp-chat-active {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+}
+
+/* Ajustes para el modo reveal del sidebar */
+.layout-container.layout-reveal .layout-content-wrapper.whatsapp-chat-active {
+  margin-right: 0 !important;
+}
+
+/* Estilos para el sidebar de chat */
+#whatsapp-chat-sidebar {
+  margin-left: 10px !important;
+}
+
+/* Estilos para las tarjetas del chat */
+.whatsapp-chat-card {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+}
+
+/* Corrección de problemas de DOM */
+.chat-message-container {
+  position: relative;
+}
+
+/* Mejorar estabilidad del contenedor de mensajes */
+.chat-messages {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* Estilos para mensajes individuales para evitar problemas de DOM */
+.chat-message {
+  position: relative;
+  margin-bottom: 8px;
+}

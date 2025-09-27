@@ -12,7 +12,8 @@
                 top: 0;
                 transition: transform 0.3s cubic-bezier(0, 0, 0.2, 1);
                 transform: translateX(-14.75rem);
-                z-index: 999;
+                z-index: 1; /* Cambiamos de 999 a 1 para no estar por encima */
+                position: fixed; /* Fijamos la posición */
 
                 .sidebar-header {
                     display: flex;
@@ -95,13 +96,15 @@
             &.layout-reveal {
                 .layout-content-wrapper {
                     margin-left: 4.25rem;
-                    transition: margin-left 0.3s cubic-bezier(0, 0, 0.2, 1);
+                    transition: margin-left 0.3s cubic-bezier(0, 0, 0.2, 1), width 0.3s cubic-bezier(0, 0, 0.2, 1);
+                    width: calc(100% - 4.25rem);
                 }
             }
 
             &.layout-sidebar-active {
                 .layout-sidebar {
                     transform: translateX(0);
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
                     .layout-menu-container {
                         overflow: auto;
                     }
@@ -196,6 +199,7 @@
 
                 .layout-content-wrapper {
                     margin-left: 18rem;
+                    width: calc(100% - 18rem);
                 }
             }
         }

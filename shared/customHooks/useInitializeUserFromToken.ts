@@ -15,7 +15,7 @@ export const useInitializeUserFromToken = () => {
     if (!token) return
 
     try {
-      const dataToken: JWTAuth = getDataFromToken(token)
+      const dataToken = getDataFromToken(token)
       if (dataToken?.user) {
         setUserStore(dataToken.user)
       } else {

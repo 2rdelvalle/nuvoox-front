@@ -18,13 +18,22 @@ const UserPage = () => {
   const { onClickAction } = usePush(ADMIN_ROUTES.USER.CREATE)
 
   // Obtén el dataToken
-  const dataToken = getDataFromToken(getCookieToken() || "").user
+  const tokenData = getDataFromToken(getCookieToken() || "")
+  const dataToken = tokenData?.user
 
   // Usa el nuevo hook
-  const { responseData: users, isLoading, fetchData } = useFetchWithParams(_users.getCaratulesFromUserCompany)
+  const { responseData: users, isLoading, fetchData, setResponseData } = useFetchWithParams(_users.getCaratulesFromUserCompany)
 
   // Configura las columnas y el callback
-  const { columns } = COLUMNS_USER({ callback: () => fetchData(dataToken) })
+  const { columns } = COLUMNS_USER({ 
+    callback: () => {
+      if (dataToken) {
+        fetchData(dataToken)
+      }
+    },
+    users: Array.isArray(users) ? users : [],
+    setUsers: setResponseData
+  })
 
   // Llama a fetchData al cargar la página
   useEffect(() => {
@@ -33,6 +42,14 @@ const UserPage = () => {
     }
   }, [])
 
+  // Filtrar usuarios activos (status !== "I")
+  const activeUsers = Array.isArray(users) 
+    ? users.filter(user => user.status !== "I") 
+    : [];
+
+  // Registrar en consola para depuración
+  console.log(`[INFO] Total usuarios: ${users?.length || 0}, Usuarios activos: ${activeUsers.length}`);
+
   return (
     <EmptyPage>
       <CustomToolbar
@@ -40,25 +57,25 @@ const UserPage = () => {
         startStatus
         startNew={onClickAction}
         endStatus
-        downloadExcel={() => downloadExcel(users)}
+        downloadExcel={() => downloadExcel(activeUsers)}
         downloadPdf={() => showError("No implementado")}
       />
       <TableFilter
         size="small"
         dataKey="userId"
         rowsPerPage={5}
-        dataMenu={users}
+        dataMenu={activeUsers}
         headerTableName={() => (
           <InfoMessage
             message={
-              "A continuación se listan los usuarios registrados en el sistema. Solo aparecerán los últimos 50 usuarios"
+              "A continuación se listan los usuarios activos en el sistema. Los usuarios desactivados no aparecen en esta lista."
             }
           />
         )}
         columns={columns}
-        emptyMessage={"No se encontraron usuarios"}
+        emptyMessage={"No se encontraron usuarios activos"}
         loading={isLoading}
-        headerCardName={"Listado de Usuarios"}
+        headerCardName={"Listado de Usuarios Activos"}
       />
     </EmptyPage>
   )

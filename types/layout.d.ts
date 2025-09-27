@@ -166,6 +166,7 @@ export interface MenuModel {
     url?: string;
     target?: HTMLAttributeAnchorTarget;
     seperator?: boolean;
+    requiresPermission?: string; // Campo opcional para validación condicional de permisos
 }
 
 export interface UseSubmenuOverlayPositionProps {

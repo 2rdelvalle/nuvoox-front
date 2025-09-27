@@ -6,6 +6,9 @@ export interface CodeCountries {
   country_name: string;
   phone_code: number;
 }
+/**
+ * Interfaz que representa una conversación de WhatsApp
+ */
 export interface Conversation {
     id?: number;
     indicative: number;
@@ -17,6 +20,11 @@ export interface Conversation {
     image? : string
     conversationid? : number
     phone: string;
+    /**
+     * Número de mensajes no leídos en esta conversación
+     * Utilizado para mostrar notificaciones y contadores en la UI
+     */
+    unreadCount?: number;
   }
 
 export interface ConversationCaratule {
@@ -26,4 +34,5 @@ export interface ConversationCaratule {
   start: string;
   end: string;
   phone: string;
+  agentName?: string; // Nombre personalizado para el agente
 }

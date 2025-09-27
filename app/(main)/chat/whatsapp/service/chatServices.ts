@@ -1,4 +1,11 @@
 import { WhatsAppResponseSendMessage } from "@/shared/models/conversation/messages.model"
+import {
+  TemplateBodyComponent,
+  TemplateButton,
+  TemplateButtonType,
+  TemplateButtonsComponent,
+  TemplateInteractiveComponent
+} from "@/shared/models"
 import { axiosInstance } from "@/shared/instances/axios-instance"
 
 interface Agent {
@@ -12,6 +19,20 @@ interface Group {
   id: string;
   name: string;
 }
+
+const buttonTypeToSubtype: Record<TemplateButtonType, "quick_reply" | "url" | "phone_number"> = {
+  QUICK_REPLY: "quick_reply",
+  URL: "url",
+  PHONE_NUMBER: "phone_number"
+}
+
+const isBodyComponent = (
+  component: TemplateInteractiveComponent
+): component is TemplateBodyComponent => component?.type === "body"
+
+const isButtonsComponent = (
+  component: TemplateInteractiveComponent
+): component is TemplateButtonsComponent => component?.type === "buttons" && Array.isArray(component.buttons)
 
 /**
  * Envía un mensaje simple (texto) a través de la API de WhatsApp.
@@ -176,13 +197,17 @@ export async function sendTemplateMessage (
     console.log(`[DEBUG] Información de plantilla: mediaUrl=${mediaUrl}, mediaType=${mediaType}`);
     
     // Crear la estructura de datos base para el mensaje
+    const templateLanguageCode = String(
+      templateData.language || templateData.languageTemplateWhatsapp || 'es'
+    ).toLowerCase();
+
     const messageData: any = {
       messaging_product: "whatsapp",
       to: recipientPhone,
       type: "template",
       template: {
         name: finalTemplateName,
-        language: { code: "es" }
+        language: { code: templateLanguageCode }
       }
     };
     
@@ -214,52 +239,141 @@ export async function sendTemplateMessage (
       isCorrectMediaType
     });
     
-    // Si es plantilla multimedia, agregar los componentes necesarios
-    if (isMultimedia && isMediaUrlValid && isHttpsUrl) {
-      console.log(`[DEBUG] Agregando componentes multimedia para plantilla: ${finalTemplateName}`);
-      
-      // Construir el header según el tipo de media del backend
-      let headerParameter;
-      if (mediaType === 'image') {
-        headerParameter = {
-          type: "image",
-          image: { link: mediaUrl }
-        };
-      } else if (mediaType === 'video') {
-        headerParameter = {
-          type: "video",
-          video: { link: mediaUrl }
-        };
-      } else if (mediaType === 'document') {
-        headerParameter = {
-          type: "document", 
-          document: { link: mediaUrl }
-        };
-      } else {
-        // Fallback para tipos no reconocidos, asumir imagen
-        console.warn(`[WARN] Tipo de media no reconocido: ${mediaType}, usando image como fallback`);
-        headerParameter = {
-          type: "image",
-          image: { link: mediaUrl }
-        };
-      }
-      
-      messageData.template.components = [
-        {
+    const outgoingComponents: any[] = [];
+
+    if (isMultimedia) {
+      if (isMediaUrlValid && isHttpsUrl) {
+        console.log(`[DEBUG] Agregando header multimedia para plantilla: ${finalTemplateName}`);
+
+        let headerParameter;
+        if (mediaType === 'image') {
+          headerParameter = {
+            type: "image",
+            image: { link: mediaUrl }
+          };
+        } else if (mediaType === 'video') {
+          headerParameter = {
+            type: "video",
+            video: { link: mediaUrl }
+          };
+        } else if (mediaType === 'document') {
+          headerParameter = {
+            type: "document",
+            document: { link: mediaUrl }
+          };
+        } else if (mediaType === 'audio') {
+          headerParameter = {
+            type: "audio",
+            audio: { link: mediaUrl }
+          };
+        } else {
+          console.warn(`[WARN] Tipo de media no reconocido: ${mediaType}, usando image como fallback`);
+          headerParameter = {
+            type: "image",
+            image: { link: mediaUrl }
+          };
+        }
+
+        outgoingComponents.push({
           type: "header",
           parameters: [headerParameter]
+        });
+      } else {
+        console.error(`[ERROR] Plantilla marcada como multimedia pero falta información válida:`, {
+          mediaUrl,
+          mediaType,
+          isMediaUrlValid,
+          isHttpsUrl
+        });
+      }
+    }
+
+    const backendComponents: TemplateInteractiveComponent[] = Array.isArray(templateData.components)
+      ? (templateData.components as TemplateInteractiveComponent[])
+      : [];
+
+    const bodyComponent = backendComponents.find(isBodyComponent);
+
+    if (bodyComponent) {
+      const bodyParameters: any[] = [];
+
+      if (Array.isArray(bodyComponent.parameters) && bodyComponent.parameters.length) {
+        bodyComponent.parameters.forEach((parameter) => {
+          if (parameter.type === 'text' && 'text' in parameter && parameter.text) {
+            bodyParameters.push({ type: 'text', text: parameter.text });
+          }
+
+          if (parameter.type === 'payload' && 'payload' in parameter && parameter.payload) {
+            bodyParameters.push({ type: 'payload', payload: parameter.payload });
+          }
+        });
+      } else if (bodyComponent.text) {
+        bodyParameters.push({ type: 'text', text: bodyComponent.text });
+      }
+
+      if (bodyParameters.length) {
+        outgoingComponents.push({
+          type: 'body',
+          parameters: bodyParameters
+        });
+      }
+    }
+
+    const buttonsComponent = backendComponents.find(isButtonsComponent);
+
+    if (buttonsComponent?.buttons?.length) {
+      buttonsComponent.buttons.forEach((button: TemplateButton, index: number) => {
+        if (!button?.type || !button.text) {
+          return;
         }
-      ];
-      
-      console.log(`[DEBUG] Componentes agregados: ${JSON.stringify(messageData.template.components)}`);
-    } else if (isMultimedia) {
-      // Si se identifica como multimedia pero falta información, alertar
-      console.error(`[ERROR] Plantilla marcada como multimedia pero falta información válida:`, {
-        mediaUrl,
-        mediaType,
-        isMediaUrlValid,
-        isHttpsUrl
+
+        const subtype = buttonTypeToSubtype[button.type];
+        if (!subtype) {
+          console.warn(`[WARN] Tipo de botón no soportado: ${button.type}`);
+          return;
+        }
+
+        const buttonParameters: any[] = [];
+
+        if (button.type === 'QUICK_REPLY') {
+          const payloadValue = button.payload?.trim() || button.text.trim();
+          if (payloadValue) {
+            buttonParameters.push({ type: 'payload', payload: payloadValue });
+          }
+        } else if (button.type === 'URL') {
+          const urlValue = button.url?.trim();
+          if (urlValue) {
+            buttonParameters.push({ type: 'text', text: urlValue });
+          }
+        } else if (button.type === 'PHONE_NUMBER') {
+          const phoneValue = button.phoneNumber?.trim();
+          if (phoneValue) {
+            buttonParameters.push({ type: 'text', text: phoneValue });
+          }
+        }
+
+        const graphButton: any = {
+          type: 'button',
+          sub_type: subtype,
+          index: String(index)
+        };
+
+        if (buttonParameters.length) {
+          graphButton.parameters = buttonParameters;
+        }
+
+        outgoingComponents.push(graphButton);
       });
+    }
+
+    const hasSectionsComponent = backendComponents.some((component) => component?.type === 'sections');
+    if (hasSectionsComponent) {
+      console.warn('[WARN] Se detectaron secciones en la plantilla, pero las listas no son compatibles con mensajes de plantilla de la Graph API.');
+    }
+
+    if (outgoingComponents.length) {
+      messageData.template.components = outgoingComponents;
+      console.log(`[DEBUG] Componentes finales a enviar: ${JSON.stringify(outgoingComponents)}`);
     }
 
     const response = await fetch(apiUrl, {

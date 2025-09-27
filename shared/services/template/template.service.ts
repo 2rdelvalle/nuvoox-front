@@ -32,8 +32,8 @@ const TemplateService = {
    */
   saveMultimedia: async (multimediaTemplate: MultimediaTemplateModel) => {
     try {
-      const response = await axios.post<TemplateModel>(
-        `${templateEndpoint}/multimedia`, 
+      const response = await axios.post<MultimediaTemplateModel>(
+        `${templateEndpoint}/multimedia`,
         multimediaTemplate
       );
       return response;

@@ -8,6 +8,7 @@ import {
   TemplateService as _template
 } from "@/shared/services/index"
 import { COLUMNS_TEMPLATE } from "@/shared/services/template"
+import type { NormalizedTemplate } from "@/shared/services/template/template-normalizer"
 import CustomToolbar from "@/shared/small-components/CustomToolbar/customToolbar"
 import EmptyPage from "@/shared/small-components/EmptyPage/emptyPage"
 import InfoMessage from "@/shared/small-components/InfoMessage/infoMessage"
@@ -26,7 +27,8 @@ const TemplatesPage = () => {
 
   useInitializeUserFromToken()
   const { onClickAction } = usePush(ADMIN_ROUTES.TEMPLATE.CREATE)
-  const { fetchData, responseData: templates, isLoading } = useFetchWithParams(_template.getAllByCompany)
+  const { fetchData, responseData, isLoading } = useFetchWithParams<number>(_template.getAllByCompany)
+  const templates: NormalizedTemplate[] = Array.isArray(responseData) ? responseData : []
   // Extraemos las funciones y componentes del servicio de columnas
   const { columns, PreviewTemplate, previewTemplate, previewVisible, hidePreview } = COLUMNS_TEMPLATE()
   const { data } = useRealtimeTemplate(`${process.env.NEXT_PUBLIC_SOCKET_URL}`)

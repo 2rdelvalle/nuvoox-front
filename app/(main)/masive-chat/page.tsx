@@ -317,7 +317,9 @@ const MasiveChat: React.FC = () => {
             }
 
             // Obtener las dos primeras letras del nombre de la empresa
-            const companyInitials = dataFromToken.user.company.name.substring(0, 2);
+            const companyInitials = (dataFromToken?.user?.company?.name && typeof dataFromToken.user.company.name === 'string') 
+              ? dataFromToken.user.company.name.substring(0, 2) 
+              : 'EM';
             
             // Actualizar costos según categoría de la plantilla
             const template = dataTemplates.find((t: any) => t.name === row.templateName);
@@ -457,7 +459,9 @@ const MasiveChat: React.FC = () => {
                   maintRecord.idNumberPhone as any, // senderId desde numbersOfMaintance
                   row.templateName,
                   companyId,
-                  dataFromToken.user.company.name.substring(0, 2)
+                  (dataFromToken?.user?.company?.name && typeof dataFromToken.user.company.name === 'string') 
+                    ? dataFromToken.user.company.name.substring(0, 2) 
+                    : 'EM'
                 );
                 
                 // Log detallado del éxito

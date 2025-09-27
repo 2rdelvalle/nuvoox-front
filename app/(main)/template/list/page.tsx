@@ -1,7 +1,6 @@
 "use client"
 import { useToast } from "@/shared/context/toast/toastContext"
 import { usePush } from "@/shared/customHooks/usePush"
-import { useFetchWithParams } from "@/shared/hooks/useFetchWithParams"
 import useRealtimeTemplate from "@/shared/hooks/useRealtimeTemplate"
 import { ADMIN_ROUTES } from "@/shared/routes/admin.routes"
 import {
@@ -27,8 +26,13 @@ const TemplatesPage = () => {
 
   useInitializeUserFromToken()
   const { onClickAction } = usePush(ADMIN_ROUTES.TEMPLATE.CREATE)
-  const { fetchData, responseData, isLoading } = useFetchWithParams<number>(_template.getAllByCompany)
-  const templates: NormalizedTemplate[] = Array.isArray(responseData) ? responseData : []
+  const [templates, setTemplates] = useState<NormalizedTemplate[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  const templateFetcher = useCallback(async (companyId: number) => {
+    const response = await _template.getAllByCompany(companyId)
+    return response.data
+  }, [])
   // Extraemos las funciones y componentes del servicio de columnas
   const { columns, PreviewTemplate, previewTemplate, previewVisible, hidePreview } = COLUMNS_TEMPLATE()
   const { data } = useRealtimeTemplate(`${process.env.NEXT_PUBLIC_SOCKET_URL}`)
@@ -48,17 +52,22 @@ const TemplatesPage = () => {
   const THROTTLE_TIME = 5000; // 5 segundos entre actualizaciones para evitar sobrecarga
   
   // Usamos useCallback para memorizar la función fetchData y evitar re-renders innecesarios
-  const fetchTemplates = useCallback(() => {
-    // Solo hacer fetch si hay un ID de compañía válido
+  const fetchTemplates = useCallback(async () => {
     if (!user?.company?.companyId) {
-      return;
+      return
     }
-    
-    fetchData(user.company.companyId);
-  }, [fetchData, user?.company?.companyId])
 
-  // Estado para mostrar notificaciones de actualizaciones
-  const [lastEventType, setLastEventType] = useState<string | null>(null);
+    try {
+      setIsLoading(true)
+      const data = await templateFetcher(user.company.companyId)
+      setTemplates(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error("Error al obtener plantillas", error)
+      showError("No se pudieron cargar las plantillas. Intenta nuevamente.")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [showError, templateFetcher, user?.company?.companyId])
 
   // Un solo efecto unificado para manejar la carga de datos
   useEffect(() => {
@@ -102,8 +111,6 @@ const TemplatesPage = () => {
     }
     
     const eventType = data.eventType;
-    setLastEventType(eventType);
-    
     // Actualización solo para eventos específicos
     if (['approval', 'rejection', 'creation'].includes(eventType)) {
       console.log(`🔄 Evento importante de plantilla detectado: ${eventType}`);

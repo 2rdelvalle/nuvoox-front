@@ -115,6 +115,11 @@ export default function InteractivePreview() {
   const safeTemplateText = typeof templateText === 'string' ? templateText : ''
   const interactive = watch("interactive") ?? defaultInteractiveValues
 
+  // TEMP DEBUG LOG - REMOVE AFTER FIXING
+  console.log('DEBUG InteractivePreview: templateText raw:', templateText, typeof templateText);
+  console.log('DEBUG InteractivePreview: safeTemplateText:', safeTemplateText);
+  console.log('DEBUG InteractivePreview: interactive:', interactive);
+
   const sectionsWithRows = useMemo(
     () => (interactive.listSections ?? []).filter((section) => section.rows.length > 0),
     [interactive.listSections],

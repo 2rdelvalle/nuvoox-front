@@ -1,3 +1,5 @@
+import { TemplateInteractiveComponent } from "./template.model"
+
 /**
  * Tipos de medios soportados para plantillas multimedia
  */
@@ -57,4 +59,9 @@ export interface MultimediaTemplateModel {
    * Texto principal del mensaje
    */
   text: string;
+
+  /**
+   * Componentes interactivos de la plantilla multimedia
+   */
+  components?: TemplateInteractiveComponent[];
 }
